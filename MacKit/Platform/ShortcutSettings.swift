@@ -32,21 +32,26 @@ struct AppShortcut: Codable, Equatable {
 
 @MainActor @Observable
 final class ShortcutSettings {
-    private(set) var show: AppShortcut
-    private(set) var clean: AppShortcut
-    init() {
-        show = Self.read("shortcut.show") ?? .showDefault
-        clean = Self.read("shortcut.clean") ?? .cleanDefault
+    private(set) var show: AppShortcut?
+    private(set) var clean: AppShortcut?
+    private let defaults: UserDefaults
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        show = Self.read("shortcut.show", defaultValue: .showDefault, defaults: defaults)
+        clean = Self.read("shortcut.clean", defaultValue: .cleanDefault, defaults: defaults)
     }
-    private static func read(_ key: String) -> AppShortcut? {
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let shortcut = try? JSONDecoder().decode(AppShortcut.self, from: data),
-              shortcut.keyCode < 128, shortcut.modifiers & UInt32(cmdKey | controlKey | optionKey) != 0 else { return nil }
-        return shortcut
+    private static func read(_ key: String, defaultValue: AppShortcut, defaults: UserDefaults) -> AppShortcut? {
+        guard let data = defaults.data(forKey: key) else { return defaultValue }
+        do {
+            // A stored JSON null means intentionally disabled, not an absent preference.
+            guard let shortcut = try JSONDecoder().decode(AppShortcut?.self, from: data) else { return nil }
+            guard shortcut.keyCode < 128, shortcut.modifiers & UInt32(cmdKey | controlKey | optionKey) != 0 else { return defaultValue }
+            return shortcut
+        } catch { return defaultValue }
     }
-    func save(show: AppShortcut, clean: AppShortcut) {
+    func save(show: AppShortcut?, clean: AppShortcut?) {
         self.show = show; self.clean = clean
-        UserDefaults.standard.set(try? JSONEncoder().encode(show), forKey: "shortcut.show")
-        UserDefaults.standard.set(try? JSONEncoder().encode(clean), forKey: "shortcut.clean")
+        defaults.set(try? JSONEncoder().encode(show), forKey: "shortcut.show")
+        defaults.set(try? JSONEncoder().encode(clean), forKey: "shortcut.clean")
     }
 }

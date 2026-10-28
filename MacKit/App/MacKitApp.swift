@@ -9,7 +9,7 @@ struct MacKitApp: App {
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSMenuDelegate {
     let model = AppModel()
     private var window: NSWindow?
     private var hotkeys: GlobalHotKeys?
@@ -74,7 +74,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
             item.button?.image = NSImage(systemSymbolName: "square.grid.2x2", accessibilityDescription: "MacKit")
             item.button?.image?.isTemplate = true
             let menu = NSMenu()
-            for (title, selector) in [("打开 MacKit", #selector(openFromMenu)), ("开始清洁", #selector(cleanFromMenu)), ("退出 MacKit", #selector(quitFromMenu))] {
+            menu.delegate = self
+            for (title, selector) in [("打开主面板", #selector(openFromMenu)), ("打开清洁模式", #selector(cleanFromMenu)), ("启用访达剪切", #selector(toggleFinderFromMenu)), ("退出MacKit", #selector(quitFromMenu))] {
                 let entry = NSMenuItem(title: title, action: selector, keyEquivalent: "")
                 entry.target = self; menu.addItem(entry)
             }
@@ -84,7 +85,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         }
     }
     @objc private func openFromMenu() { showWindow() }
-    @objc private func cleanFromMenu() { model.cleaning.begin() }
+    @objc private func cleanFromMenu() { model.page = .cleaning; showWindow() }
+    @objc private func toggleFinderFromMenu() { model.finderCut.setEnabled(!model.finderCut.enabled) }
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        menu.items.first(where: { $0.action == #selector(toggleFinderFromMenu) })?.title = model.finderCut.enabled ? "关闭访达剪切" : "启用访达剪切"
+    }
     @objc private func quitFromMenu() { NSApp.terminate(nil) }
     @objc private func toggleSidebar() { model.sidebarVisible.toggle() }
 
@@ -104,5 +109,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
-    func applicationWillTerminate(_ notification: Notification) { model.uninstaller.stop(); model.cleaning.onActivity = nil; model.cleaning.stop(); model.finderCut.stop(); hotkeys?.stop() }
+    func applicationWillTerminate(_ notification: Notification) { model.cleaning.onActivity = nil; model.cleaning.stop(); model.finderCut.stop(); hotkeys?.stop() }
 }

@@ -1,17 +1,26 @@
 import SwiftUI
 
 struct ShortcutRecorder: View {
-    let shortcut: AppShortcut
-    let save: (AppShortcut) -> String?
+    let shortcut: AppShortcut?
+    let save: (AppShortcut?) -> String?
     let recordingChanged: (Bool) -> Void
     @State private var recording = false
     @State private var monitor: Any?
     @State private var error: String?
     var body: some View {
         VStack(alignment: .trailing, spacing: 5) {
-            Button(recording ? "按下新组合键…" : shortcut.label) {
+            HStack(spacing: 8) {
+            Button(recording ? "按下新组合键…" : (shortcut?.label ?? "未设置")) {
                 if recording { finish() } else { start() }
             }.monospaced().frame(minWidth: 128, alignment: .trailing)
+            Button {
+                finish()
+                error = save(nil)
+            } label: { Image(systemName: "xmark.circle.fill") }
+                .buttonStyle(.plain).foregroundStyle(.secondary)
+                .help("清空快捷键").accessibilityLabel("清空快捷键")
+                .disabled(shortcut == nil && !recording)
+            }
             if let error { Text(error).font(.caption).foregroundStyle(.orange).frame(maxWidth: 240, alignment: .trailing) }
             if recording { Text("Esc 取消 · 含 ⌘ / ⌃ / ⌥").font(.caption2).foregroundStyle(.secondary) }
         }.onDisappear { finish() }

@@ -1,7 +1,7 @@
 import Foundation
 
 public enum FeatureID: String, CaseIterable, Sendable {
-    case cleaning, finderCut, uninstaller
+    case cleaning, finderCut
 }
 
 @MainActor

@@ -7,42 +7,38 @@ struct FinderCutView: View {
             PageHeader(title: "访达剪切", subtitle: "熟悉的快捷键，更自然的文件移动。", symbol: "scissors")
             SettingsCard {
                 HStack {
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("剪切与粘贴").font(.headline)
-                        Text("仅在 访达的文件浏览区域生效。")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
+                    Text("使用 ⌘ X 剪切").font(.headline)
                     Spacer()
-                    Toggle("启用 访达剪切", isOn: Binding(get: { service.enabled }, set: service.setEnabled))
+                    Toggle("使用 ⌘ X 剪切", isOn: Binding(get: { service.enabled }, set: service.setEnabled))
                         .labelsHidden().toggleStyle(.switch)
                 }
                 Divider()
-                HStack(spacing: 24) {
-                    shortcut("⌘ X", description: "标记待移动")
-                    Image(systemName: "arrow.right").foregroundStyle(.tertiary)
-                    shortcut("⌘ V", description: "移动到当前位置")
-                    Spacer()
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 24) { shortcuts }.fixedSize(horizontal: true, vertical: false)
+                    VStack(alignment: .leading, spacing: 16) { shortcuts }
                 }
             }
-            SettingsCard(title: "当前状态") {
-                Label(service.status, systemImage: service.pendingCount > 0 ? "arrow.right.doc.on.clipboard" : "info.circle")
-                HStack {
-                    Button("取消待移动") { service.cancel() }.disabled(service.pendingCount == 0)
-                    Button("刷新状态") { service.sync(); service.refreshBadges() }
-                }
+            PermissionCard(title: "剪切角标", subtitle: service.badgeStatus) {
+                Button("管理扩展…") { service.openExtensionSettings() }
             }
-            SettingsCard(title: "待移动角标") {
-                Text(service.badgeStatus).font(.callout).foregroundStyle(.secondary)
-                Button("管理 访达扩展…") { service.openExtensionSettings() }
-            }
-            Text("⌘C 保留复制行为。文本框中的剪切、粘贴不受影响；按 Esc 可取消文件的待移动状态。")
-                .font(.caption).foregroundStyle(.secondary)
-        }
+        }.onAppear { service.sync(); service.refreshBadges() }
     }
-    private func shortcut(_ key: String, description: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(key).font(.system(size: 22, weight: .medium, design: .monospaced))
-            Text(description).font(.caption).foregroundStyle(.secondary)
-        }.padding(.vertical, 6)
+    @ViewBuilder private var shortcuts: some View {
+        shortcut(["⌘", "X"], description: "剪切")
+        shortcut(["⌘", "V"], description: "粘贴")
+        shortcut(["esc"], description: "取消剪切")
+    }
+    private func shortcut(_ keys: [String], description: String) -> some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 4) {
+                ForEach(keys, id: \.self) { key in
+                    Text(key).font(.system(size: 13, weight: .medium))
+                        .frame(minWidth: key == "esc" ? 34 : 25, minHeight: 27)
+                        .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 5))
+                        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Color.primary.opacity(0.12)))
+                }
+            }
+            Text(description).font(.body)
+        }
     }
 }

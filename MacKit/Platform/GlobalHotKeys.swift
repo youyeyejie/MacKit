@@ -29,7 +29,7 @@ final class GlobalHotKeys {
     /// Replace both registrations atomically from the user's perspective.
     /// If either shortcut is occupied, restore the previous pair.
     @discardableResult
-    func configure(show: AppShortcut, clean: AppShortcut) -> Bool {
+    func configure(show: AppShortcut?, clean: AppShortcut?) -> Bool {
         let previous = current
         unregister()
         if register([show, clean]) { current = [show, clean]; error = nil; return true }
@@ -39,13 +39,14 @@ final class GlobalHotKeys {
         error = failure
         return false
     }
-    private var current: [AppShortcut] = []
+    private var current: [AppShortcut?] = []
     func suspend() { unregister() }
     func resume() { unregister(); _ = register(current) }
     private func unregister() { hotkeys.forEach { UnregisterEventHotKey($0) }; hotkeys.removeAll() }
-    private func register(_ shortcuts: [AppShortcut]) -> Bool {
+    private func register(_ shortcuts: [AppShortcut?]) -> Bool {
         guard handler != nil else { return false }
         for (index, shortcut) in shortcuts.enumerated() {
+            guard let shortcut else { continue }
             var reference: EventHotKeyRef?
             let id = EventHotKeyID(signature: 0x4D4B4954, id: UInt32(index + 1))
             let result = RegisterEventHotKey(shortcut.keyCode, shortcut.modifiers, id,

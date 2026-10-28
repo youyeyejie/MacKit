@@ -7,10 +7,11 @@ final class AppModel {
     let permissions = PermissionService()
     let shortcuts = ShortcutSettings()
     var sidebarVisible = true
+    var page: AppPage? = .cleaning
     var showDock = UserDefaults.standard.bool(forKey: "appearance.showDock")
     var showMenuBar = UserDefaults.standard.bool(forKey: "appearance.showMenuBar")
     var appearanceChanged: (() -> Void)?
-    var registerShortcuts: ((AppShortcut, AppShortcut) -> String?)?
+    var registerShortcuts: ((AppShortcut?, AppShortcut?) -> String?)?
     var recordingChanged: ((Bool) -> Void)?
 
     func setDock(_ value: Bool) {
@@ -19,18 +20,17 @@ final class AppModel {
     func setMenuBar(_ value: Bool) {
         showMenuBar = value; UserDefaults.standard.set(value, forKey: "appearance.showMenuBar"); appearanceChanged?()
     }
-    func setShortcut(_ value: AppShortcut, forCleaning: Bool) -> String? {
+    func setShortcut(_ value: AppShortcut?, forCleaning: Bool) -> String? {
         let show = forCleaning ? shortcuts.show : value
         let clean = forCleaning ? value : shortcuts.clean
-        guard !show.conflicts(with: clean) else { return "两个功能不能使用相同快捷键" }
+        if let show, let clean, show.conflicts(with: clean) { return "两个功能不能使用相同快捷键" }
         if let error = registerShortcuts?(show, clean) { return error }
         shortcuts.save(show: show, clean: clean)
         return nil
     }
     let cleaning = CleaningService()
     let finderCut = FinderCutService()
-    let uninstaller = UninstallerService()
-    var loginStatus = "未启用"
+    private(set) var loginEnabled = false
     var message: String?
 
     init() {
@@ -39,13 +39,7 @@ final class AppModel {
     }
 
     func refreshLogin() {
-        switch SMAppService.mainApp.status {
-        case .enabled: loginStatus = "已启用"
-        case .requiresApproval: loginStatus = "等待系统批准"
-        case .notFound: loginStatus = "服务不可用，请从应用程序目录运行"
-        case .notRegistered: loginStatus = "未启用"
-        @unknown default: loginStatus = "未知状态"
-        }
+        loginEnabled = SMAppService.mainApp.status == .enabled
     }
 
     func setLogin(_ enabled: Bool) {

@@ -3,7 +3,7 @@ import ServiceManagement
 
 enum AppPage: String, CaseIterable, Identifiable {
     case settings = "软件设置", permissions = "权限管理", about = "关于 MacKit"
-    case cleaning = "清洁模式", finder = "访达剪切", uninstall = "应用卸载"
+    case cleaning = "清洁模式", finder = "访达剪切"
     var id: String { rawValue }
     var symbol: String {
         switch self {
@@ -12,7 +12,6 @@ enum AppPage: String, CaseIterable, Identifiable {
         case .about: "info.circle.fill"
         case .cleaning: "sparkles"
         case .finder: "scissors"
-        case .uninstall: "shippingbox.fill"
         }
     }
     var color: Color {
@@ -22,14 +21,12 @@ enum AppPage: String, CaseIterable, Identifiable {
         case .about: .blue
         case .cleaning: .teal
         case .finder: .blue
-        case .uninstall: .orange
         }
     }
 }
 
 struct MainView: View {
     @Bindable var model: AppModel
-    @State private var page: AppPage? = .cleaning
     var body: some View {
         HStack(spacing: 0) {
             if model.sidebarVisible {
@@ -42,18 +39,18 @@ struct MainView: View {
                     }
                     Spacer()
                 }.padding(.horizontal, 18).padding(.vertical, 22)
-                List(selection: $page) {
+                List(selection: $model.page) {
                     Section {
                         ForEach([AppPage.settings, .permissions, .about]) { item in navigationRow(item) }
                     }
                     Section("工具") {
-                        ForEach([AppPage.cleaning, .finder, .uninstall]) { item in navigationRow(item) }
+                        ForEach([AppPage.cleaning, .finder]) { item in navigationRow(item) }
                     }
                 }.listStyle(.sidebar)
                 VStack(spacing: 12) {
                     Divider()
                     HStack {
-                        Text("\(model.shortcuts.show.label) 唤起").font(.caption).foregroundStyle(.secondary)
+                        if let shortcut = model.shortcuts.show { Text("\(shortcut.label) 唤起").font(.caption).foregroundStyle(.secondary) }
                         Spacer()
                         Button { NSApp.terminate(nil) } label: { Image(systemName: "power") }
                             .buttonStyle(.plain).help("退出 MacKit")
@@ -64,13 +61,12 @@ struct MainView: View {
             }
 
             Group {
-                switch page ?? .cleaning {
+                switch model.page ?? .cleaning {
                 case .settings: settings
                 case .permissions: permissions
                 case .about: about
-                case .cleaning: CleaningView(service: model.cleaning, shortcut: model.shortcuts.clean.label)
+                case .cleaning: CleaningView(service: model.cleaning, shortcut: model.shortcuts.clean?.label)
                 case .finder: FinderCutView(service: model.finderCut)
-                case .uninstall: UninstallerView(service: model.uninstaller)
                 }
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -90,22 +86,24 @@ struct MainView: View {
             PageHeader(title: "软件设置", subtitle: "安静地留在后台，需要时随时唤起。", symbol: "gearshape.fill", color: .gray)
             SettingsCard(title: "启动与运行") {
                 HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("登录后启动")
-                        Text(model.loginStatus).font(.caption).foregroundStyle(.secondary)
-                    }
+                    Text("登录后启动")
                     Spacer()
-                    Toggle("登录后启动", isOn: Binding(get: { SMAppService.mainApp.status == .enabled }, set: model.setLogin)).labelsHidden().toggleStyle(.switch)
+                    Toggle("登录后启动", isOn: Binding(get: { model.loginEnabled }, set: model.setLogin)).labelsHidden().toggleStyle(.switch)
                 }
-                Divider()
-                Text("关闭窗口后，已启用的功能会继续运行。可通过快捷键或 Spotlight 再次打开。")
-                    .font(.callout).foregroundStyle(.secondary)
 
             }
             SettingsCard(title: "显示位置") {
-                Toggle("在 Dock 中显示", isOn: Binding(get: { model.showDock }, set: model.setDock)).toggleStyle(.switch)
+                HStack {
+                    Text("在 Dock 中显示")
+                    Spacer()
+                    Toggle("在 Dock 中显示", isOn: Binding(get: { model.showDock }, set: model.setDock)).labelsHidden().toggleStyle(.switch)
+                }
                 Divider()
-                Toggle("在菜单栏中显示", isOn: Binding(get: { model.showMenuBar }, set: model.setMenuBar)).toggleStyle(.switch)
+                HStack {
+                    Text("在菜单栏中显示")
+                    Spacer()
+                    Toggle("在菜单栏中显示", isOn: Binding(get: { model.showMenuBar }, set: model.setMenuBar)).labelsHidden().toggleStyle(.switch)
+                }
             }
             SettingsCard(title: "快捷键") {
                 HStack(alignment: .top) {
@@ -119,8 +117,6 @@ struct MainView: View {
                     ShortcutRecorder(shortcut: model.shortcuts.clean, save: { model.setShortcut($0, forCleaning: true) },
                                      recordingChanged: { model.recordingChanged?($0) })
                 }
-                Text("点击组合键后重新录入；修改会立即生效并自动保存。")
-                    .font(.caption).foregroundStyle(.secondary)
             }
             if let message = model.message { Text(message).font(.callout).foregroundStyle(.orange) }
         }
@@ -134,15 +130,9 @@ struct MainView: View {
                     model.permissions.requestAccessibility()
                 }
             }
-            PermissionCard(title: "完整磁盘访问", subtitle: "用于读取受保护的应用数据及权限记录。无法访问的项目会在扫描结果中说明。") {
-                StatusPill(text: model.permissions.protectedDataReadable ? "可读取" : "未确认", color: model.permissions.protectedDataReadable ? .green : .orange)
-                Button("管理…") { model.permissions.openSettings("Privacy_AllFiles") }
-            }
             PermissionCard(title: "访达扩展", subtitle: model.finderCut.badgeStatus) {
                 Button("管理扩展…") { model.finderCut.openExtensionSettings() }
             }
-            Text("返回 MacKit 时会自动更新权限状态。")
-                .font(.caption).foregroundStyle(.secondary)
         }.onAppear { model.permissions.refresh(); model.finderCut.refreshBadges() }
     }
     private var about: some View {
@@ -152,7 +142,7 @@ struct MainView: View {
                     .resizable().frame(width: 112, height: 112)
                 Text("MacKit").font(.system(size: 32, weight: .bold, design: .rounded))
                 Text("轻一点，顺手一点。").font(.title3).foregroundStyle(.secondary)
-                StatusPill(text: "开发预览 0.3", color: .blue)
+                StatusPill(text: "v" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.4.0"), color: .blue)
             }.frame(maxWidth: .infinity).padding(.vertical, 30)
             SettingsCard(title: "为你的 Mac 而生") {
                 Text("使用 Swift 与 SwiftUI 构建。功能按需运行，数据留在本机，无需账号或云服务。")

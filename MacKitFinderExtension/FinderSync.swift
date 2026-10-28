@@ -21,13 +21,11 @@ final class FinderSync: FIFinderSync, @unchecked Sendable {
     }
     private func configure() {
         let image = NSImage(size: NSSize(width: 64, height: 64), flipped: false) { rect in
-            NSColor.systemOrange.setFill()
-            NSBezierPath(ovalIn: rect).fill()
-            let configuration = NSImage.SymbolConfiguration(pointSize: 40, weight: .bold)
-                .applying(NSImage.SymbolConfiguration(paletteColors: [.white]))
+            let configuration = NSImage.SymbolConfiguration(pointSize: 58, weight: .bold)
+                .applying(NSImage.SymbolConfiguration(paletteColors: [.systemOrange]))
             let scissors = NSImage(systemSymbolName: "scissors", accessibilityDescription: "待移动")?
                 .withSymbolConfiguration(configuration)
-            scissors?.draw(in: rect.insetBy(dx: 10, dy: 10))
+            scissors?.draw(in: rect.insetBy(dx: 2, dy: 2))
             return true
         }
         // Finder requires an explicit initial registration, including an empty set.
