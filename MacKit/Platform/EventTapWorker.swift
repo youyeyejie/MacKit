@@ -10,10 +10,10 @@ final class EventTapWorker: @unchecked Sendable {
     private var ready = false
     private let mask: CGEventMask
     private let handler: Handler
-    private let healthy: @Sendable () -> Bool
+    private let healthy: (@Sendable () -> Bool)?
     private let failed: @Sendable () -> Void
 
-    init(mask: CGEventMask, healthy: @escaping @Sendable () -> Bool = { true },
+    init(mask: CGEventMask, healthy: (@Sendable () -> Bool)? = nil,
          failed: @escaping @Sendable () -> Void, handler: @escaping Handler) {
         self.mask = mask; self.handler = handler; self.healthy = healthy; self.failed = failed
     }
@@ -38,10 +38,13 @@ final class EventTapWorker: @unchecked Sendable {
             let source = CFMachPortCreateRunLoopSource(nil, tap, 0)!
             CFRunLoopAddSource(loop, source, .commonModes)
             // This watchdog runs independently of the main thread.
-            let timer = CFRunLoopTimerCreateWithHandler(nil, CFAbsoluteTimeGetCurrent() + 0.5, 0.5, 0, 0) { [self] _ in
-                if !healthy() { failed(); stop() }
+            var timer: CFRunLoopTimer?
+            if let healthy {
+                timer = CFRunLoopTimerCreateWithHandler(nil, CFAbsoluteTimeGetCurrent() + 0.5, 0.5, 0, 0) { [self] _ in
+                    if !healthy() { failed(); stop() }
+                }
+                CFRunLoopAddTimer(loop, timer, .commonModes)
             }
-            CFRunLoopAddTimer(loop, timer, .commonModes)
             let shouldRun = lock.withLock {
                 runLoop = loop; ready = !stopped; return !stopped
             }
@@ -49,7 +52,7 @@ final class EventTapWorker: @unchecked Sendable {
             semaphore.signal()
             if shouldRun { CFRunLoopRun() }
             CGEvent.tapEnable(tap: tap, enable: false)
-            CFRunLoopTimerInvalidate(timer)
+            if let timer { CFRunLoopTimerInvalidate(timer) }
             CFRunLoopSourceInvalidate(source)
             CFMachPortInvalidate(tap)
             lock.withLock { runLoop = nil; ready = false }
@@ -63,6 +66,9 @@ final class EventTapWorker: @unchecked Sendable {
 
     func stop() {
         let loop = lock.withLock { stopped = true; return runLoop }
-        if let loop { CFRunLoopStop(loop); CFRunLoopWakeUp(loop) }
+        if let loop {
+            CFRunLoopPerformBlock(loop, CFRunLoopMode.commonModes.rawValue) { CFRunLoopStop(loop) }
+            CFRunLoopWakeUp(loop)
+        }
     }
 }

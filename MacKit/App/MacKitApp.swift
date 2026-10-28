@@ -28,12 +28,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func showWindow() {
         if window == nil {
             let view = MainView(model: model)
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 840, height: 640),
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 920, height: 740),
                                   styleMask: [.titled, .closable, .miniaturizable, .resizable],
                                   backing: .buffered, defer: false)
             window.title = "MacKit"
             window.contentView = NSHostingView(rootView: view)
-            window.minSize = NSSize(width: 740, height: 560)
+            window.minSize = NSSize(width: 780, height: 660)
             window.isReleasedWhenClosed = false
             window.center()
             self.window = window
@@ -50,5 +50,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
-    func applicationWillTerminate(_ notification: Notification) { model.finderCut.stop(); model.cleaning.stop(); hotkeys?.stop() }
+    func applicationWillTerminate(_ notification: Notification) { model.uninstaller.stop(); model.cleaning.onActivity = nil; model.cleaning.stop(); model.finderCut.stop(); hotkeys?.stop() }
 }

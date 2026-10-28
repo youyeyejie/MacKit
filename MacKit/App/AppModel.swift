@@ -7,6 +7,7 @@ final class AppModel {
     let permissions = PermissionService()
     let cleaning = CleaningService()
     let finderCut = FinderCutService()
+    let uninstaller = UninstallerService()
     var loginStatus = "未启用"
     var message: String?
 
