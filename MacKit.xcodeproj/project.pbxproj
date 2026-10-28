@@ -1,0 +1,51 @@
+// !$*UTF8*$!
+{
+archiveVersion = 1; classes = {}; objectVersion = 56;
+objects = {
+620E282A7ECA04D9EDC57BEC = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Config/Finder-Info.plist"; sourceTree = SOURCE_ROOT;};
+9A538F512925F2EFC9F878F3 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Config/Finder.entitlements"; sourceTree = SOURCE_ROOT;};
+DEB1B84AEE740C02E5FCA32D = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Config/MacKit-Info.plist"; sourceTree = SOURCE_ROOT;};
+1CE8D05779447D276B78EB6C = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Config/MacKit.entitlements"; sourceTree = SOURCE_ROOT;};
+2C94172D67DA116C7BB32C13 = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Config/Shared.xcconfig"; sourceTree = SOURCE_ROOT;};
+AAC2BACD34631E0BA377EABC = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MacKit/App/AppModel.swift"; sourceTree = SOURCE_ROOT;};
+5629C87CBBAB2B134D2F1332 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MacKit/App/MacKitApp.swift"; sourceTree = SOURCE_ROOT;};
+665865CFBC1276270D3CC44C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MacKit/Platform/GlobalHotKeys.swift"; sourceTree = SOURCE_ROOT;};
+4D7C39EAD0AA56A400C8CAF0 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MacKit/Platform/PermissionService.swift"; sourceTree = SOURCE_ROOT;};
+A5BAF4A167C8C5E7ACC2E1E6 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MacKit/UI/MainView.swift"; sourceTree = SOURCE_ROOT;};
+8458B9B92D35FE5CE075D335 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MacKitFinderExtension/FinderSync.swift"; sourceTree = SOURCE_ROOT;};
+EEFA116800406C6842350E30 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Packages/MacKitCore/Sources/MacKitCore/EscapeSequence.swift"; sourceTree = SOURCE_ROOT;};
+067A18EA659CDD34A173C8E3 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Packages/MacKitCore/Sources/MacKitCore/Feature.swift"; sourceTree = SOURCE_ROOT;};
+731DC73AE038BFC8F6924BBE = {isa = PBXFileReference; explicitFileType = "wrapper.application"; path = "MacKit.app"; sourceTree = BUILT_PRODUCTS_DIR;};
+A36BF05CB9414536DA701F15 = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; path = "MacKitFinderExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR;};
+FBDC4F23F93125BBEEAE800C = {isa = PBXGroup; name = Products; children = (731DC73AE038BFC8F6924BBE, A36BF05CB9414536DA701F15,); sourceTree = "<group>";};
+E50290A24C49A459B43487C5 = {isa = PBXGroup; children = (620E282A7ECA04D9EDC57BEC, 9A538F512925F2EFC9F878F3, DEB1B84AEE740C02E5FCA32D, 1CE8D05779447D276B78EB6C, 2C94172D67DA116C7BB32C13, AAC2BACD34631E0BA377EABC, 5629C87CBBAB2B134D2F1332, 665865CFBC1276270D3CC44C, 4D7C39EAD0AA56A400C8CAF0, A5BAF4A167C8C5E7ACC2E1E6, 8458B9B92D35FE5CE075D335, EEFA116800406C6842350E30, 067A18EA659CDD34A173C8E3, FBDC4F23F93125BBEEAE800C,); sourceTree = "<group>";};
+89E1FD6268CC0F221A2BE178 = {isa = XCBuildConfiguration; baseConfigurationReference = 2C94172D67DA116C7BB32C13; buildSettings = {CLANG_ENABLE_MODULES = YES; SDKROOT = macosx; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; DEBUG_INFORMATION_FORMAT = dwarf; ONLY_ACTIVE_ARCH = YES; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;}; name = Debug;};
+E6DE6C99132752C914FEF632 = {isa = XCBuildConfiguration; baseConfigurationReference = 2C94172D67DA116C7BB32C13; buildSettings = {CLANG_ENABLE_MODULES = YES; SDKROOT = macosx; SWIFT_OPTIMIZATION_LEVEL = "-O"; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";}; name = Release;};
+862894B703A6DEDF96A9DD6C = {isa = XCConfigurationList; buildConfigurations = (89E1FD6268CC0F221A2BE178, E6DE6C99132752C914FEF632,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
+35F071278DC4B2532225B943 = {isa = PBXContainerItemProxy; containerPortal = 98F54143AB4E86B28C3AFEE0; proxyType = 1; remoteGlobalIDString = 326959514FCC1EFB10CEAFF8; remoteInfo = MacKitFinderExtension;};
+2FB32516A54A4E8721B5EDC9 = {isa = PBXTargetDependency; target = 326959514FCC1EFB10CEAFF8; targetProxy = 35F071278DC4B2532225B943;};
+B5F235D5B8CC63C82183E49E = {isa = PBXBuildFile; fileRef = A36BF05CB9414536DA701F15; settings = {ATTRIBUTES = (RemoveHeadersOnCopy,);};};
+CC531F55156D1B4CD472E876 = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 13; files = (B5F235D5B8CC63C82183E49E,); name = "Embed App Extensions"; runOnlyForDeploymentPostprocessing = 0;};
+F9AE2407575AAAE75EF6BBCE = {isa = PBXBuildFile; fileRef = AAC2BACD34631E0BA377EABC;};
+5FE179A6BF9505B97157162A = {isa = PBXBuildFile; fileRef = 5629C87CBBAB2B134D2F1332;};
+D61F6A1EE4DF69DF8B6923E6 = {isa = PBXBuildFile; fileRef = 665865CFBC1276270D3CC44C;};
+8E5CB4934882F0DF44741CA4 = {isa = PBXBuildFile; fileRef = 4D7C39EAD0AA56A400C8CAF0;};
+63BD46953020031C8F677169 = {isa = PBXBuildFile; fileRef = A5BAF4A167C8C5E7ACC2E1E6;};
+C184B9930875DA080D75647B = {isa = PBXBuildFile; fileRef = EEFA116800406C6842350E30;};
+046AD0D10E8DFD94B59AA4AC = {isa = PBXBuildFile; fileRef = 067A18EA659CDD34A173C8E3;};
+060640D7F069513E26E03D3E = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (F9AE2407575AAAE75EF6BBCE, 5FE179A6BF9505B97157162A, D61F6A1EE4DF69DF8B6923E6, 8E5CB4934882F0DF44741CA4, 63BD46953020031C8F677169, C184B9930875DA080D75647B, 046AD0D10E8DFD94B59AA4AC,); runOnlyForDeploymentPostprocessing = 0;};
+F2CDBA020060645B797EEA41 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;};
+808820CFFF163E2A410C7968 = {isa = XCBuildConfiguration; baseConfigurationReference = 2C94172D67DA116C7BB32C13; buildSettings = {PRODUCT_NAME = MacKit; PRODUCT_BUNDLE_IDENTIFIER = com.mackit.app; INFOPLIST_FILE = "Config/MacKit-Info.plist"; CODE_SIGN_ENTITLEMENTS = "Config/MacKit.entitlements"; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks"; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; DEBUG_INFORMATION_FORMAT = dwarf; ONLY_ACTIVE_ARCH = YES; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;}; name = Debug;};
+14F2562C696CCA0E907C4518 = {isa = XCBuildConfiguration; baseConfigurationReference = 2C94172D67DA116C7BB32C13; buildSettings = {PRODUCT_NAME = MacKit; PRODUCT_BUNDLE_IDENTIFIER = com.mackit.app; INFOPLIST_FILE = "Config/MacKit-Info.plist"; CODE_SIGN_ENTITLEMENTS = "Config/MacKit.entitlements"; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks"; SWIFT_OPTIMIZATION_LEVEL = "-O"; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";}; name = Release;};
+78136FFA385DE429E3AE6A8D = {isa = XCConfigurationList; buildConfigurations = (808820CFFF163E2A410C7968, 14F2562C696CCA0E907C4518,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
+F6FAD6714673202476039D8C = {isa = PBXNativeTarget; buildConfigurationList = 78136FFA385DE429E3AE6A8D; buildPhases = (060640D7F069513E26E03D3E, F2CDBA020060645B797EEA41, CC531F55156D1B4CD472E876,); buildRules = (); dependencies = (2FB32516A54A4E8721B5EDC9,); name = MacKit; productName = MacKit; productReference = 731DC73AE038BFC8F6924BBE; productType = "com.apple.product-type.application";};
+A118BE3252259D6A2ED478DA = {isa = PBXBuildFile; fileRef = 8458B9B92D35FE5CE075D335;};
+D5364640100062A178885AD3 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A118BE3252259D6A2ED478DA,); runOnlyForDeploymentPostprocessing = 0;};
+BED5A998364D1931D341B81D = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;};
+DEC3CFD1755116DC72B06F8B = {isa = XCBuildConfiguration; baseConfigurationReference = 2C94172D67DA116C7BB32C13; buildSettings = {PRODUCT_NAME = MacKitFinderExtension; PRODUCT_BUNDLE_IDENTIFIER = com.mackit.app.finder; INFOPLIST_FILE = "Config/Finder-Info.plist"; CODE_SIGN_ENTITLEMENTS = "Config/Finder.entitlements"; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks"; APPLICATION_EXTENSION_API_ONLY = YES; SKIP_INSTALL = YES; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; DEBUG_INFORMATION_FORMAT = dwarf; ONLY_ACTIVE_ARCH = YES; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;}; name = Debug;};
+3347DD32DCF1FC938C008F5A = {isa = XCBuildConfiguration; baseConfigurationReference = 2C94172D67DA116C7BB32C13; buildSettings = {PRODUCT_NAME = MacKitFinderExtension; PRODUCT_BUNDLE_IDENTIFIER = com.mackit.app.finder; INFOPLIST_FILE = "Config/Finder-Info.plist"; CODE_SIGN_ENTITLEMENTS = "Config/Finder.entitlements"; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks"; APPLICATION_EXTENSION_API_ONLY = YES; SKIP_INSTALL = YES; SWIFT_OPTIMIZATION_LEVEL = "-O"; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";}; name = Release;};
+32031851E29269C7B34E6E55 = {isa = XCConfigurationList; buildConfigurations = (DEC3CFD1755116DC72B06F8B, 3347DD32DCF1FC938C008F5A,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
+326959514FCC1EFB10CEAFF8 = {isa = PBXNativeTarget; buildConfigurationList = 32031851E29269C7B34E6E55; buildPhases = (D5364640100062A178885AD3, BED5A998364D1931D341B81D,); buildRules = (); dependencies = (); name = MacKitFinderExtension; productName = MacKitFinderExtension; productReference = A36BF05CB9414536DA701F15; productType = "com.apple.product-type.app-extension";};
+98F54143AB4E86B28C3AFEE0 = {isa = PBXProject; attributes = {LastSwiftUpdateCheck = 2700; LastUpgradeCheck = 2700;}; buildConfigurationList = 862894B703A6DEDF96A9DD6C; compatibilityVersion = "Xcode 14.0"; developmentRegion = zh-Hans; hasScannedForEncodings = 0; knownRegions = (en, "zh-Hans", Base); mainGroup = E50290A24C49A459B43487C5; productRefGroup = FBDC4F23F93125BBEEAE800C; projectDirPath = ""; projectRoot = ""; targets = (F6FAD6714673202476039D8C, 326959514FCC1EFB10CEAFF8,);};
+}; rootObject = 98F54143AB4E86B28C3AFEE0;
+}
