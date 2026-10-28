@@ -7,7 +7,6 @@ if [[ -d "$installed" ]]; then open "$installed"; exit; fi
 if [[ -d "$signed" ]]; then open "$signed"; exit; fi
 app_path="$PWD/build/DerivedData/Build/Products/Debug/MacKit.app"
 [[ -d "$app_path" ]] || scripts/build.sh Debug
-# The unsigned fallback cannot access the team App Group. Do not re-sign signed builds.
-codesign --force --sign - "$app_path/Contents/PlugIns/MacKitFinderExtension.appex"
+# Do not re-sign developer-signed builds.
 codesign --force --sign - "$app_path"
 open "$app_path"

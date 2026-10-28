@@ -18,23 +18,13 @@ struct FinderCutView: View {
                     VStack(alignment: .leading, spacing: 16) { shortcuts }
                 }
             }
-            SettingsCard {
-                HStack {
-                    Text("剪切角标").font(.headline)
-                    Spacer()
-                    Button("管理…") { service.openExtensionSettings() }
-                }
-                HStack {
-                    Button("检查角标") { service.diagnoseExtension() }
-                    Button(service.reloadingExtension ? "正在重载…" : "重载扩展") { service.reloadExtension() }
-                        .disabled(service.reloadingExtension)
-                }
-                if let message = service.extensionMessage {
-                    Text(message).font(.callout).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+            SettingsRows(title: "声音") {
+                SettingsRow(title: "剪切音效") {
+                    Toggle("剪切音效", isOn: Binding(get: { service.soundEnabled }, set: service.setSoundEnabled))
+                        .labelsHidden().toggleStyle(.switch)
                 }
             }
-        }.onAppear { service.sync(); service.refreshBadges() }
+        }.onAppear { service.sync() }
     }
     @ViewBuilder private var shortcuts: some View {
         shortcut(["⌘", "X"], description: "剪切")

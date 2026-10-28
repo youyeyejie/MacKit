@@ -1,6 +1,5 @@
 import AppKit
 import ApplicationServices
-import FinderSync
 import Observation
 
 @MainActor @Observable
@@ -9,16 +8,10 @@ final class FinderCutService: FeatureModule {
     private(set) var enabled = UserDefaults.standard.bool(forKey: "finderCut.enabled")
     private(set) var status = "未启用"
     private(set) var pendingCount = 0
-    private(set) var badgeStatus = "需签名并启用 访达扩展"
-    private(set) var extensionEnabled = FIFinderSyncController.isExtensionEnabled
-    private(set) var reloadingExtension = false
-    private(set) var extensionMessage: String?
-    let extensionLifecycle = FinderExtensionLifecycle()
+    private(set) var soundEnabled = UserDefaults.standard.object(forKey: "finderCut.soundEnabled") as? Bool ?? true
+    private let cutSound = CutSoundPlayer()
     private var shuttingDown = false
-    private var extensionPaused = false
-    private var extensionReloadTask: Task<Void, Never>?
     private var session: CutSession?
-    private var lastPublished: BadgeState?
     private var filter: FinderKeyFilter?
     private var worker: EventTapWorker?
     private var timer: Timer?
@@ -49,13 +42,12 @@ final class FinderCutService: FeatureModule {
                 Task { @MainActor in self?.setSuspended(false) }
             })
         }
-        publishBadges()
         sync()
     }
 
     func setEnabled(_ value: Bool) {
         enabled = value; UserDefaults.standard.set(value, forKey: "finderCut.enabled")
-        if !value { cancel() }
+        if !value { cancel(); cutSound.stop() }
         sync()
     }
     func setSuspended(_ value: Bool) {
@@ -122,7 +114,7 @@ final class FinderCutService: FeatureModule {
                     session = CutSession(urls: urls, changeCount: NSPasteboard.general.changeCount)
                     pendingCount = urls.count
                     status = "\(urls.count) 个项目待移动 · Esc 取消"
-                    publishBadges()
+                    if soundEnabled { cutSound.play() }
                     timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
                         Task { @MainActor in self?.validateSession() }
                     }
@@ -151,16 +143,7 @@ final class FinderCutService: FeatureModule {
         }
     }
 
-    private func updateBadgeReceipt() {
-        guard let lastPublished, !lastPublished.paths.isEmpty else { return }
-        if let receipt = BadgeReceipt.read(), receipt.sessionID == lastPublished.sessionID, receipt.pathCount == lastPublished.paths.count {
-            badgeStatus = receipt.badgeRequests > 0 ? "扩展已响应角标请求 · \(receipt.pathCount) 项" : "扩展已同步 · 等待访达请求角标"
-        } else {
-            badgeStatus = "等待扩展同步；若持续无响应，请重新启用访达扩展"
-        }
-    }
     private func validateSession() {
-        updateBadgeReceipt()
         guard let session else { return }
         if !AXIsProcessTrusted() || !session.matches(urls: fileURLs(), changeCount: NSPasteboard.general.changeCount) {
             cancel(); sync()
@@ -170,72 +153,16 @@ final class FinderCutService: FeatureModule {
         session = nil; pendingCount = 0
         timer?.invalidate(); timer = nil
         filter?.update(pending: false, busy: false)
-        publishBadges()
         status = enabled ? "已取消待移动状态" : "未启用"
     }
-    func diagnoseExtension() {
-        refreshBadges()
-        guard extensionEnabled else { extensionMessage = "MacKit 扩展未启用。请打开管理并开启后重试。"; return }
-        guard let published = lastPublished, !published.paths.isEmpty else {
-            extensionMessage = "扩展已启用。请在普通本地文件夹选中文件并按 ⌘X，再检查一次；应用程序和云盘目录可能不支持角标。"
-            return
-        }
-        guard let receipt = BadgeReceipt.read(), receipt.sessionID == published.sessionID else {
-            extensionMessage = "主程序已写入剪切状态，扩展尚未确认。可先重载 MacKit 扩展，再重新打开文件夹。"
-            return
-        }
-        extensionMessage = receipt.badgeRequests > 0
-            ? "扩展已收到访达角标请求。若仍不可见，请检查当前视图、目录类型，以及其他扩展是否覆盖角标。"
-            : "扩展已同步剪切状态，但访达尚未请求角标。可能是目录限制、视图未刷新或其他扩展占用。可先重载；仍无效时在管理中逐项排查。"
+    func setSoundEnabled(_ value: Bool) {
+        soundEnabled = value
+        UserDefaults.standard.set(value, forKey: "finderCut.soundEnabled")
+        if !value { cutSound.stop() }
     }
-    func refreshExtensionStatus() { extensionEnabled = FIFinderSyncController.isExtensionEnabled }
-    func refreshBadges() { refreshExtensionStatus(); publishBadges(); updateBadgeReceipt() }
-    func restoreExtension() async {
-        let success = await extensionLifecycle.resumeIfNeeded()
-        if !success { extensionMessage = "未能恢复访达扩展，请在管理中重新开启。" }
-        refreshBadges()
-    }
-    func reloadExtension() {
-        guard !reloadingExtension, !shuttingDown else { return }
-        refreshExtensionStatus()
-        guard extensionEnabled else { extensionMessage = "请先在管理中启用 MacKit 扩展。"; return }
-        reloadingExtension = true; extensionMessage = nil
-        extensionReloadTask = Task { [weak self] in
-            guard let self else { return }
-            let success = await self.extensionLifecycle.reload(afterPause: {
-                self.extensionPaused = true
-                self.publishBadges(ownerRunning: false)
-            }, beforeResume: {
-                self.extensionPaused = false
-                self.publishBadges()
-            })
-            self.reloadingExtension = false
-            guard !self.shuttingDown else { return }
-            self.refreshBadges()
-            self.extensionMessage = success ? "已请求重载 MacKit 扩展。请重新打开测试文件夹再剪切。" : "重载未完成，请在管理中重新开启 MacKit 扩展。"
-        }
-    }
-    func prepareToQuit() async {
-        shuttingDown = true
-        stop()
-        await extensionReloadTask?.value
-        _ = await extensionLifecycle.pauseForQuit()
-        publishBadges(ownerRunning: false)
-        try? await Task.sleep(for: .milliseconds(400))
-    }
-    private func publishBadges(ownerRunning: Bool = true) {
-        let state = BadgeState(sessionID: session?.id ?? UUID(), paths: session?.urls.map(\.path) ?? [],
-                               expiresAt: session?.createdAt.addingTimeInterval(600) ?? Date(), ownerRunning: ownerRunning && !extensionPaused)
-        do {
-            try BadgeStore.write(state)
-            lastPublished = state
-            DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(BadgeStore.notification), object: nil, userInfo: nil, deliverImmediately: true)
-            refreshExtensionStatus()
-            badgeStatus = extensionEnabled ? "访达扩展已启用" : "请在系统设置启用 访达扩展"
-        } catch { badgeStatus = "角标不可用：需配置开发团队并签名；剪切仍可使用" }
-    }
-    func openExtensionSettings() { FIFinderSyncController.showExtensionManagementInterface() }
     func stop() {
+        shuttingDown = true
+        cutSound.stop()
         generation = UUID(); commandTask?.cancel(); commandTask = nil
         worker?.stop(); worker = nil; filter = nil; cancel()
     }

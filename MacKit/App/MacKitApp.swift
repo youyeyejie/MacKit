@@ -14,8 +14,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
     private var window: NSWindow?
     private var hotkeys: GlobalHotKeys?
     private var statusItem: NSStatusItem?
-    private var quitting = false
-    private var extensionStartup: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         model.appearanceChanged = { [weak self] in self?.applyAppearance() }
@@ -28,7 +26,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
         }
         NSApp.applicationIconImage = AppBrand.icon
         applyAppearance()
-        extensionStartup = Task { await model.finderCut.restoreExtension() }
         hotkeys = GlobalHotKeys(show: { [weak self] in self?.showWindow() }, clean: { [weak self] in
             self?.showWindow(); self?.model.cleaning.begin()
         })
@@ -67,7 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
 
 
     func applicationDidBecomeActive(_ notification: Notification) {
-        model.permissions.refresh(); model.refreshLogin(); model.finderCut.refreshExtensionStatus(); model.finderCut.sync()
+        model.permissions.refresh(); model.refreshLogin(); model.finderCut.sync()
     }
 
     private func applyAppearance() {
@@ -112,15 +109,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
-    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard !quitting else { return .terminateLater }
-        quitting = true
-        model.cleaning.onActivity = nil; model.cleaning.stop(); hotkeys?.stop()
-        Task {
-            await extensionStartup?.value
-            await model.finderCut.prepareToQuit()
-            sender.reply(toApplicationShouldTerminate: true)
-        }
-        return .terminateLater
+    func applicationWillTerminate(_ notification: Notification) {
+        model.cleaning.onActivity = nil
+        model.cleaning.stop(); model.finderCut.stop(); hotkeys?.stop()
     }
 }

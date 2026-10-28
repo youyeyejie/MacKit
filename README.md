@@ -1,62 +1,44 @@
 # MacKit
 
-Swift 6 + SwiftUI 原生 macOS 工具集，支持目标为 macOS 14–27，重点支持 26、27。默认隐藏 Dock 与菜单栏图标，可在软件设置分别开启，按需运行。
+Swift 6 + SwiftUI 原生 macOS 工具集，系统支持目标 macOS 14–27，重点 26、27。当前版本 **v0.6.0**。默认隐藏 Dock 和菜单栏图标，可分别开启。
 
-当前阶段：**v0.5.0**。主程序与 Finder 扩展已用 Personal Team 开发证书签名并安装，8 项核心测试和 6 项快捷键持久化检查通过。用户已验证首版基本功能；新版交互和跨系统兼容性继续人工验收。
+## 功能
 
-已接入：
+- 清洁模式：立即锁定键盘与触控板，内建屏黑屏、外接屏圆角提示，连续五次 Esc 退出。
+- 访达剪切：⌘X 建立剪切状态、⌘V 委托访达移动、Esc 取消。成功剪切播放约 0.19 秒音效，可在页面关闭并保存偏好。
+- 设置：登录后启动、显示位置、可录制或清空的全局快捷键。
 
-- 清洁模式：立即锁定键盘/触控板、内建屏黑色覆盖层、常驻五圆点提示、五次独立 Esc 解锁、异常恢复。
-- 访达剪切（原生角标、诊断及仅重载自身扩展）：⌘X 建立待移动会话、⌘V 委托 Finder 移动；剪贴板失效保护；独立角标扩展。
-- 后台入口：默认 ⌃⌥⌘M 唤起、⌃⌥⌘K 开始清洁，支持录制、保存及清空快捷键；登录启动、显示位置设置和自动权限状态。
+v0.6.0 已完整移除剪切角标、访达扩展、共享容器与诊断重载逻辑；程序不再需要启用访达扩展。应用卸载功能也已移除。
 
-## 开发
+## 开发与运行
 
-使用支持 Swift 6 的 Xcode。本次使用 Xcode 27.1 / macOS 27 SDK；最低部署目标始终为 14.0。无需第三方包。
+使用支持 Swift 6 的 Xcode；当前构建环境 Xcode 27.1 / macOS 27 SDK，最低部署目标 14.0。无第三方依赖。
 
 ```sh
-scripts/build.sh Debug
+scripts/build.sh Debug --signed
 scripts/test.sh
+scripts/install-local.sh Debug
 scripts/run-preview.sh
 ```
 
-预览应用：`build/DerivedData/Build/Products/Debug/MacKit.app`。
-
-Xcode 工程：`MacKit.xcodeproj`。新增 Swift 文件后执行 `python3 scripts/generate_project.py` 更新工程；生成器不读取构建目录。核心逻辑同时作为本地 Swift Package 供测试，Xcode app target 直接编译同一份核心源码。
-
-## 本机签名与安装
-
-已在本机验证：Apple ID 的 Personal Team 创建 Apple Development 证书后，可以签名当前 macOS 主程序及 Finder 扩展。仅自己使用的当前流程无需先购买付费会员；这不等同于获得 Developer ID 发行、公证权限。`run-preview.sh` 优先打开已安装的签名版本。
-
-要使用角标/App Group 并验证登录启动，在 Xcode 配置自己的开发团队，或创建不纳入 Git 的 `Config/Local.xcconfig`：
+签名团队配置在不纳入 Git 的 `Config/Local.xcconfig`：
 
 ```xcconfig
 DEVELOPMENT_TEAM = YOUR_TEAM_ID
 ```
 
-在 Xcode「Settings → Accounts → Manage Certificates」创建 Apple Development 证书，然后：
+本机已验证 Personal Team 的 Apple Development 签名。安装至 `~/Applications/MacKit.app`，旧版本备份在 `build/Backups`。开发签名不等于发行公证。
 
-```sh
-scripts/build.sh Debug --signed
-scripts/install-local.sh Debug
-scripts/run-preview.sh
-```
+无证书可使用 `scripts/build.sh Debug --unsigned` 构建；稳定开发签名可减少更新后的系统授权变化。
 
-安装位置：`~/Applications/MacKit.app`。已有安装会备份到 `build/Backups`。主程序及扩展使用同一团队和 `TEAMID.com.mackit.shared` 共享容器。安装后在系统设置启用 Finder 扩展；签名改变可能需要重新添加辅助功能授权。本机团队配置、私钥、证书不纳入 Git。
+新增 Swift 或资源文件后执行 `python3 scripts/generate_project.py` 更新单 App target 工程。核心状态机作为本地 Swift Package 测试；快捷键使用隔离配置检查。
 
-无证书时可运行 `scripts/build.sh Debug --unsigned`，仅用于构建检查，不能据此验证角标共享容器。发行需要另行配置发行签名、公证和兼容性验收。
+音效是本项目独立合成的单声道 PCM WAV，无外部素材授权依赖；可用 `python3 scripts/prepare_cut_sound.py` 重建。播放采用 NSSound，按需加载，无常驻音频引擎。
 
-## 文档
+## 验证与文档
 
-- [手工验收步骤](docs/MANUAL-TEST.md)
-- [首版开发方案](docs/V1-PLAN.md)
-- [实现与验证状态](docs/STATUS.md)
-- [应用图标与生成提示](docs/ICON-DESIGN.md)
+4 项核心测试与 6 项快捷键持久化检查通过。跨系统兼容性仍需实机验收。
 
-用户已在关闭其他访达扩展的隔离环境中确认角标显示正常。macOS 对同目录 Finder Sync 扩展存在竞争限制；若其他扩展占用，需在系统设置取舍。参见 [角标诊断](docs/BADGE-DIAGNOSTICS.md)。
-
-当前仅保留清洁模式和访达剪切；应用卸载功能已按用户要求完整移除，旧版设计记录仅作历史参考。
-
-用户已确认采用剪切角标，当前图案为透明背景的橙色剪刀。用户曾确认采用“待移动”角标，并要求清洁时锁定触控板。其他候选功能未加入实现。Git 按重要开发节点提交；未复制第三方项目实现代码。
-
-正常退出 MacKit 时会清空角标、释放监听并暂停自身扩展；下次启动恢复由 MacKit 暂停的扩展。系统强制结束与正常退出流程不同。
+- [手工验收](docs/MANUAL-TEST.md)
+- [实现状态](docs/STATUS.md)
+- [应用图标设计](docs/ICON-DESIGN.md)

@@ -124,11 +124,7 @@ struct MainView: View {
                     model.permissions.requestAccessibility()
                 }
             }
-            PermissionCard(title: "访达扩展", subtitle: "用于在待移动文件上显示剪切角标。") {
-                StatusPill(text: model.finderCut.extensionEnabled ? "已启用" : "未启用", color: model.finderCut.extensionEnabled ? .green : .orange)
-                Button("管理…") { model.finderCut.openExtensionSettings() }
-            }
-        }.onAppear { model.permissions.refresh(); model.finderCut.refreshBadges() }
+        }.onAppear { model.permissions.refresh() }
     }
     private var about: some View {
         PageLayout {

@@ -12,5 +12,4 @@
 <key>LSUIElement</key><true/>
 <key>NSPrincipalClass</key><string>NSApplication</string>
 <key>NSHumanReadableCopyright</key><string>MacKit</string>
-<key>AppGroupIdentifier</key><string>$(DEVELOPMENT_TEAM).com.mackit.shared</string>
 </dict></plist>
