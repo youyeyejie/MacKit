@@ -3,7 +3,7 @@ SWIFT_VERSION = 6.0
 SWIFT_STRICT_CONCURRENCY = complete
 ENABLE_HARDENED_RUNTIME = YES
 CODE_SIGN_STYLE = Automatic
-MARKETING_VERSION = 0.1.0
-CURRENT_PROJECT_VERSION = 1
+MARKETING_VERSION = 0.2.0
+CURRENT_PROJECT_VERSION = 2
 // Set DEVELOPMENT_TEAM in Local.xcconfig for signed extension / login-item testing.
 #include? "Local.xcconfig"

@@ -7,17 +7,13 @@ import ApplicationServices
 final class CleaningService: FeatureModule {
     let id = FeatureID.cleaning
     private(set) var active = false
-    private(set) var countdown: Int?
     private(set) var progress = 0
-    private(set) var showHint = true
     var message: String?
     var useCurrentDisplay = false
     var onActivity: ((Bool) -> Void)?
     private var panels: [NSPanel] = []
     private var filter: CleaningFilter?
     private var worker: EventTapWorker?
-    private var task: Task<Void, Never>?
-    private var hintTask: Task<Void, Never>?
     private var heartbeat: Timer?
     private var observers: [NSObjectProtocol] = []
     private var session = UUID()
@@ -44,27 +40,14 @@ final class CleaningService: FeatureModule {
     }
 
     func begin() {
-        guard !active, countdown == nil else { return }
-        guard AXIsProcessTrusted() else { message = "请先授权辅助功能，再开始清洁。"; return }
+        guard !active else { return }
+        guard AXIsProcessTrusted() else { message = "请先在权限页面授予辅助功能访问。"; return }
         guard hasBuiltinDisplay || useCurrentDisplay else {
-            message = "未发现可用内建显示器，请先选择使用当前屏幕。"; return
+            message = "未发现内建显示器，请先选择使用当前屏幕。"; return
         }
         message = nil
         let token = UUID(); session = token
-        task = Task { [weak self] in
-            guard let self else { return }
-            for value in (1...3).reversed() {
-                self.countdown = value
-                do { try await Task.sleep(for: .seconds(1)) } catch { return }
-                guard self.session == token else { return }
-            }
-            self.countdown = nil
-            // Do not swallow releases for keys which were pressed before the lock.
-            let keysHeld = (0..<128).contains { CGEventSource.keyState(.combinedSessionState, key: CGKeyCode($0)) }
-            let buttonsHeld = (0..<3).contains { CGEventSource.buttonState(.combinedSessionState, button: CGMouseButton(rawValue: UInt32($0))!) }
-            guard !keysHeld, !buttonsHeld else { self.message = "请松开键盘和触控板后重试。"; return }
-            self.activate(token: token)
-        }
+        activate(token: token)
     }
 
     private func activate(token: UUID) {
@@ -74,7 +57,6 @@ final class CleaningService: FeatureModule {
             Task { @MainActor in
                 guard let self, self.session == token, self.active else { return }
                 self.progress = count
-                self.revealHint()
                 if done { self.stop() }
             }
         }
@@ -91,11 +73,11 @@ final class CleaningService: FeatureModule {
             return
         }
         self.filter = filter; self.worker = worker
-        active = true; progress = 0; showHint = true
+        active = true; progress = 0
         let primary = NSScreen.screens.first(where: isBuiltin) ?? NSScreen.main
         for screen in NSScreen.screens {
             let full = screen == primary
-            let frame = full ? screen.frame : NSRect(x: screen.frame.midX - 190, y: screen.frame.maxY - 120, width: 380, height: 80)
+            let frame = full ? screen.frame : NSRect(x: screen.frame.midX - 200, y: screen.frame.maxY - 210, width: 400, height: 170)
             let panel = NSPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
             panel.level = .screenSaver
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
@@ -115,23 +97,10 @@ final class CleaningService: FeatureModule {
                 self.filter?.beat()
             }
         }
-        revealHint()
-    }
-
-    private func revealHint() {
-        showHint = true
-        hintTask?.cancel()
-        hintTask = Task { [weak self] in
-            do { try await Task.sleep(for: .seconds(3)) } catch { return }
-            self?.showHint = false
-        }
     }
 
     func stop() {
         session = UUID()
-        task?.cancel(); task = nil
-        hintTask?.cancel(); hintTask = nil
-        countdown = nil
         filter?.deactivate(); worker?.stop()
         worker = nil; filter = nil
         heartbeat?.invalidate(); heartbeat = nil
@@ -142,18 +111,38 @@ final class CleaningService: FeatureModule {
     }
 }
 
-private struct CleaningOverlay: View {
+struct CleaningOverlay: View {
     let service: CleaningService
     let fullScreen: Bool
     var body: some View {
         ZStack {
             Color.black
-            if service.showHint || !fullScreen {
-                VStack(spacing: 10) {
-                    Text("键盘与触控板已锁定").font(.title3)
-                    Text("连续按 5 次 Esc 退出 · \(service.progress)/5").foregroundStyle(.gray)
-                }.foregroundStyle(.white)
+            VStack(spacing: 22) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.45))
+                VStack(spacing: 9) {
+                    Text("安心清洁").font(.system(size: 25, weight: .medium, design: .rounded))
+                    HStack(spacing: 6) {
+                        Text("连续按下")
+                        Text("esc").font(.system(size: 12, weight: .medium, design: .monospaced))
+                            .padding(.horizontal, 8).padding(.vertical, 4)
+                            .background(.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 5))
+                        Text("5 次退出")
+                    }.font(.system(size: 13)).foregroundStyle(.white.opacity(0.58))
+                }
+                HStack(spacing: 12) {
+                    ForEach(0..<5) { index in
+                        Circle().fill(index < service.progress ? Color.mint : Color.white.opacity(0.16))
+                            .frame(width: 9, height: 9)
+                    }
+                }
+                .animation(.easeOut(duration: 0.15), value: service.progress)
+                .accessibilityLabel("退出进度：\(service.progress)/5")
             }
+            .foregroundStyle(.white.opacity(0.92))
+            .padding(.horizontal, 44).padding(.vertical, fullScreen ? 32 : 16)
+            .background(Color.white.opacity(fullScreen ? 0.035 : 0), in: RoundedRectangle(cornerRadius: 24))
         }.frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

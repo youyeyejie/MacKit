@@ -17,11 +17,11 @@ def refs(items): return '(' + ', '.join(items) + (',' if items else '') + ')'
 core = sorted(root.glob('Packages/MacKitCore/Sources/MacKitCore/*.swift'))
 app = sorted(root.glob('MacKit/**/*.swift')) + core
 ext = sorted(root.glob('MacKitFinderExtension/*.swift')) + [p for p in core if p.name == 'BadgeState.swift']
-all_files = sorted(set(app + ext + list(root.glob('Config/*'))))
+all_files = sorted(set(app + ext + [p for p in root.glob('Config/*') if p.name != 'Local.xcconfig'] + list(root.glob('MacKit/*.xcassets'))))
 file_ids = {}
 for path in all_files:
     rel = path.relative_to(root).as_posix()
-    kind = 'sourcecode.swift' if path.suffix == '.swift' else ('text.xcconfig' if path.suffix == '.xcconfig' else 'text.plist.xml')
+    kind = 'folder.assetcatalog' if path.suffix == '.xcassets' else 'sourcecode.swift' if path.suffix == '.swift' else ('text.xcconfig' if path.suffix == '.xcconfig' else 'text.plist.xml')
     file_ids[rel] = obj('file:' + rel, f'isa = PBXFileReference; lastKnownFileType = {kind}; path = {q(rel)}; sourceTree = SOURCE_ROOT;')
 products = []
 for name, suffix, kind in [('MacKit', 'app', 'wrapper.application'), ('MacKitFinderExtension', 'appex', 'wrapper.app-extension')]:
@@ -50,9 +50,14 @@ for i, (name, sources) in enumerate([('MacKit', app), ('MacKitFinderExtension', 
     frameworks = obj(name + 'frameworks', 'isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;')
     plist = 'MacKit' if i == 0 else 'Finder'
     settings = f'PRODUCT_NAME = {name}; PRODUCT_BUNDLE_IDENTIFIER = com.mackit.{"app" if i == 0 else "app.finder"}; INFOPLIST_FILE = "Config/{plist}-Info.plist"; CODE_SIGN_ENTITLEMENTS = "Config/{plist}.entitlements"; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";'
+    if i == 0: settings += ' ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;'
     if i == 1: settings += ' APPLICATION_EXTENSION_API_ONLY = YES; SKIP_INSTALL = YES;'
     conf = configs(name, settings)
-    phases = [phase, frameworks] + ([embed_phase] if i == 0 else [])
+    phases = [phase, frameworks]
+    if i == 0:
+        asset = obj('appAssets', f'isa = PBXBuildFile; fileRef = {file_ids["MacKit/Assets.xcassets"]};')
+        resources = obj('appResources', f'isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = ({asset},); runOnlyForDeploymentPostprocessing = 0;')
+        phases += [resources, embed_phase]
     obj('target:' + name, f'isa = PBXNativeTarget; buildConfigurationList = {conf}; buildPhases = {refs(phases)}; buildRules = (); dependencies = {refs([dep] if i == 0 else [])}; name = {name}; productName = {name}; productReference = {products[i]}; productType = "com.apple.product-type.{"application" if i == 0 else "app-extension"}";')
 obj('project', f'isa = PBXProject; attributes = {{LastSwiftUpdateCheck = 2700; LastUpgradeCheck = 2700;}}; buildConfigurationList = {project_configs}; compatibilityVersion = "Xcode 14.0"; developmentRegion = zh-Hans; hasScannedForEncodings = 0; knownRegions = (en, "zh-Hans", Base); mainGroup = {main_group}; productRefGroup = {product_group}; projectDirPath = ""; projectRoot = ""; targets = {refs([ident("target:MacKit"), ident("target:MacKitFinderExtension")])};')
 project = root / 'MacKit.xcodeproj'

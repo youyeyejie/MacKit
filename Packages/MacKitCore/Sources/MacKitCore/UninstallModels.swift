@@ -18,11 +18,11 @@ public struct FileIdentity: Codable, Equatable, Sendable {
     public var isSymbolicLink: Bool { kind == UInt16(S_IFLNK) }
 }
 
-public enum FileCategory: String, Codable, Sendable {
+public enum FileCategory: String, Codable, CaseIterable, Sendable {
     case application = "应用本体", cache = "缓存", preferences = "配置", support = "应用数据"
     case logs = "日志", state = "窗口状态", container = "容器", shared = "共享数据", service = "后台服务"
 }
-public enum Association: String, Codable, Sendable { case exact = "精确标识", name = "名称匹配", shared = "共享关系" }
+public enum Association: String, Codable, Sendable { case exact = "精确标识", related = "关联标识", name = "名称匹配", shared = "共享关系" }
 
 public struct ScanItem: Identifiable, Codable, Sendable {
     public var id: String { PathPolicy.path(url) }
@@ -34,6 +34,7 @@ public struct ScanItem: Identifiable, Codable, Sendable {
     public let bytes: Int64?
     public let removable: Bool
     public let caution: String?
+    public var serviceLabel: String? = nil
     public var suggested: Bool {
         removable && association == .exact && [.application, .cache, .logs, .state].contains(category)
     }
@@ -46,12 +47,16 @@ public struct AppIdentity: Codable, Sendable {
     public let relatedIDs: Set<String>
     public let groups: Set<String>
     public let snapshot: FileIdentity
+    public var aliases: Set<String> = []
+    public var teamID: String? = nil
 }
 public struct ScanReport: Sendable {
     public let app: AppIdentity
     public let items: [ScanItem]
     public let warnings: [String]
     public let allowedRoots: [URL]
+    public var systemItems: [SystemAssociation] = []
+    public var explicitPaths: [URL] = []
 }
 public struct ScanProgress: Sendable {
     public let path: String
@@ -90,9 +95,9 @@ public enum PathPolicy {
         contains(URL(fileURLWithPath: "/System"), url) ||
         (ownURL.map { contains($0, url) || contains(url, $0) } ?? false)
     }
-    public static func isSafe(_ url: URL, app: URL, roots: [URL]) -> Bool {
+    public static func isSafe(_ url: URL, app: URL, roots: [URL], explicit: [URL] = []) -> Bool {
         guard url.isFileURL, !hasSymlink(url), path(url) != "/" else { return false }
-        if path(url) == path(app) { return true }
+        if path(url) == path(app) || explicit.contains(where: { path($0) == path(url) }) { return true }
         return roots.contains { path($0) != path(url) && contains($0, url) }
     }
 }

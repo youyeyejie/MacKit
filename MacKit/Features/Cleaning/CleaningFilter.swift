@@ -5,6 +5,10 @@ final class CleaningFilter: @unchecked Sendable {
     private var sequence = EscapeSequence()
     private var heartbeat = ProcessInfo.processInfo.systemUptime
     private var active = true
+    // The activating shortcut is still held when locking immediately. Deliver its
+    // releases, but never deliver newly pressed keys, to avoid stuck modifiers.
+    private var entryKeys = Set((0..<128).filter { CGEventSource.keyState(.combinedSessionState, key: CGKeyCode($0)) }.map(Int64.init))
+    private var entryModifiers = CGEventSource.flagsState(.combinedSessionState).intersection([.maskCommand, .maskControl, .maskAlternate, .maskShift, .maskSecondaryFn])
     private let progress: @Sendable (Int, Bool) -> Void
 
     init(progress: @escaping @Sendable (Int, Bool) -> Void) { self.progress = progress }
@@ -24,6 +28,12 @@ final class CleaningFilter: @unchecked Sendable {
             let code = event.getIntegerValueField(.keyboardEventKeycode)
             let now = ProcessInfo.processInfo.systemUptime
             var done = false
+            if type == .keyUp, entryKeys.remove(code) != nil { return (false, nil, false) }
+            if type == .flagsChanged, !entryModifiers.isEmpty {
+                entryModifiers.formIntersection(event.flags)
+                sequence.reset()
+                return (false, before == 0 ? nil : 0, false)
+            }
             if type == .keyDown {
                 let modified = !event.flags.intersection([.maskCommand, .maskControl, .maskAlternate, .maskShift, .maskSecondaryFn]).isEmpty
                 sequence.keyDown(code: code, repeating: event.getIntegerValueField(.keyboardEventAutorepeat) != 0,

@@ -32,8 +32,9 @@ private struct Fixture {
     let report = try fixture.scan()
     #expect(report.items.contains { $0.url == fixture.cache && $0.suggested })
     #expect(!report.items.contains { $0.url == similar })
-    #expect(report.items.contains { $0.url == named && !$0.removable && !$0.suggested })
-    #expect(throws: UninstallError.self) { try RemovalPlan(report: report, selected: [named.path]) }
+    #expect(report.items.contains { $0.url == named && $0.removable && !$0.suggested })
+    let chosen = try RemovalPlan(report: report, selected: [named.path])
+    #expect(chosen.items.count == 1)
 }
 
 @Test func systemApplicationsAreProtected() throws {
@@ -102,4 +103,80 @@ private struct Fixture {
     catch is CancellationError { }
     #expect(FileManager.default.fileExists(atPath: fixture.app.path))
     #expect(FileManager.default.fileExists(atPath: fixture.cache.path))
+}
+
+@Test func nestedVendorDataIsFoundWithoutSelectingVendorRoot() throws {
+    let fixture = try Fixture(); defer { fixture.clean() }
+    let vendor = fixture.root.appendingPathComponent("Library/Application Support/Vendor")
+    let data = vendor.appendingPathComponent("Sample")
+    let other = vendor.appendingPathComponent("OtherProduct")
+    try FileManager.default.createDirectory(at: data, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
+    let report = try fixture.scan()
+    #expect(report.items.contains { $0.id == data.path && !$0.suggested })
+    #expect(!report.items.contains { $0.id == vendor.path || $0.id == other.path })
+}
+
+@Test func dotDirectoryNeedsExplicitSelectionAndStillChecksIdentity() throws {
+    let fixture = try Fixture(); defer { fixture.clean() }
+    let hidden = fixture.root.appendingPathComponent(".sample")
+    try FileManager.default.createDirectory(at: hidden, withIntermediateDirectories: true)
+    let report = try fixture.scan()
+    #expect(report.items.contains { $0.id == hidden.path && !$0.suggested })
+    let plan = try RemovalPlan(report: report, selected: [hidden.path])
+    try plan.validate(plan.items[0])
+    #expect(!PathPolicy.isSafe(fixture.root, app: fixture.app, roots: report.allowedRoots, explicit: report.explicitPaths))
+}
+
+@Test func userAgentMatchedThroughExecutablePath() throws {
+    let fixture = try Fixture(); defer { fixture.clean() }
+    let agents = fixture.root.appendingPathComponent("Library/LaunchAgents")
+    try FileManager.default.createDirectory(at: agents, withIntermediateDirectories: true)
+    let agent = agents.appendingPathComponent("vendor-startup.plist")
+    let plist: [String: Any] = ["Label": "dev.mackit.test-agent", "ProgramArguments": [fixture.app.appendingPathComponent("Contents/MacOS/Sample").path]]
+    try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0).write(to: agent)
+    let report = try fixture.scan()
+    #expect(report.items.contains { $0.id == agent.path && $0.removable && $0.serviceLabel == "dev.mackit.test-agent" && !$0.suggested })
+}
+
+@Test func containerMetadataFindsOpaqueContainerName() throws {
+    let fixture = try Fixture(); defer { fixture.clean() }
+    let container = fixture.root.appendingPathComponent("Library/Containers/opaque-uuid")
+    try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+    let data = try PropertyListSerialization.data(fromPropertyList: ["MCMMetadataIdentifier": "com.example.Sample"], format: .binary, options: 0)
+    try data.write(to: container.appendingPathComponent(".com.apple.containermanagerd.metadata.plist"))
+    let report = try fixture.scan()
+    #expect(report.items.contains { $0.id == container.path && $0.association == .exact && !$0.suggested })
+}
+
+@Test func backgroundInventoryOnlyMatchesOwnedIdentifiersOrPaths() throws {
+    let fixture = try Fixture(); defer { fixture.clean() }
+    let app = try fixture.scan().app
+    let text = """
+    #1:
+    UUID: first
+    Name: Sample Startup
+    Identifier: com.example.Sample
+    URL: file:///Applications/Sample.app/
+    #2:
+    UUID: second
+    Name: Sample Other
+    Identifier: com.example.SampleOther
+    URL: file:///Applications/Other.app/
+    """
+    let matches = SystemInventory.backgroundRecords(text, app: app)
+    #expect(matches.count == 1)
+    #expect(matches[0].0 == "Sample Startup")
+}
+
+@Test func permissionResetRejectsUnrelatedAndSystemIDsWithoutExecuting() {
+    #expect(throws: UninstallError.self) { try SystemCleanup.resetPermissions(bundleID: "com.apple.finder", allowedIDs: ["com.apple.finder"]) }
+    #expect(throws: UninstallError.self) { try SystemCleanup.resetPermissions(bundleID: "com.other.App", allowedIDs: ["com.example.Sample"]) }
+}
+
+@Test func identifierBoundaryAndNameNormalization() {
+    #expect(AssociationMatcher.match(name: "com.example.SampleOther", ids: ["com.example.Sample"], aliases: []) == nil)
+    #expect(AssociationMatcher.match(name: "com.example.Sample.helper", ids: ["com.example.Sample"], aliases: []) == .related)
+    #expect(AssociationMatcher.match(name: "Sample-App", ids: [], aliases: ["Sample App"]) == .name)
+    #expect(AssociationMatcher.match(name: "Electron", ids: [], aliases: ["Electron"]) == nil)
 }

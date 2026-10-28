@@ -1,9 +1,13 @@
 #!/bin/zsh
-# Local ad-hoc preview only. Finder App Group access needs a real development team.
 set -eu
 cd "${0:A:h:h}"
+installed="$HOME/Applications/MacKit.app"
+signed="$PWD/build/SignedPreview/Build/Products/Debug/MacKit.app"
+if [[ -d "$installed" ]]; then open "$installed"; exit; fi
+if [[ -d "$signed" ]]; then open "$signed"; exit; fi
 app_path="$PWD/build/DerivedData/Build/Products/Debug/MacKit.app"
-if [[ ! -d "$app_path" ]]; then scripts/build.sh Debug; fi
+[[ -d "$app_path" ]] || scripts/build.sh Debug
+# The unsigned fallback cannot access the team App Group. Do not re-sign signed builds.
 codesign --force --sign - "$app_path/Contents/PlugIns/MacKitFinderExtension.appex"
 codesign --force --sign - "$app_path"
 open "$app_path"

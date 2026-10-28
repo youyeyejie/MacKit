@@ -4,14 +4,15 @@ public struct RemovalPlan: Sendable {
     public let app: AppIdentity
     public let items: [ScanItem]
     public let allowedRoots: [URL]
+    public let explicitPaths: [URL]
 
     public init(report: ScanReport, selected: Set<String>) throws {
-        app = report.app; allowedRoots = report.allowedRoots
+        app = report.app; allowedRoots = report.allowedRoots; explicitPaths = report.explicitPaths
         let chosen = report.items.filter { selected.contains($0.id) }
         guard !chosen.isEmpty else { throw UninstallError.emptyPlan }
         for item in chosen {
-            guard item.removable, item.association == .exact,
-                  PathPolicy.isSafe(item.url, app: app.url, roots: allowedRoots) else {
+            guard item.removable,
+                  PathPolicy.isSafe(item.url, app: app.url, roots: allowedRoots, explicit: explicitPaths) else {
                 throw UninstallError.unsafePath(item.url.path)
             }
         }
@@ -26,7 +27,7 @@ public struct RemovalPlan: Sendable {
     }
 
     public func validate(_ item: ScanItem) throws {
-        guard PathPolicy.isSafe(item.url, app: app.url, roots: allowedRoots), !item.identity.isSymbolicLink else {
+        guard PathPolicy.isSafe(item.url, app: app.url, roots: allowedRoots, explicit: explicitPaths), !item.identity.isSymbolicLink else {
             throw UninstallError.unsafePath(item.url.path)
         }
         guard try FileIdentity.read(app.url) == app.snapshot,
@@ -57,6 +58,8 @@ public enum RemovalExecutor {
             if Task.isCancelled { break }
             let result: RemovalResult
             do {
+                try plan.validate(item)
+                try SystemCleanup.unloadUserAgent(item)
                 try plan.validate(item)
                 let target = try trash(item.url)
                 result = RemovalResult(original: item.url, destination: target, message: "已移到废纸篓")

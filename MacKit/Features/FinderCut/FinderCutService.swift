@@ -155,6 +155,7 @@ final class FinderCutService: FeatureModule {
         publishBadges()
         status = enabled ? "已取消待移动状态" : "未启用"
     }
+    func refreshBadges() { publishBadges() }
     private func publishBadges() {
         let state = BadgeState(sessionID: session?.id ?? UUID(), paths: session?.urls.map(\.path) ?? [],
                                expiresAt: session?.createdAt.addingTimeInterval(600) ?? Date())
