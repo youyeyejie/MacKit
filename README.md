@@ -1,7 +1,7 @@
 <div align="center">
   <img src="Assets/MacKit-Icon.png" width="112" alt="MacKit 图标">
   <h1>MacKit</h1>
-  <p>轻一点，顺手一点。一个使用 Swift 与 SwiftUI 构建的原生 macOS 工具集，运行时占用仅 20 MB。</p>
+  <p>轻一点，顺手一点。一个使用 Swift 与 SwiftUI 构建的原生 macOS 工具集，运行时占用仅 30 MB。</p>
   <p>macOS 14+ · Apple Silicon / Intel · 无第三方运行时依赖</p>
 </div>
 
