@@ -77,12 +77,13 @@ final class CleaningService: FeatureModule {
         let primary = NSScreen.screens.first(where: isBuiltin) ?? NSScreen.main
         for screen in NSScreen.screens {
             let full = screen == primary
-            let frame = full ? screen.frame : NSRect(x: screen.frame.midX - 200, y: screen.frame.maxY - 210, width: 400, height: 170)
+            let frame = full ? screen.frame : NSRect(x: screen.frame.midX - 200, y: screen.frame.maxY - 210, width: 400, height: 192)
             let panel = NSPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
             panel.level = .screenSaver
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
-            panel.backgroundColor = .black
-            panel.isOpaque = true
+            panel.backgroundColor = full ? .black : .clear
+            panel.isOpaque = full
+            panel.hasShadow = !full
             panel.hidesOnDeactivate = false
             panel.ignoresMouseEvents = false
             panel.contentView = NSHostingView(rootView: CleaningOverlay(service: self, fullScreen: full))
@@ -116,13 +117,13 @@ struct CleaningOverlay: View {
     let fullScreen: Bool
     var body: some View {
         ZStack {
-            Color.black
+            RoundedRectangle(cornerRadius: fullScreen ? 0 : 24).fill(Color.black)
             VStack(spacing: 22) {
-                Image(systemName: "lock.fill")
+                Image(systemName: "sparkles")
                     .font(.system(size: 22, weight: .medium))
                     .foregroundStyle(Color.white.opacity(0.45))
                 VStack(spacing: 9) {
-                    Text("安心清洁").font(.system(size: 25, weight: .medium, design: .rounded))
+                    Text("清洁模式").font(.system(size: 25, weight: .medium, design: .rounded))
                     HStack(spacing: 6) {
                         Text("连续按下")
                         Text("esc").font(.system(size: 12, weight: .medium, design: .monospaced))

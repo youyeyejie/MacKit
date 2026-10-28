@@ -18,8 +18,21 @@ struct FinderCutView: View {
                     VStack(alignment: .leading, spacing: 16) { shortcuts }
                 }
             }
-            PermissionCard(title: "剪切角标", subtitle: service.badgeStatus) {
-                Button("管理扩展…") { service.openExtensionSettings() }
+            SettingsCard {
+                HStack {
+                    Text("剪切角标").font(.headline)
+                    Spacer()
+                    Button("管理…") { service.openExtensionSettings() }
+                }
+                HStack {
+                    Button("检查角标") { service.diagnoseExtension() }
+                    Button(service.reloadingExtension ? "正在重载…" : "重载扩展") { service.reloadExtension() }
+                        .disabled(service.reloadingExtension)
+                }
+                if let message = service.extensionMessage {
+                    Text(message).font(.callout).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }.onAppear { service.sync(); service.refreshBadges() }
     }

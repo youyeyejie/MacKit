@@ -27,3 +27,20 @@ import Testing
     #expect(result)
     #expect(try String(contentsOf: file, encoding: .utf8) == "second")
 }
+
+@Test func stoppedOwnerInvalidatesUnexpiredBadges() throws {
+    let state = BadgeState(paths: ["/tmp/example"], expiresAt: Date().addingTimeInterval(600), ownerRunning: false)
+    #expect(state.validPaths().isEmpty)
+    let decoded = try JSONDecoder().decode(BadgeState.self, from: JSONEncoder().encode(state))
+    #expect(decoded.ownerRunning == false)
+    #expect(decoded.validPaths().isEmpty)
+}
+
+@Test func legacyBadgeStateRemainsReadable() throws {
+    let state = BadgeState(paths: ["/tmp/example"], expiresAt: Date().addingTimeInterval(600))
+    var payload = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(state)) as? [String: Any])
+    payload.removeValue(forKey: "ownerRunning")
+    let decoded = try JSONDecoder().decode(BadgeState.self, from: JSONSerialization.data(withJSONObject: payload))
+    #expect(decoded.ownerRunning == nil)
+    #expect(decoded.validPaths().contains("/tmp/example"))
+}

@@ -7,11 +7,12 @@ public struct BadgeState: Codable, Sendable, Equatable {
     public let sessionID: UUID
     public let paths: [String]
     public let expiresAt: Date
-    public init(sessionID: UUID = UUID(), paths: [String] = [], expiresAt: Date = Date()) {
-        version = 1; self.sessionID = sessionID; self.paths = paths; self.expiresAt = expiresAt
+    public let ownerRunning: Bool?
+    public init(sessionID: UUID = UUID(), paths: [String] = [], expiresAt: Date = Date(), ownerRunning: Bool = true) {
+        version = 1; self.sessionID = sessionID; self.paths = paths; self.expiresAt = expiresAt; self.ownerRunning = ownerRunning
     }
     public func validPaths(now: Date = Date()) -> Set<String> {
-        guard version == 1, expiresAt > now else { return [] }
+        guard version == 1, ownerRunning != false, expiresAt > now else { return [] }
         return Set(paths.filter { $0.hasPrefix("/") }.map { URL(fileURLWithPath: $0).standardizedFileURL.path })
     }
 }

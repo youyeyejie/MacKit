@@ -87,3 +87,30 @@ struct PermissionCard<Actions: View>: View {
         return NSApp.applicationIconImage
     }()
 }
+
+/// Settings use the same control height and inset across toggles and recorders.
+struct SettingsRows<Content: View>: View {
+    let title: String
+    @ViewBuilder var content: Content
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.headline)
+            VStack(spacing: 0) { content }
+        }.frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 10)
+            .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.primary.opacity(0.06)))
+    }
+}
+
+struct SettingsRow<Control: View>: View {
+    let title: String
+    @ViewBuilder var control: Control
+    var body: some View {
+        HStack(alignment: .center, spacing: 16) {
+            Text(title).font(.body)
+            Spacer(minLength: 12)
+            control.controlSize(.regular)
+        }.frame(minHeight: 44).padding(.vertical, 2)
+    }
+}

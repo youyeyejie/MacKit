@@ -84,36 +84,30 @@ struct MainView: View {
     private var settings: some View {
         PageLayout {
             PageHeader(title: "软件设置", subtitle: "安静地留在后台，需要时随时唤起。", symbol: "gearshape.fill", color: .gray)
-            SettingsCard(title: "启动与运行") {
-                HStack {
-                    Text("登录后启动")
-                    Spacer()
-                    Toggle("登录后启动", isOn: Binding(get: { model.loginEnabled }, set: model.setLogin)).labelsHidden().toggleStyle(.switch)
+            SettingsRows(title: "启动与运行") {
+                SettingsRow(title: "登录后启动") {
+                    Toggle("登录后启动", isOn: Binding(get: { model.loginEnabled }, set: model.setLogin))
+                        .labelsHidden().toggleStyle(.switch)
                 }
-
             }
-            SettingsCard(title: "显示位置") {
-                HStack {
-                    Text("在 Dock 中显示")
-                    Spacer()
-                    Toggle("在 Dock 中显示", isOn: Binding(get: { model.showDock }, set: model.setDock)).labelsHidden().toggleStyle(.switch)
+            SettingsRows(title: "显示位置") {
+                SettingsRow(title: "在 Dock 中显示") {
+                    Toggle("在 Dock 中显示", isOn: Binding(get: { model.showDock }, set: model.setDock))
+                        .labelsHidden().toggleStyle(.switch)
                 }
                 Divider()
-                HStack {
-                    Text("在菜单栏中显示")
-                    Spacer()
-                    Toggle("在菜单栏中显示", isOn: Binding(get: { model.showMenuBar }, set: model.setMenuBar)).labelsHidden().toggleStyle(.switch)
+                SettingsRow(title: "在菜单栏中显示") {
+                    Toggle("在菜单栏中显示", isOn: Binding(get: { model.showMenuBar }, set: model.setMenuBar))
+                        .labelsHidden().toggleStyle(.switch)
                 }
             }
-            SettingsCard(title: "快捷键") {
-                HStack(alignment: .top) {
-                    Text("打开 MacKit"); Spacer()
+            SettingsRows(title: "快捷键") {
+                SettingsRow(title: "打开 MacKit") {
                     ShortcutRecorder(shortcut: model.shortcuts.show, save: { model.setShortcut($0, forCleaning: false) },
                                      recordingChanged: { model.recordingChanged?($0) })
                 }
                 Divider()
-                HStack(alignment: .top) {
-                    Text("开始清洁"); Spacer()
+                SettingsRow(title: "开始清洁") {
                     ShortcutRecorder(shortcut: model.shortcuts.clean, save: { model.setShortcut($0, forCleaning: true) },
                                      recordingChanged: { model.recordingChanged?($0) })
                 }
@@ -130,8 +124,9 @@ struct MainView: View {
                     model.permissions.requestAccessibility()
                 }
             }
-            PermissionCard(title: "访达扩展", subtitle: model.finderCut.badgeStatus) {
-                Button("管理扩展…") { model.finderCut.openExtensionSettings() }
+            PermissionCard(title: "访达扩展", subtitle: "用于在待移动文件上显示剪切角标。") {
+                StatusPill(text: model.finderCut.extensionEnabled ? "已启用" : "未启用", color: model.finderCut.extensionEnabled ? .green : .orange)
+                Button("管理…") { model.finderCut.openExtensionSettings() }
             }
         }.onAppear { model.permissions.refresh(); model.finderCut.refreshBadges() }
     }

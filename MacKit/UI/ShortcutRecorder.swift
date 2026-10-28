@@ -12,12 +12,12 @@ struct ShortcutRecorder: View {
             HStack(spacing: 8) {
             Button(recording ? "按下新组合键…" : (shortcut?.label ?? "未设置")) {
                 if recording { finish() } else { start() }
-            }.monospaced().frame(minWidth: 128, alignment: .trailing)
+            }.monospaced().frame(width: 128, alignment: .trailing)
             Button {
                 finish()
                 error = save(nil)
             } label: { Image(systemName: "xmark.circle.fill") }
-                .buttonStyle(.plain).foregroundStyle(.secondary)
+                .buttonStyle(.plain).foregroundStyle(.secondary).frame(width: 20, height: 24)
                 .help("清空快捷键").accessibilityLabel("清空快捷键")
                 .disabled(shortcut == nil && !recording)
             }
