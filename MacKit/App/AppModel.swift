@@ -6,10 +6,14 @@ import ServiceManagement
 final class AppModel {
     let permissions = PermissionService()
     let cleaning = CleaningService()
+    let finderCut = FinderCutService()
     var loginStatus = "未启用"
     var message: String?
 
-    init() { refreshLogin() }
+    init() {
+        cleaning.onActivity = { [weak finderCut] active in finderCut?.setSuspended(active) }
+        refreshLogin()
+    }
 
     func refreshLogin() {
         switch SMAppService.mainApp.status {

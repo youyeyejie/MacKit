@@ -14,7 +14,10 @@ struct MainView: View {
                 Spacer()
                 Text("开发预览 0.1").font(.caption).padding(8).background(.quaternary, in: Capsule())
             }
-            CleaningView(service: model.cleaning)
+            TabView {
+                CleaningView(service: model.cleaning).tabItem { Label("清洁", systemImage: "sparkles") }
+                FinderCutView(service: model.finderCut).tabItem { Label("Finder", systemImage: "scissors") }
+            }.frame(minHeight: 270)
             GroupBox("后台运行") {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("不显示 Dock 或菜单栏图标。再次打开 MacKit 或按 ⌃⌥⌘M 唤起此窗口。")

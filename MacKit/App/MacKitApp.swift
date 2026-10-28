@@ -50,5 +50,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
-    func applicationWillTerminate(_ notification: Notification) { model.cleaning.stop(); hotkeys?.stop() }
+    func applicationWillTerminate(_ notification: Notification) { model.finderCut.stop(); model.cleaning.stop(); hotkeys?.stop() }
 }
