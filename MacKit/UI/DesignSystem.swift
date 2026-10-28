@@ -1,5 +1,16 @@
 import SwiftUI
 
+/// Shared typography and spacing for every main-panel page.
+enum AppStyle {
+    static let sectionTitle: Font = .title3.bold()
+    static let body: Font = .body
+    static let pageInset: CGFloat = 24
+    static let pageSpacing: CGFloat = 18
+    static let cardInset: CGFloat = 20
+    static let contentSpacing: CGFloat = 14
+    static let rowHeight: CGFloat = 44
+}
+
 struct PageHeader: View {
     let title: String
     let subtitle: String
@@ -12,7 +23,7 @@ struct PageHeader: View {
                 .background(color.gradient, in: RoundedRectangle(cornerRadius: 15))
             VStack(alignment: .leading, spacing: 5) {
                 Text(title).font(.system(size: 23, weight: .bold))
-                Text(subtitle).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Text(subtitle).font(AppStyle.body).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
         }.padding(.bottom, 8)
@@ -23,11 +34,11 @@ struct SettingsCard<Content: View>: View {
     var title: String?
     @ViewBuilder var content: Content
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            if let title { Text(title).font(.headline) }
+        VStack(alignment: .leading, spacing: AppStyle.contentSpacing) {
+            if let title { Text(title).font(AppStyle.sectionTitle) }
             content
         }.frame(maxWidth: .infinity, alignment: .leading)
-            .padding(20)
+            .padding(AppStyle.cardInset)
             .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.primary.opacity(0.06)))
     }
@@ -49,10 +60,11 @@ struct PageLayout<Content: View>: View {
     @ViewBuilder var content: Content
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) { content }
+            VStack(alignment: .leading, spacing: AppStyle.pageSpacing) { content }
                 .frame(maxWidth: 800, alignment: .leading)
-                .padding(24).frame(maxWidth: .infinity, alignment: .topLeading)
-        }.background(Color(nsColor: .windowBackgroundColor))
+                .padding(AppStyle.pageInset).frame(maxWidth: .infinity, alignment: .topLeading)
+        }.font(AppStyle.body).lineSpacing(3)
+            .background(Color(nsColor: .windowBackgroundColor))
     }
 }
 
@@ -65,16 +77,16 @@ struct PermissionCard<Actions: View>: View {
         SettingsCard {
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .center, spacing: 18) {
-                    Text(title).font(.headline).fixedSize()
+                    Text(title).font(AppStyle.sectionTitle).fixedSize()
                     Spacer(minLength: 12)
                     HStack(spacing: 8) { actions }.fixedSize()
                 }
                 VStack(alignment: .leading, spacing: 12) {
-                    Text(title).font(.headline)
+                    Text(title).font(AppStyle.sectionTitle)
                     HStack(spacing: 8) { actions }
                 }
             }
-            Text(subtitle).font(.callout).foregroundStyle(.secondary)
+            Text(subtitle).font(AppStyle.body).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -93,13 +105,9 @@ struct SettingsRows<Content: View>: View {
     let title: String
     @ViewBuilder var content: Content
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.headline)
+        SettingsCard(title: title) {
             VStack(spacing: 0) { content }
-        }.frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 10)
-            .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.primary.opacity(0.06)))
+        }
     }
 }
 
@@ -111,6 +119,6 @@ struct SettingsRow<Control: View>: View {
             Text(title).font(.body)
             Spacer(minLength: 12)
             control.controlSize(.regular)
-        }.frame(minHeight: 44).padding(.vertical, 2)
+        }.frame(minHeight: AppStyle.rowHeight)
     }
 }

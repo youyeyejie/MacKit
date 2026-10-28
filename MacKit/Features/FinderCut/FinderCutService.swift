@@ -156,9 +156,10 @@ final class FinderCutService: FeatureModule {
         status = enabled ? "已取消待移动状态" : "未启用"
     }
     func setSoundEnabled(_ value: Bool) {
+        guard value != soundEnabled else { return }
         soundEnabled = value
         UserDefaults.standard.set(value, forKey: "finderCut.soundEnabled")
-        if !value { cutSound.stop() }
+        if value { cutSound.play() } else { cutSound.stop() }
     }
     func stop() {
         shuttingDown = true

@@ -6,8 +6,8 @@ struct FinderCutView: View {
         PageLayout {
             PageHeader(title: "访达剪切", subtitle: "熟悉的快捷键，更自然的文件移动。", symbol: "scissors")
             SettingsCard {
-                HStack {
-                    Text("使用 ⌘ X 剪切").font(.headline)
+                HStack(alignment: .center, spacing: 16) {
+                    Text("使用 ⌘ X 剪切").font(AppStyle.sectionTitle)
                     Spacer()
                     Toggle("使用 ⌘ X 剪切", isOn: Binding(get: { service.enabled }, set: service.setEnabled))
                         .labelsHidden().toggleStyle(.switch)
