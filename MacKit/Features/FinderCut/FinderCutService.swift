@@ -9,8 +9,9 @@ final class FinderCutService: FeatureModule {
     private(set) var enabled = UserDefaults.standard.bool(forKey: "finderCut.enabled")
     private(set) var status = "未启用"
     private(set) var pendingCount = 0
-    private(set) var badgeStatus = "需签名并启用 Finder 扩展"
+    private(set) var badgeStatus = "需签名并启用 访达扩展"
     private var session: CutSession?
+    private var lastPublished: BadgeState?
     private var filter: FinderKeyFilter?
     private var worker: EventTapWorker?
     private var timer: Timer?
@@ -62,7 +63,7 @@ final class FinderCutService: FeatureModule {
             worker?.stop(); worker = nil; filter = nil
             if !enabled { status = "未启用" }
             else if !AXIsProcessTrusted() { status = "等待辅助功能授权" }
-            else if session == nil { status = "等待 Finder 前台激活" }
+            else if session == nil { status = "等待 访达前台激活" }
             return
         }
         guard worker == nil else { return }
@@ -82,7 +83,7 @@ final class FinderCutService: FeatureModule {
             }
         }, handler: { type, event in filter.handle(type, event) })
         if worker.start() { self.filter = filter; self.worker = worker; status = "已启用 · ⌘X / ⌘V" }
-        else { status = "无法监听 Finder 快捷键，请检查辅助功能授权" }
+        else { status = "无法监听 访达快捷键，请检查辅助功能授权" }
     }
 
     private func fileURLs() -> [URL] {
@@ -120,7 +121,7 @@ final class FinderCutService: FeatureModule {
                     return
                 }
             }
-            status = "Finder 未完成复制，请重试"
+            status = "访达未完成复制，请重试"
         } else if key == 9 {
             guard let session, session.matches(urls: fileURLs(), changeCount: NSPasteboard.general.changeCount) else {
                 cancel(); post(key: 9, flags: .maskCommand, pid: pid); return
@@ -128,7 +129,7 @@ final class FinderCutService: FeatureModule {
             // Delegate transfer, conflicts and undo to Finder; no success claim here.
             cancel()
             post(key: 9, flags: [.maskCommand, .maskAlternate], pid: pid)
-            status = "已交给 Finder；若取消移动，请重新 ⌘X"
+            status = "已交给访达；若取消移动，请重新 ⌘X"
         }
     }
 
@@ -142,7 +143,16 @@ final class FinderCutService: FeatureModule {
         }
     }
 
+    private func updateBadgeReceipt() {
+        guard let lastPublished, !lastPublished.paths.isEmpty else { return }
+        if let receipt = BadgeReceipt.read(), receipt.sessionID == lastPublished.sessionID, receipt.pathCount == lastPublished.paths.count {
+            badgeStatus = receipt.badgeRequests > 0 ? "扩展已响应角标请求 · \(receipt.pathCount) 项" : "扩展已同步 · 等待访达请求角标"
+        } else {
+            badgeStatus = "等待扩展同步；若持续无响应，请重新启用访达扩展"
+        }
+    }
     private func validateSession() {
+        updateBadgeReceipt()
         guard let session else { return }
         if !AXIsProcessTrusted() || !session.matches(urls: fileURLs(), changeCount: NSPasteboard.general.changeCount) {
             cancel(); sync()
@@ -161,8 +171,9 @@ final class FinderCutService: FeatureModule {
                                expiresAt: session?.createdAt.addingTimeInterval(600) ?? Date())
         do {
             try BadgeStore.write(state)
+            lastPublished = state
             DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(BadgeStore.notification), object: nil, userInfo: nil, deliverImmediately: true)
-            badgeStatus = FIFinderSyncController.isExtensionEnabled ? "Finder 扩展已启用" : "请在系统设置启用 Finder 扩展"
+            badgeStatus = FIFinderSyncController.isExtensionEnabled ? "访达扩展已启用" : "请在系统设置启用 访达扩展"
         } catch { badgeStatus = "角标不可用：需配置开发团队并签名；剪切仍可使用" }
     }
     func openExtensionSettings() { FIFinderSyncController.showExtensionManagementInterface() }

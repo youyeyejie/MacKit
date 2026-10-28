@@ -4,16 +4,16 @@ struct FinderCutView: View {
     @Bindable var service: FinderCutService
     var body: some View {
         PageLayout {
-            PageHeader(title: "Finder 剪切", subtitle: "熟悉的快捷键，更自然的文件移动。", symbol: "scissors")
+            PageHeader(title: "访达剪切", subtitle: "熟悉的快捷键，更自然的文件移动。", symbol: "scissors")
             SettingsCard {
                 HStack {
                     VStack(alignment: .leading, spacing: 5) {
                         Text("剪切与粘贴").font(.headline)
-                        Text("仅在 Finder 的文件浏览区域生效。")
+                        Text("仅在 访达的文件浏览区域生效。")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Toggle("启用 Finder 剪切", isOn: Binding(get: { service.enabled }, set: service.setEnabled))
+                    Toggle("启用 访达剪切", isOn: Binding(get: { service.enabled }, set: service.setEnabled))
                         .labelsHidden().toggleStyle(.switch)
                 }
                 Divider()
@@ -33,7 +33,7 @@ struct FinderCutView: View {
             }
             SettingsCard(title: "待移动角标") {
                 Text(service.badgeStatus).font(.callout).foregroundStyle(.secondary)
-                Button("管理 Finder 扩展…") { service.openExtensionSettings() }
+                Button("管理 访达扩展…") { service.openExtensionSettings() }
             }
             Text("⌘C 保留复制行为。文本框中的剪切、粘贴不受影响；按 Esc 可取消文件的待移动状态。")
                 .font(.caption).foregroundStyle(.secondary)

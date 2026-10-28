@@ -6,12 +6,12 @@ struct PageHeader: View {
     let symbol: String
     var color: Color = .blue
     var body: some View {
-        HStack(alignment: .center, spacing: 16) {
+        HStack(alignment: .center, spacing: 14) {
             Image(systemName: symbol).font(.system(size: 24, weight: .medium))
                 .foregroundStyle(.white).frame(width: 54, height: 54)
                 .background(color.gradient, in: RoundedRectangle(cornerRadius: 15))
             VStack(alignment: .leading, spacing: 5) {
-                Text(title).font(.system(size: 25, weight: .bold))
+                Text(title).font(.system(size: 23, weight: .bold))
                 Text(subtitle).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
@@ -51,7 +51,39 @@ struct PageLayout<Content: View>: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) { content }
                 .frame(maxWidth: 800, alignment: .leading)
-                .padding(30).frame(maxWidth: .infinity, alignment: .topLeading)
+                .padding(24).frame(maxWidth: .infinity, alignment: .topLeading)
         }.background(Color(nsColor: .windowBackgroundColor))
     }
+}
+
+/// Keep actions at the title's trailing edge when space allows; stack on narrow windows.
+struct PermissionCard<Actions: View>: View {
+    let title: String
+    let subtitle: String
+    @ViewBuilder var actions: Actions
+    var body: some View {
+        SettingsCard {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: 18) {
+                    Text(title).font(.headline).fixedSize()
+                    Spacer(minLength: 12)
+                    HStack(spacing: 8) { actions }.fixedSize()
+                }
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(title).font(.headline)
+                    HStack(spacing: 8) { actions }
+                }
+            }
+            Text(subtitle).font(.callout).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+@MainActor enum AppBrand {
+    // Read our bundle resource directly; NSWorkspace may retain an older installed icon.
+    static let icon: NSImage = {
+        if let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"), let image = NSImage(contentsOf: url) { return image }
+        return NSApp.applicationIconImage
+    }()
 }

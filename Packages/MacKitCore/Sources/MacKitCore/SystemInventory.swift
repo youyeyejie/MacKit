@@ -10,7 +10,7 @@ public struct CommandResult: Sendable {
 public enum SystemCommand {
     /// Fixed system tools, argv only, bounded lifetime; never invokes a shell.
     public static func run(_ executable: String, _ arguments: [String], timeout: TimeInterval = 8) throws -> CommandResult {
-        guard ["/usr/bin/sfltool", "/usr/sbin/pkgutil", "/usr/bin/tccutil", "/bin/launchctl"].contains(executable) else {
+        guard ["/usr/sbin/pkgutil", "/usr/bin/tccutil", "/bin/launchctl"].contains(executable) else {
             throw CocoaError(.executableNotLoadable)
         }
         try Task.checkCancellation()
@@ -63,14 +63,9 @@ public enum SystemInventory {
             items.append(SystemAssociation(id: "privacy:" + id, title: id, detail: detail, kind: .privacy,
                                            action: .resetPermissions, bundleID: id, confirmed: !services.isEmpty))
         }
-        if let result = try? SystemCommand.run("/usr/bin/sfltool", ["dumpbtm"]), result.status == 0 {
-            let records = backgroundRecords(result.output, app: app)
-            for (index, record) in records.enumerated() {
-                items.append(SystemAssociation(id: "login:\(index)", title: record.0, detail: record.1,
-                                               kind: .login, action: .loginSettings, bundleID: nil, confirmed: true))
-            }
-            if records.isEmpty { warnings.append("后台项清单未匹配到此应用；系统版本的输出格式或权限可能影响识别。") }
-        } else { warnings.append("无法读取系统登录与后台项清单。请在系统设置中核对，不代表没有启动项。") }
+        // Avoid sfltool dumpbtm: it can request permission on every scan.
+        // File-backed agents are handled by AppScanner; inspect embedded components directly.
+        items.append(contentsOf: embeddedLoginItems(app: app))
         if let result = try? SystemCommand.run("/usr/sbin/pkgutil", ["--pkgs"]), result.status == 0 {
             for id in result.output.split(separator: "\n").map(String.init) {
                 guard AssociationMatcher.match(name: id, ids: app.relatedIDs, aliases: []) != nil else { continue }
@@ -79,12 +74,26 @@ public enum SystemInventory {
                     kind: .receipt, action: .vendorUninstaller, bundleID: nil, confirmed: false))
             }
         } else { warnings.append("无法读取安装收据清单。") }
-        // Always expose the manual follow-up even if BTM is unavailable; do not invent a found item.
+        // Do not query or reset the system BTM database.
         if !items.contains(where: { $0.kind == .login }) {
-            items.append(SystemAssociation(id: "login:manual", title: "核对登录与后台项", detail: "未能确认关联项；打开系统设置检查。不能使用全局重置代替卸载单个应用。",
+            items.append(SystemAssociation(id: "login:manual", title: "核对登录与后台项", detail: "启动配置文件已在关联文件中扫描。系统管理的登录项请打开设置核对；扫描不请求后台数据库权限。",
                                            kind: .login, action: .loginSettings, bundleID: nil, confirmed: false))
         }
         return (items, warnings)
+    }
+
+    public static func embeddedLoginItems(app: AppIdentity) -> [SystemAssociation] {
+        var items: [SystemAssociation] = []
+        let loginRoot = app.url.appendingPathComponent("Contents/Library/LoginItems")
+        if let children = try? FileManager.default.contentsOfDirectory(at: loginRoot, includingPropertiesForKeys: nil) {
+            for child in children where !PathPolicy.hasSymlink(child) {
+                guard let id = Bundle(url: child)?.bundleIdentifier, app.relatedIDs.contains(id) else { continue }
+                items.append(SystemAssociation(id: "login:" + id, title: child.deletingPathExtension().lastPathComponent,
+                    detail: "应用内嵌登录组件：" + child.path + "。是否已启用请在系统设置核对；随应用本体移除。",
+                    kind: .login, action: .loginSettings, bundleID: id, confirmed: true))
+            }
+        }
+        return items
     }
 
     /// TCC has no public inventory API. This optional, read-only query tolerates schema/access failures.
@@ -111,31 +120,7 @@ public enum SystemInventory {
         }
     }
 
-    public static func backgroundRecords(_ text: String, app: AppIdentity) -> [(String, String)] {
-        var records: [[String: String]] = [], current: [String: String] = [:]
-        for raw in text.split(separator: "\n", omittingEmptySubsequences: false) {
-            let line = raw.trimmingCharacters(in: .whitespaces)
-            if line.hasPrefix("UUID:") || line.hasPrefix("#") || line.hasPrefix("Item ") {
-                if !current.isEmpty { records.append(current); current = [:] }
-            }
-            guard let colon = line.firstIndex(of: ":") else { continue }
-            let key = String(line[..<colon]).trimmingCharacters(in: .whitespaces)
-            let value = String(line[line.index(after: colon)...]).trimmingCharacters(in: .whitespaces)
-            if ["Name", "Identifier", "Parent Identifier", "URL", "Executable Path", "Type", "Disposition"].contains(key) { current[key] = value }
-        }
-        if !current.isEmpty { records.append(current) }
-        return records.compactMap { record in
-            let identifierMatch = [record["Identifier"], record["Parent Identifier"]].compactMap { $0 }.contains { app.relatedIDs.contains($0) }
-            let pathMatch = [record["URL"], record["Executable Path"]].compactMap { $0 }.contains { value in
-                let url = value.hasPrefix("file:") ? URL(string: value) : (value.hasPrefix("/") ? URL(fileURLWithPath: value) : nil)
-                return url.map { PathPolicy.contains(app.url, $0) } ?? false
-            }
-            guard identifierMatch || pathMatch else { return nil }
-            let name = record["Name"] ?? record["Identifier"] ?? "后台项"
-            let details = [record["URL"], record["Executable Path"], record["Disposition"]].compactMap { $0 }.joined(separator: " · ")
-            return (name, details + "；由 macOS 管理，请在登录项设置中关闭或移除。")
-        }
-    }
+
 }
 
 public enum SystemCleanup {

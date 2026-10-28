@@ -149,25 +149,6 @@ private struct Fixture {
     #expect(report.items.contains { $0.id == container.path && $0.association == .exact && !$0.suggested })
 }
 
-@Test func backgroundInventoryOnlyMatchesOwnedIdentifiersOrPaths() throws {
-    let fixture = try Fixture(); defer { fixture.clean() }
-    let app = try fixture.scan().app
-    let text = """
-    #1:
-    UUID: first
-    Name: Sample Startup
-    Identifier: com.example.Sample
-    URL: file:///Applications/Sample.app/
-    #2:
-    UUID: second
-    Name: Sample Other
-    Identifier: com.example.SampleOther
-    URL: file:///Applications/Other.app/
-    """
-    let matches = SystemInventory.backgroundRecords(text, app: app)
-    #expect(matches.count == 1)
-    #expect(matches[0].0 == "Sample Startup")
-}
 
 @Test func permissionResetRejectsUnrelatedAndSystemIDsWithoutExecuting() {
     #expect(throws: UninstallError.self) { try SystemCleanup.resetPermissions(bundleID: "com.apple.finder", allowedIDs: ["com.apple.finder"]) }
@@ -179,4 +160,17 @@ private struct Fixture {
     #expect(AssociationMatcher.match(name: "com.example.Sample.helper", ids: ["com.example.Sample"], aliases: []) == .related)
     #expect(AssociationMatcher.match(name: "Sample-App", ids: [], aliases: ["Sample App"]) == .name)
     #expect(AssociationMatcher.match(name: "Electron", ids: [], aliases: ["Electron"]) == nil)
+}
+
+@Test func embeddedLoginComponentsAreFoundWithoutSystemCommands() throws {
+    let fixture = try Fixture(); defer { fixture.clean() }
+    let component = fixture.app.appendingPathComponent("Contents/Library/LoginItems/SampleHelper.app/Contents")
+    try FileManager.default.createDirectory(at: component, withIntermediateDirectories: true)
+    try PropertyListSerialization.data(fromPropertyList: ["CFBundleIdentifier": "com.example.Sample.helper", "CFBundlePackageType": "APPL"], format: .xml, options: 0)
+        .write(to: component.appendingPathComponent("Info.plist"))
+    let report = try fixture.scan()
+    let items = SystemInventory.embeddedLoginItems(app: report.app)
+    #expect(items.count == 1)
+    #expect(items.first?.bundleID == "com.example.Sample.helper")
+    #expect(items.first?.action == .loginSettings)
 }

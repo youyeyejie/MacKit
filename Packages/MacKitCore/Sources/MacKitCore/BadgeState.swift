@@ -1,6 +1,8 @@
 import Foundation
+import Dispatch
+import Darwin
 
-public struct BadgeState: Codable, Sendable {
+public struct BadgeState: Codable, Sendable, Equatable {
     public let version: Int
     public let sessionID: UUID
     public let paths: [String]
@@ -30,5 +32,44 @@ public enum BadgeStore {
         guard let url = fileURL() else { throw CocoaError(.fileWriteNoPermission) }
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try JSONEncoder().encode(state).write(to: url, options: .atomic)
+    }
+}
+
+/// Watches the containing directory, since atomic JSON writes replace the file inode.
+/// Event-driven: no polling or filesystem tree traversal in the extension.
+public final class BadgeDirectoryWatcher: @unchecked Sendable {
+    private let source: DispatchSourceFileSystemObject
+    public init(directory: URL, changed: @escaping @Sendable () -> Void) throws {
+        let fd = open(directory.path, O_EVTONLY)
+        guard fd >= 0 else { throw CocoaError(.fileReadNoPermission) }
+        source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: [.write, .rename], queue: .main)
+        source.setEventHandler(handler: changed)
+        source.setCancelHandler { close(fd) }
+        source.resume()
+    }
+    deinit { source.cancel() }
+}
+
+public struct BadgeReceipt: Codable, Sendable {
+    public let sessionID: UUID
+    public let pathCount: Int
+    public let badgeRequests: Int
+    public let updatedAt: Date
+    public init(sessionID: UUID, pathCount: Int, badgeRequests: Int) {
+        self.sessionID = sessionID; self.pathCount = pathCount
+        self.badgeRequests = badgeRequests; updatedAt = Date()
+    }
+    public static func read() -> BadgeReceipt? {
+        guard let root = BadgeStore.fileURL()?.deletingLastPathComponent(),
+              let data = try? Data(contentsOf: root.appendingPathComponent("badge-receipt.json")), data.count < 4096 else { return nil }
+        return try? JSONDecoder().decode(Self.self, from: data)
+    }
+    public func write() {
+        guard let root = BadgeStore.fileURL()?.deletingLastPathComponent(), let data = try? JSONEncoder().encode(self) else { return }
+        // Open/save panels have their own extension instance. Do not let their
+        // idle receipts erase a response already observed for this same session.
+        if let previous = Self.read(), previous.sessionID == sessionID,
+           previous.pathCount == pathCount, previous.badgeRequests > badgeRequests { return }
+        try? data.write(to: root.appendingPathComponent("badge-receipt.json"), options: .atomic)
     }
 }

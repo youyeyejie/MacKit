@@ -5,6 +5,28 @@ import ServiceManagement
 @MainActor @Observable
 final class AppModel {
     let permissions = PermissionService()
+    let shortcuts = ShortcutSettings()
+    var sidebarVisible = true
+    var showDock = UserDefaults.standard.bool(forKey: "appearance.showDock")
+    var showMenuBar = UserDefaults.standard.bool(forKey: "appearance.showMenuBar")
+    var appearanceChanged: (() -> Void)?
+    var registerShortcuts: ((AppShortcut, AppShortcut) -> String?)?
+    var recordingChanged: ((Bool) -> Void)?
+
+    func setDock(_ value: Bool) {
+        showDock = value; UserDefaults.standard.set(value, forKey: "appearance.showDock"); appearanceChanged?()
+    }
+    func setMenuBar(_ value: Bool) {
+        showMenuBar = value; UserDefaults.standard.set(value, forKey: "appearance.showMenuBar"); appearanceChanged?()
+    }
+    func setShortcut(_ value: AppShortcut, forCleaning: Bool) -> String? {
+        let show = forCleaning ? shortcuts.show : value
+        let clean = forCleaning ? value : shortcuts.clean
+        guard !show.conflicts(with: clean) else { return "两个功能不能使用相同快捷键" }
+        if let error = registerShortcuts?(show, clean) { return error }
+        shortcuts.save(show: show, clean: clean)
+        return nil
+    }
     let cleaning = CleaningService()
     let finderCut = FinderCutService()
     let uninstaller = UninstallerService()

@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 struct UninstallerView: View {
     @Bindable var service: UninstallerService
     @State private var systemTab = false
+    @State private var dropTargeted = false
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             PageHeader(title: "应用卸载", subtitle: "查找关联内容，审阅后再清理。", symbol: "shippingbox.fill", color: .orange)
@@ -63,17 +64,25 @@ struct UninstallerView: View {
                     Button("显示操作记录") { NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: journal.deletingLastPathComponent().path) }
                 }
             } else {
-                ContentUnavailableView {
-                    Label("把应用拖到这里", systemImage: "square.and.arrow.down.on.square")
-                } description: {
-                    Text("查找应用本体、数据、缓存、配置与系统关联项。\n先看清楚，再决定保留哪些。")
+                VStack(spacing: 12) {
+                    Image(systemName: "square.and.arrow.down").font(.system(size: 28, weight: .light)).foregroundStyle(.orange)
+                    Text("把应用拖到这里").font(.headline)
+                    Text("查找本体、数据、缓存、配置与系统关联项")
+                        .font(.callout).foregroundStyle(.secondary)
+                    Button("或选择应用…") { service.choose() }.disabled(service.busy)
                 }
+                .frame(maxWidth: .infinity).frame(height: 210)
+                .background(Color.orange.opacity(dropTargeted ? 0.08 : 0.025), in: RoundedRectangle(cornerRadius: 16))
+                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(dropTargeted ? Color.orange : Color.primary.opacity(0.16), style: StrokeStyle(lineWidth: 1.5, dash: [6, 5])))
+                Spacer(minLength: 0)
             }
-        }.padding(30).background(Color(nsColor: .windowBackgroundColor))
+        }.padding(24).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color(nsColor: .windowBackgroundColor))
         .dropDestination(for: URL.self) { urls, _ in
             guard !service.busy, urls.count == 1, let url = urls.first, url.pathExtension.lowercased() == "app" else { return false }
             service.scan(url); return true
-        }
+        } isTargeted: { dropTargeted = $0 }
+
         .sheet(isPresented: $service.confirmRemoval) { confirmation }
     }
 
@@ -99,7 +108,7 @@ struct UninstallerView: View {
                                     if let caution = item.caution { Text(caution).font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
                                 }
                                 Button { NSWorkspace.shared.activateFileViewerSelecting([item.url]) } label: { Image(systemName: "magnifyingglass") }
-                                    .buttonStyle(.borderless).help("在 Finder 显示")
+                                    .buttonStyle(.borderless).help("在访达显示")
                             }.padding(.vertical, 6)
                         }
                     }
