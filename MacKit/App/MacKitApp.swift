@@ -16,7 +16,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
-        hotkeys = GlobalHotKeys(show: { [weak self] in self?.showWindow() })
+        hotkeys = GlobalHotKeys(show: { [weak self] in self?.showWindow() }, clean: { [weak self] in
+            self?.showWindow(); self?.model.cleaning.begin()
+        })
+        model.message = hotkeys?.error
         let login = NSAppleEventManager.shared().currentAppleEvent?
             .paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
         if !login { showWindow() }
@@ -47,5 +50,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
-    func applicationWillTerminate(_ notification: Notification) { hotkeys?.stop() }
+    func applicationWillTerminate(_ notification: Notification) { model.cleaning.stop(); hotkeys?.stop() }
 }

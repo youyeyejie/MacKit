@@ -5,6 +5,7 @@ import ServiceManagement
 @MainActor @Observable
 final class AppModel {
     let permissions = PermissionService()
+    let cleaning = CleaningService()
     var loginStatus = "未启用"
     var message: String?
 
