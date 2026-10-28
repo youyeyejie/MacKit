@@ -153,3 +153,11 @@ dist/                          DMG 和校验文件（不纳入 Git）
 ```
 
 `MacKitCore` 保留 Swift Package 描述文件；当前生成的 Xcode 工程直接将其源码加入应用编译。版本号和最低系统版本在 `Config/Shared.xcconfig` 中维护。
+
+## 参与贡献
+
+欢迎提交问题反馈和改进建议。开发约定与 Pull Request 要求见 [贡献指南](CONTRIBUTING.md)。后续功能会根据我的使用习惯逐步添加。
+
+## 开源协议
+
+本项目采用 [MIT License](LICENSE)。
