@@ -128,15 +128,12 @@ struct MainView: View {
     }
     private var about: some View {
         PageLayout {
-            PageHeader(title: "关于 MacKit", subtitle: "轻一点，顺手一点。", symbol: "info.circle.fill")
-            SettingsCard {
-                HStack(spacing: 16) {
-                    Image(nsImage: AppBrand.icon).resizable().frame(width: 64, height: 64)
-                    Text("MacKit").font(AppStyle.sectionTitle)
-                    Spacer()
-                    StatusPill(text: "v" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.7.0"), color: .blue)
-                }
-            }
+            VStack(spacing: 16) {
+                Image(nsImage: AppBrand.icon).resizable().frame(width: 112, height: 112)
+                Text("MacKit").font(.system(size: 32, weight: .bold, design: .rounded))
+                Text("轻一点，顺手一点。").font(.title3).foregroundStyle(.secondary)
+                StatusPill(text: "v" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.8.0"), color: .blue)
+            }.frame(maxWidth: .infinity).padding(.vertical, 30)
             SettingsCard(title: "为你的 Mac 而生") {
                 Text("使用 Swift 与 SwiftUI 构建。功能按需运行，数据留在本机，无需账号或云服务。")
                     .foregroundStyle(.secondary)
