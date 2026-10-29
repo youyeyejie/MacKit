@@ -23,6 +23,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
         }
         model.recordingChanged = { [weak self] recording in
             if recording { self?.hotkeys?.suspend() } else { self?.hotkeys?.resume() }
+            self?.model.windowSwitcher.setSuspended(recording)
+            self?.model.dockEnhancement.setSuspended(recording)
         }
         NSApp.applicationIconImage = AppBrand.icon
         applyAppearance()
@@ -65,6 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
 
     func applicationDidBecomeActive(_ notification: Notification) {
         model.permissions.refresh(); model.refreshLogin(); model.finderCut.sync()
+        model.windowSwitcher.sync(); model.dockEnhancement.sync()
     }
 
     private func applyAppearance() {
@@ -111,6 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationWillTerminate(_ notification: Notification) {
         model.cleaning.onActivity = nil
-        model.cleaning.stop(); model.finderCut.stop(); hotkeys?.stop()
+        model.cleaning.stop(); model.finderCut.stop()
+        model.windowSwitcher.stop(); model.dockEnhancement.stop(); hotkeys?.stop()
     }
 }

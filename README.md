@@ -1,7 +1,7 @@
 <div align="center">
   <img src="Assets/MacKit-Icon.png" width="112" alt="MacKit 图标">
   <h1>MacKit</h1>
-  <p>轻一点，顺手一点。一个使用 Swift 与 SwiftUI 构建的原生 macOS 工具集，运行时占用仅 30 MB。</p>
+  <p>轻一点，顺手一点。一个使用 Swift 与 SwiftUI 构建的原生 macOS 工具集，后台占用仅 30 MB。</p>
   <p>macOS 14+ · Apple Silicon / Intel · 无第三方运行时依赖</p>
 </div>
 
@@ -33,6 +33,20 @@
 
 在「访达剪切」页面开启功能，可单独开关剪切音效。文件移动、重名冲突及撤销由访达处理。剪贴板内容变化后，待移动状态会失效；取消访达的移动操作后，需要重新按 `⌘ X`。
 
+### 窗口切换
+
+按住 ⌘ 并按 Tab 浏览应用窗口，⌘` 浏览当前应用窗口；Shift 反向选择，松开 ⌘ 确认；支持方向键、悬停选择及 ⌘Q / ⌘W / ⌘M 操作。无窗口应用排在最后，确认后打开应用。目录包括最小化和全屏窗口，按窗口 ID 激活。
+
+### 程序坞增强
+
+悬停应用图标约 200ms 显示窗口预览，点击缩略图激活指定窗口。点按当前应用的 Dock 图标最小化窗口，再次点按还原本功能收起的窗口；全屏窗口使用隐藏应用。拖动图标、带修饰键的点按、右键和后台应用的普通点按保留系统行为。支持底部和两侧 Dock，面板与图标间留有可通行区域。
+
+Dock 实现依据 [Vorssaint 的 DockClick](https://github.com/vorssaint/vorssaint-utils/tree/main/Sources/Vorssaint/Services/DockClick) 和 [DockPreview](https://github.com/vorssaint/vorssaint-utils/tree/main/Sources/Vorssaint/Services/DockPreview) 的事件拦截、拖动重放、悬停状态与截图回退机制独立重构。具体设计、测试范围见 [Dock 重构说明](docs/dock-enhancement.md)。
+
+Dock 面板按可用空间换行或滚动显示窗口，按需生成不超过 360×220 的位图，缩略图缓存设置 8 MB / 24 张上限、90 秒有效期；停用功能、暂停或内存压力时清空。不启动持续录屏或常驻窗口截图轮询；面板可见期间定期检查窗口目录，关闭后停止检查。优先使用 WindowServer 窗口快照，失败时回退 ScreenCaptureKit；窗口受保护、缺少权限或系统不提供图像时显示占位图。窗口目录合并 AX 和 CG 信息，包括最小化和其他桌面的全屏窗口。窗口 ID 和快照使用可选的 macOS 私有接口，未来系统可能退化为回退路径。
+
+编译和纯逻辑回归测试不等于真实桌面验收；多屏、不同应用的最小化/全屏/跨 Space 激活还需在授权后的桌面测试。
+
 ### 软件设置
 
 - 自定义登录自启动。
@@ -51,7 +65,7 @@
 
 从 [Releases](https://github.com/youyeyejie/MacKit/releases ) 下载构建好的应用，将 DMG 中的 `MacKit.app` 拖入 `Applications`，即可安装应用并使用。
 
-清洁模式和访达剪切需要**辅助功能权限**。在应用的「权限管理」页面点击「前往授权…」，按系统提示允许 MacKit。授权后若功能仍未生效，退出并重新打开应用。
+清洁模式、访达剪切、窗口切换和程序坞增强需要**辅助功能权限**；窗口预览还需要**屏幕录制权限**。在应用的「权限管理」页面点击对应的「前往授权…」，按系统提示允许 MacKit。授权后若功能仍未生效，退出并重新打开应用。
 
 ## 开发与构建
 
@@ -70,7 +84,7 @@
 ### 构建 App
 
 ```sh
-# 默认：Release、无签名、同时构建 arm64 和 x86_64
+# 默认：Release、开发签名、同时构建 arm64 和 x86_64
 ./scripts/build.sh
 
 # Debug 构建
@@ -86,7 +100,7 @@ build/DerivedData/Build/Products/Release/MacKit.app
 build/DerivedData/Build/Products/Debug/MacKit.app
 ```
 
-需要开发签名时，在 `Config/Local.xcconfig` 中填写：
+默认使用开发签名。在 `Config/Local.xcconfig` 中填写：
 
 ```xcconfig
 DEVELOPMENT_TEAM = YOUR_TEAM_ID
@@ -98,7 +112,7 @@ DEVELOPMENT_TEAM = YOUR_TEAM_ID
 ./scripts/build.sh Release --signed
 ```
 
-`Config/Local.xcconfig` 已被 Git 忽略。签名构建需要本机配置对应的开发账号及签名证书。
+`Config/Local.xcconfig` 已被 Git 忽略。签名构建需要本机配置对应的开发账号及签名证书。仅需无签名构建时显式传入 `--unsigned`。
 
 ### 打包 DMG
 
@@ -138,7 +152,8 @@ MacKit/
 ├── App/                       应用入口、生命周期和全局状态
 ├── Features/
 │   ├── Cleaning/              清洁模式界面、输入过滤和服务
-│   └── FinderCut/             访达剪切界面、焦点识别和服务
+│   ├── FinderCut/             访达剪切界面、焦点识别和服务
+│   └── WindowTools/           窗口切换、程序坞预览和窗口目录
 ├── Platform/                  权限、全局快捷键、事件监听和音效
 ├── UI/                        主界面、通用组件和样式
 ├── Resources/                 剪切音效

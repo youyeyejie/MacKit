@@ -30,11 +30,17 @@ final class AppModel {
     }
     let cleaning = CleaningService()
     let finderCut = FinderCutService()
+    let windowSwitcher = WindowSwitcherService()
+    let dockEnhancement = DockEnhancementService()
     private(set) var loginEnabled = false
     var message: String?
 
     init() {
-        cleaning.onActivity = { [weak finderCut] active in finderCut?.setSuspended(active) }
+        cleaning.onActivity = { [weak finderCut, weak windowSwitcher, weak dockEnhancement] active in
+            finderCut?.setSuspended(active)
+            windowSwitcher?.setSuspended(active)
+            dockEnhancement?.setSuspended(active)
+        }
         refreshLogin()
     }
 

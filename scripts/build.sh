@@ -1,13 +1,13 @@
 #!/bin/zsh
 set -eu
 configuration=Release
-mode=--unsigned
+mode=--signed
 for arg in "$@"; do
   case "$arg" in
     -h|--help|help)
       cat <<'HELP'
 Usage: scripts/build.sh [Debug|Release] [--signed|--unsigned] [--help]
-Build MacKit.app for Apple Silicon and Intel (default: Release, unsigned).
+Build MacKit.app for Apple Silicon and Intel (default: Release, signed).
 Output: build/DerivedData/Build/Products/<configuration>/MacKit.app
 Requires Xcode. Generate the project first with generate_project.sh if needed.
 Signed builds require DEVELOPMENT_TEAM in Config/Local.xcconfig.

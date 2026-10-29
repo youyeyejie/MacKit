@@ -4,6 +4,7 @@ import ServiceManagement
 enum AppPage: String, CaseIterable, Identifiable {
     case settings = "软件设置", permissions = "权限管理", about = "关于 MacKit"
     case cleaning = "清洁模式", finder = "访达剪切"
+    case windowSwitcher = "窗口切换", dockEnhancement = "程序坞增强"
     var id: String { rawValue }
     var symbol: String {
         switch self {
@@ -12,6 +13,8 @@ enum AppPage: String, CaseIterable, Identifiable {
         case .about: "info.circle.fill"
         case .cleaning: "sparkles"
         case .finder: "scissors"
+        case .windowSwitcher: "rectangle.on.rectangle"
+        case .dockEnhancement: "dock.rectangle"
         }
     }
     var color: Color {
@@ -21,6 +24,8 @@ enum AppPage: String, CaseIterable, Identifiable {
         case .about: .blue
         case .cleaning: .teal
         case .finder: .blue
+        case .windowSwitcher: .purple
+        case .dockEnhancement: .orange
         }
     }
 }
@@ -44,7 +49,7 @@ struct MainView: View {
                         ForEach([AppPage.settings, .permissions, .about]) { item in navigationRow(item) }
                     }
                     Section("工具") {
-                        ForEach([AppPage.cleaning, .finder]) { item in navigationRow(item) }
+                        ForEach([AppPage.cleaning, .finder, .windowSwitcher, .dockEnhancement]) { item in navigationRow(item) }
                     }
                 }.listStyle(.sidebar)
                 VStack(spacing: 12) {
@@ -67,6 +72,8 @@ struct MainView: View {
                 case .about: about
                 case .cleaning: CleaningView(service: model.cleaning, shortcut: model.shortcuts.clean?.label)
                 case .finder: FinderCutView(service: model.finderCut)
+                case .windowSwitcher: WindowSwitcherView(service: model.windowSwitcher)
+                case .dockEnhancement: DockEnhancementView(service: model.dockEnhancement)
                 }
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -122,6 +129,13 @@ struct MainView: View {
                 StatusPill(text: model.permissions.accessibility ? "已授权" : "未授权", color: model.permissions.accessibility ? .green : .orange)
                 Button(model.permissions.accessibility ? "管理…" : "前往授权…") {
                     model.permissions.requestAccessibility()
+                }
+            }
+            PermissionCard(title: "屏幕录制", subtitle: "用于生成窗口切换和程序坞预览的缩略图。") {
+                StatusPill(text: model.permissions.screenRecording ? "已授权" : "未授权",
+                           color: model.permissions.screenRecording ? .green : .orange)
+                Button(model.permissions.screenRecording ? "管理…" : "前往授权…") {
+                    model.permissions.requestScreenRecording()
                 }
             }
         }.onAppear { model.permissions.refresh() }
