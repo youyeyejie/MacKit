@@ -7,7 +7,11 @@ import Observation
 @MainActor @Observable
 final class DockEnhancementService: FeatureModule {
     let id = FeatureID.dockEnhancement
-    private(set) var enabled = UserDefaults.standard.bool(forKey: "dockEnhancement.enabled")
+    private(set) var previewEnabled = (UserDefaults.standard.object(forKey: "dockEnhancement.previewEnabled") as? Bool)
+        ?? UserDefaults.standard.bool(forKey: "dockEnhancement.enabled")
+    private(set) var clickEnabled = (UserDefaults.standard.object(forKey: "dockEnhancement.clickEnabled") as? Bool)
+        ?? UserDefaults.standard.bool(forKey: "dockEnhancement.enabled")
+    var enabled: Bool { previewEnabled || clickEnabled }
     private(set) var running = false
     private(set) var status = "未启用"
     var message: String? { status == "未启用" ? nil : status }
@@ -42,9 +46,16 @@ final class DockEnhancementService: FeatureModule {
         if enabled { start() }
     }
 
-    func setEnabled(_ value: Bool) {
-        enabled = value
-        UserDefaults.standard.set(value, forKey: "dockEnhancement.enabled")
+    func setPreviewEnabled(_ value: Bool) {
+        previewEnabled = value
+        UserDefaults.standard.set(value, forKey: "dockEnhancement.previewEnabled")
+        stop()
+        sync()
+    }
+    func setClickEnabled(_ value: Bool) {
+        clickEnabled = value
+        UserDefaults.standard.set(value, forKey: "dockEnhancement.clickEnabled")
+        stop()
         sync()
     }
     func setSuspended(_ value: Bool) { suspended = value; sync() }
@@ -56,7 +67,9 @@ final class DockEnhancementService: FeatureModule {
         guard enabled, !suspended, sessionActive else { return }
         guard available else { stop(); status = "需要辅助功能授权"; return }
         guard tap == nil else { return }
-        let types: [CGEventType] = [.mouseMoved, .leftMouseDown, .leftMouseDragged, .leftMouseUp, .rightMouseDown, .otherMouseDown]
+        var types: [CGEventType] = [.leftMouseDown]
+        if previewEnabled { types += [.mouseMoved, .rightMouseDown, .otherMouseDown] }
+        if clickEnabled { types += [.leftMouseDragged, .leftMouseUp] }
         let mask = types.reduce(CGEventMask(0)) { $0 | CGEventMask(1 << $1.rawValue) }
         guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap,
                                           options: .defaultTap, eventsOfInterest: mask,
@@ -77,7 +90,7 @@ final class DockEnhancementService: FeatureModule {
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
         running = true
-        status = "已启用 · 悬停预览 · 点按最小化/还原"
+        status = "已启用"
         observeWorkspace()
         let pressure = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
         pressure.setEventHandler { [weak self] in
@@ -109,11 +122,11 @@ final class DockEnhancementService: FeatureModule {
         }
         guard running else { return Unmanaged.passUnretained(event) }
         if type == .mouseMoved {
-            preview.moved(event.location)
+            if previewEnabled { preview.moved(event.location) }
             return Unmanaged.passUnretained(event)
         }
         let covered = preview.covers(event.location)
-        let consumed = click.handle(type, event: event, hitTest: hitTest, panelContains: covered)
+        let consumed = clickEnabled && click.handle(type, event: event, hitTest: hitTest, panelContains: covered)
         if [.leftMouseDown, .rightMouseDown, .otherMouseDown].contains(type) {
             let point = event.location
             // Native panel buttons must receive the event before teardown.

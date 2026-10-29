@@ -156,6 +156,10 @@ struct MainView: View {
                     SettingsRow(title: "系统支持目标") { Text("macOS 14–27").foregroundStyle(.secondary) }
                     Divider()
                     SettingsRow(title: "当前系统") { Text(ProcessInfo.processInfo.operatingSystemVersionString).foregroundStyle(.secondary).multilineTextAlignment(.trailing) }
+                    Divider()
+                    SettingsRow(title: "GitHub") {
+                        Link("查看项目", destination: URL(string: "https://github.com/youyeyejie/MacKit")!)
+                    }
                 }
             }
         }

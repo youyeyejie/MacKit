@@ -35,7 +35,7 @@ struct SettingsCard<Content: View>: View {
     @ViewBuilder var content: Content
     var body: some View {
         VStack(alignment: .leading, spacing: AppStyle.contentSpacing) {
-            if let title { Text(title).font(AppStyle.sectionTitle) }
+            if let title { Text(title).font(AppStyle.sectionTitle).frame(minHeight: AppStyle.rowHeight, alignment: .leading) }
             content
         }.frame(maxWidth: .infinity, alignment: .leading)
             .padding(AppStyle.cardInset)
@@ -85,7 +85,7 @@ struct PermissionCard<Actions: View>: View {
                     Text(title).font(AppStyle.sectionTitle)
                     HStack(spacing: 8) { actions }
                 }
-            }
+            }.frame(minHeight: AppStyle.rowHeight)
             Text(subtitle).font(AppStyle.body).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }

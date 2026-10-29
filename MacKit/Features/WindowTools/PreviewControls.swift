@@ -9,8 +9,8 @@ struct PreviewControls: View {
     let minimize: () -> Void
     var body: some View {
         HStack(spacing: 6) {
-            control("power", color: .red, help: "退出应用（⌘Q）", action: quit)
-            control("xmark", color: .blue, help: "关闭窗口（⌘W）", enabled: hasWindow, action: close)
+            control("power", color: .blue, help: "退出应用（⌘Q）", action: quit)
+            control("xmark", color: .red, help: "关闭窗口（⌘W）", enabled: hasWindow, action: close)
             control("minus", color: .yellow, help: "最小化窗口（⌘M）", enabled: canMinimize, action: minimize)
         }
         .padding(5)

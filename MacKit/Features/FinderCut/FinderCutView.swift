@@ -11,7 +11,7 @@ struct FinderCutView: View {
                     Spacer()
                     Toggle("使用 ⌘ X 剪切", isOn: Binding(get: { service.enabled }, set: service.setEnabled))
                         .labelsHidden().toggleStyle(.switch)
-                }
+                }.frame(minHeight: AppStyle.rowHeight)
                 Divider()
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 24) { shortcuts }.fixedSize(horizontal: true, vertical: false)
