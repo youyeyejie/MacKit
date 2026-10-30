@@ -58,6 +58,25 @@ final class DockEnhancementService: FeatureModule {
         stop()
         sync()
     }
+    /// A menu pause remembers the independent switches rather than enabling
+    /// a feature the user previously left off when resuming.
+    func toggleFromMenu() {
+        let defaults = UserDefaults.standard
+        if enabled {
+            defaults.set(previewEnabled, forKey: "dockEnhancement.menuRestorePreview")
+            defaults.set(clickEnabled, forKey: "dockEnhancement.menuRestoreClick")
+            previewEnabled = false
+            clickEnabled = false
+        } else {
+            previewEnabled = (defaults.object(forKey: "dockEnhancement.menuRestorePreview") as? Bool) ?? true
+            clickEnabled = (defaults.object(forKey: "dockEnhancement.menuRestoreClick") as? Bool) ?? true
+            if !previewEnabled && !clickEnabled { previewEnabled = true; clickEnabled = true }
+        }
+        defaults.set(previewEnabled, forKey: "dockEnhancement.previewEnabled")
+        defaults.set(clickEnabled, forKey: "dockEnhancement.clickEnabled")
+        stop()
+        sync()
+    }
     func setSuspended(_ value: Bool) { suspended = value; sync() }
     func sync() {
         if enabled && !suspended && sessionActive { start() } else { stop() }

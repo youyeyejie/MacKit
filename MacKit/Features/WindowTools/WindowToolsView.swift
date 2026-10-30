@@ -16,6 +16,7 @@ struct WindowSwitcherView: View {
                 SettingsRow(title: "启用按钮") {
                     Toggle("启用按钮", isOn: Binding(get: { service.buttonsEnabled }, set: service.setButtonsEnabled))
                         .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                        .disabled(!service.enabled)
                 }
             }
             SettingsCard(title: "快捷键") {

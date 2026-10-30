@@ -3,6 +3,30 @@ import CoreGraphics
 @testable import MacKitCore
 
 final class DockInteractionTests: XCTestCase {
+    func testNavigationBackForwardAndBranching() {
+        var history = NavigationHistory(current: "cleaning")
+        XCTAssertFalse(history.canGoBack)
+        history.visit("finder")
+        history.visit("dock")
+        XCTAssertEqual(history.back(), "finder")
+        history.visit("finder") // UI selection callbacks must preserve forward history.
+        XCTAssertTrue(history.canGoForward)
+        XCTAssertEqual(history.forward(), "dock")
+        XCTAssertEqual(history.back(), "finder")
+        history.visit("settings")
+        XCTAssertFalse(history.canGoForward)
+        XCTAssertEqual(history.back(), "finder")
+        XCTAssertEqual(history.back(), "cleaning")
+        XCTAssertNil(history.back())
+    }
+
+    func testRepeatedNavigationDoesNotAddDuplicatePages() {
+        var history = NavigationHistory(current: 1)
+        history.visit(1)
+        XCTAssertFalse(history.canGoBack)
+        XCTAssertNil(history.forward())
+    }
+
     func testQuitProtectionExcludesShellAndOwnApp() {
         for bundle in ["com.apple.finder", "com.apple.dock", "com.apple.loginwindow", "com.apple.SystemUIServer", "com.apple.controlcenter", "com.apple.systempreferences", "com.mackit.app"] {
             XCTAssertFalse(AppQuitPolicy.allows(bundleID: bundle, ownBundleID: "com.mackit.app"))

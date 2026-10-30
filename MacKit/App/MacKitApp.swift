@@ -78,11 +78,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
         NSApp.setActivationPolicy(model.showDock ? .regular : .accessory)
         if model.showMenuBar, statusItem == nil {
             let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-            item.button?.image = NSImage(systemSymbolName: "square.grid.2x2", accessibilityDescription: "MacKit")
-            item.button?.image?.isTemplate = true
+            item.button?.image = AppBrand.menuBarIcon
             let menu = NSMenu()
             menu.delegate = self
-            for (title, selector) in [("打开主面板", #selector(openFromMenu)), ("打开清洁模式", #selector(cleanFromMenu)), ("启用访达剪切", #selector(toggleFinderFromMenu)), ("退出MacKit", #selector(quitFromMenu))] {
+            for (title, selector) in [("打开主面板", #selector(openFromMenu)), ("打开清洁模式", #selector(cleanFromMenu)), ("启用访达剪切", #selector(toggleFinderFromMenu)), ("启用窗口切换预览", #selector(toggleSwitcherFromMenu)), ("启用程序坞增强", #selector(toggleDockFromMenu)), ("退出MacKit", #selector(quitFromMenu))] {
                 let entry = NSMenuItem(title: title, action: selector, keyEquivalent: "")
                 entry.target = self; menu.addItem(entry)
             }
@@ -94,16 +93,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
     @objc private func openFromMenu() { showWindow() }
     @objc private func cleanFromMenu() { model.page = .cleaning; showWindow() }
     @objc private func toggleFinderFromMenu() { model.finderCut.setEnabled(!model.finderCut.enabled) }
+    @objc private func toggleSwitcherFromMenu() { model.windowSwitcher.setEnabled(!model.windowSwitcher.enabled) }
+    @objc private func toggleDockFromMenu() { model.dockEnhancement.toggleFromMenu() }
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.items.first(where: { $0.action == #selector(toggleFinderFromMenu) })?.title = model.finderCut.enabled ? "关闭访达剪切" : "启用访达剪切"
+        menu.items.first(where: { $0.action == #selector(toggleSwitcherFromMenu) })?.title = model.windowSwitcher.enabled ? "关闭窗口切换预览" : "启用窗口切换预览"
+        menu.items.first(where: { $0.action == #selector(toggleDockFromMenu) })?.title = model.dockEnhancement.enabled ? "关闭程序坞增强" : "启用程序坞增强"
     }
     @objc private func quitFromMenu() { NSApp.terminate(nil) }
     @objc private func toggleSidebar() { model.sidebarVisible.toggle() }
 
-    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { [.init("MacKit.Sidebar")] }
-    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { [.init("MacKit.Sidebar")] }
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { [.init("MacKit.Sidebar"), .init("MacKit.Navigation")] }
+    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { [.init("MacKit.Sidebar"), .init("MacKit.Navigation")] }
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
         let item = NSToolbarItem(itemIdentifier: identifier)
+        if identifier.rawValue == "MacKit.Navigation" {
+            item.label = "前进与后退"
+            let view = NSHostingView(rootView: NavigationButtons(model: model))
+            view.frame = NSRect(x: 0, y: 0, width: 64, height: 28)
+            item.view = view
+            return item
+        }
         item.label = "显示或隐藏侧栏"; item.toolTip = item.label
         item.image = NSImage(systemSymbolName: "sidebar.left", accessibilityDescription: item.label)
         item.target = self; item.action = #selector(toggleSidebar)
@@ -120,5 +130,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
         model.cleaning.onActivity = nil
         model.cleaning.stop(); model.finderCut.stop()
         model.windowSwitcher.stop(); model.dockEnhancement.stop(); hotkeys?.stop()
+    }
+}
+
+private struct NavigationButtons: View {
+    @Bindable var model: AppModel
+    var body: some View {
+        HStack(spacing: 2) {
+            Button(action: model.goBack) { Image(systemName: "chevron.left").frame(width: 26, height: 22) }
+                .disabled(!model.canGoBack).help("后退").accessibilityLabel("后退")
+            Button(action: model.goForward) { Image(systemName: "chevron.right").frame(width: 26, height: 22) }
+                .disabled(!model.canGoForward).help("前进").accessibilityLabel("前进")
+        }.buttonStyle(.borderless).controlSize(.small)
     }
 }

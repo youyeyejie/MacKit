@@ -64,8 +64,7 @@ final class DockHitTest {
             }.sorted { ($0.launchDate ?? .distantPast) < ($1.launchDate ?? .distantPast) }
             guard !instances.isEmpty else { continue }
             if let running = DockAX.value(element, "AXIsApplicationRunning") as? Bool, !running { return nil }
-            guard let bounds = DockAX.frame(element), let app = resolve(element, instances: instances, url: url),
-                  app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return nil }
+            guard let bounds = DockAX.frame(element), let app = resolve(element, instances: instances, url: url) else { return nil }
             return DockHit(app: app, frame: Self.rect(bounds), edge: edge)
         }
         // Labels are only a fallback when no URL identifies the tile. Require
@@ -77,7 +76,7 @@ final class DockHitTest {
                     label == app.localizedName?.lowercased() || label == app.bundleURL?.deletingPathExtension().lastPathComponent.lowercased()
                 }
             }
-            if matches.count == 1, let app = matches.first, let bounds = DockAX.frame(element), app.processIdentifier != getpid() {
+            if matches.count == 1, let app = matches.first, let bounds = DockAX.frame(element) {
                 return DockHit(app: app, frame: Self.rect(bounds), edge: edge)
             }
         }

@@ -7,7 +7,14 @@ final class AppModel {
     let permissions = PermissionService()
     let shortcuts = ShortcutSettings()
     var sidebarVisible = true
-    var page: AppPage? = .cleaning
+    var page: AppPage? = .cleaning {
+        didSet { if let page { history.visit(page) } }
+    }
+    private var history = NavigationHistory<AppPage>(current: .cleaning)
+    var canGoBack: Bool { history.canGoBack }
+    var canGoForward: Bool { history.canGoForward }
+    func goBack() { if let destination = history.back() { page = destination } }
+    func goForward() { if let destination = history.forward() { page = destination } }
     var showDock = UserDefaults.standard.bool(forKey: "appearance.showDock")
     var showMenuBar = UserDefaults.standard.bool(forKey: "appearance.showMenuBar")
     var appearanceChanged: (() -> Void)?

@@ -10,7 +10,7 @@ final class WindowSwitcherService: FeatureModule {
     let id = FeatureID.windowSwitcher
     private(set) var enabled = UserDefaults.standard.bool(forKey: "windowSwitcher.enabled")
     private(set) var buttonsEnabled = (UserDefaults.standard.object(forKey: "windowSwitcher.buttonsEnabled") as? Bool) ?? true
-    private var quitConfirmation: NSPanel?
+    private var quitConfirmation: NSAlert?
     private var bulkQuitChordHeld = false
     private(set) var running = false
     private(set) var items: [WindowItem] = []
@@ -53,7 +53,8 @@ final class WindowSwitcherService: FeatureModule {
     }
 
     func canQuit(_ item: WindowItem) -> Bool {
-        AppQuitPolicy.allows(bundleID: NSRunningApplication(processIdentifier: item.ownerPID)?.bundleIdentifier,
+        if item.ownerPID == getpid() { return true }
+        return AppQuitPolicy.allows(bundleID: NSRunningApplication(processIdentifier: item.ownerPID)?.bundleIdentifier,
                              ownBundleID: Bundle.main.bundleIdentifier)
     }
 
@@ -114,7 +115,8 @@ final class WindowSwitcherService: FeatureModule {
 
     func stop() {
         closeSession()
-        quitConfirmation?.close(); quitConfirmation = nil
+        if quitConfirmation != nil { NSApp.abortModal() }
+        quitConfirmation?.window.close(); quitConfirmation = nil
         if let tap { CGEvent.tapEnable(tap: tap, enable: false); CFMachPortInvalidate(tap) }
         if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
         tap = nil
@@ -185,7 +187,7 @@ final class WindowSwitcherService: FeatureModule {
 
     private func snapshot(mode: Mode, pid: pid_t?) async -> [WindowItem] {
         let apps = NSWorkspace.shared.runningApplications.filter {
-            $0.activationPolicy == .regular && !$0.isTerminated && $0.processIdentifier != getpid()
+            ($0.activationPolicy == .regular || $0.processIdentifier == getpid()) && !$0.isTerminated
                 && (mode == .applications || $0.processIdentifier == pid)
         }
         var result: [WindowItem] = []
@@ -348,29 +350,23 @@ final class WindowSwitcherService: FeatureModule {
         }
         closeSession()
         guard !targets.isEmpty else { return }
-        let display = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
-        let frame = display?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1000, height: 700)
-        let panel = NSPanel(contentRect: NSRect(x: frame.midX - 240, y: frame.midY - 160, width: 480, height: 320),
-                            styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: false)
-        panel.titleVisibility = .hidden
-        panel.titlebarAppearsTransparent = true
-        panel.backgroundColor = .clear
-        panel.isOpaque = false
-        panel.level = .popUpMenu
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.isReleasedWhenClosed = false
-        panel.contentView = PreviewHostingView(rootView: QuitAllConfirmation(
-            names: targets.compactMap(\.localizedName).sorted().joined(separator: "、"),
-            cancel: { [weak self] in self?.quitConfirmation?.close(); self?.quitConfirmation = nil },
-            confirm: { [weak self] in
-                self?.quitConfirmation?.close(); self?.quitConfirmation = nil
-                for app in targets where !app.isTerminated {
-                    if AppQuitPolicy.allows(bundleID: app.bundleIdentifier, ownBundleID: Bundle.main.bundleIdentifier) { app.terminate() }
-                }
-            }))
-        quitConfirmation = panel
-        panel.makeKeyAndOrderFront(nil)
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "要退出所有应用吗？"
+        let names = targets.compactMap(\.localizedName).sorted().joined(separator: "、")
+        alert.informativeText = "将请求退出：\(names)。\n未保存的内容仍由各应用提示处理，Finder 和系统组件会保留。"
+        alert.addButton(withTitle: "取消").keyEquivalent = "\r"
+        let quit = alert.addButton(withTitle: "退出所有应用")
+        quit.keyEquivalent = ""
+        quit.hasDestructiveAction = true
+        quitConfirmation = alert
         NSApp.activate(ignoringOtherApps: true)
+        let response = alert.runModal()
+        quitConfirmation = nil
+        guard response == .alertSecondButtonReturn else { return }
+        for app in targets where !app.isTerminated {
+            if AppQuitPolicy.allows(bundleID: app.bundleIdentifier, ownBundleID: Bundle.main.bundleIdentifier) { app.terminate() }
+        }
     }
 
     private func commitSelection() {
@@ -515,25 +511,4 @@ private struct WindowSwitcherCard: View {
 
 private final class PreviewHostingView<Content: View>: NSHostingView<Content> {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-}
-
-private struct QuitAllConfirmation: View {
-    let names: String
-    let cancel: () -> Void
-    let confirm: () -> Void
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Label("退出所有应用？", systemImage: "power").font(.title2.bold())
-            Text("将请求退出以下应用。未保存的内容仍由各应用提示处理，Finder 和系统组件会保留。")
-                .foregroundStyle(.secondary)
-            ScrollView { Text(names).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 100)
-            HStack {
-                Spacer()
-                Button("取消", action: cancel).keyboardShortcut(.cancelAction)
-                Button("退出所有应用", role: .destructive, action: confirm)
-                    .buttonStyle(.borderedProminent).tint(.red)
-            }
-        }.padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
-            .modifier(GlassSurface(radius: 22))
-    }
 }

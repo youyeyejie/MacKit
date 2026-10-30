@@ -42,6 +42,21 @@ enum DockWindowAccess {
     static let queue = DispatchQueue(label: "MacKit.Dock.Accessibility", qos: .userInitiated)
 
     static func windows(pid: pid_t) async -> [DockWindow] {
+        if pid == getpid() { return await MainActor.run { ownWindows() } }
+        return await externalWindows(pid: pid)
+    }
+
+    @MainActor private static func ownWindows() -> [DockWindow] {
+        NSApp.windows.filter {
+            $0.level == .normal && $0.styleMask.contains(.titled) && ($0.isVisible || $0.isMiniaturized)
+        }.map {
+            DockWindow(id: CGWindowID($0.windowNumber), pid: getpid(), title: $0.title,
+                       bounds: $0.frame, minimized: $0.isMiniaturized,
+                       fullscreen: $0.styleMask.contains(.fullScreen), element: nil)
+        }
+    }
+
+    private static func externalWindows(pid: pid_t) async -> [DockWindow] {
         await withCheckedContinuation { continuation in
             queue.async { continuation.resume(returning: read(pid: pid)) }
         }
@@ -91,6 +106,15 @@ enum DockWindowAccess {
     }
 
     static func setMinimized(_ value: Bool, windows: [DockWindow]) async {
+        let own = windows.filter { $0.pid == getpid() }
+        if !own.isEmpty {
+            await MainActor.run {
+                for item in own where !item.fullscreen {
+                    guard let window = NSApp.windows.first(where: { $0.windowNumber == Int(item.id) }) else { continue }
+                    if value { window.miniaturize(nil) } else { window.deminiaturize(nil) }
+                }
+            }
+        }
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             queue.async {
                 for window in windows {
@@ -103,6 +127,14 @@ enum DockWindowAccess {
     }
 
     static func raise(_ window: DockWindow) async {
+        if window.pid == getpid() {
+            await MainActor.run {
+                guard let native = NSApp.windows.first(where: { $0.windowNumber == Int(window.id) }) else { return }
+                if native.isMiniaturized { native.deminiaturize(nil) }
+                native.makeKeyAndOrderFront(nil)
+            }
+            return
+        }
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             queue.async {
                 let element = window.element ?? read(pid: window.pid).first(where: { $0.id == window.id })?.element
@@ -122,6 +154,10 @@ enum DockWindowAccess {
     }
 
     static func close(_ window: DockWindow) async {
+        if window.pid == getpid() {
+            await MainActor.run { NSApp.windows.first(where: { $0.windowNumber == Int(window.id) })?.performClose(nil) }
+            return
+        }
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             queue.async {
                 if let element = window.element, let button = DockAX.element(element, kAXCloseButtonAttribute) {
@@ -133,7 +169,8 @@ enum DockWindowAccess {
     }
 
     static func minimizeAllMenu(pid: pid_t) async -> Bool {
-        await withCheckedContinuation { continuation in
+        if pid == getpid() { return false }
+        return await withCheckedContinuation { continuation in
             queue.async {
                 let app = AXUIElementCreateApplication(pid)
                 AXUIElementSetMessagingTimeout(app, 0.15)
