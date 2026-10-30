@@ -204,7 +204,7 @@ final class WindowSwitcherService: FeatureModule {
                 item.window = window
                 result.append(item)
             }
-            if windows.isEmpty, mode == .applications {
+            if windows.isEmpty, mode == .applications, app.processIdentifier != getpid() {
                 result.append(WindowItem(id: 0, ownerPID: app.processIdentifier, ownerName: name,
                                          title: "没有打开的窗口", bounds: .zero, isOnscreen: false,
                                          isMinimized: app.isHidden, isFullscreen: false, appIcon: app.icon))
