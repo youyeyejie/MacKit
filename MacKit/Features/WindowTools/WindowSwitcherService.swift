@@ -9,6 +9,9 @@ final class WindowSwitcherService: FeatureModule {
 
     let id = FeatureID.windowSwitcher
     private(set) var enabled = UserDefaults.standard.bool(forKey: "windowSwitcher.enabled")
+    private(set) var buttonsEnabled = (UserDefaults.standard.object(forKey: "windowSwitcher.buttonsEnabled") as? Bool) ?? true
+    private var quitConfirmation: NSPanel?
+    private var bulkQuitChordHeld = false
     private(set) var running = false
     private(set) var items: [WindowItem] = []
     private(set) var selectedIndex = 0
@@ -42,6 +45,16 @@ final class WindowSwitcherService: FeatureModule {
         enabled = value
         UserDefaults.standard.set(value, forKey: "windowSwitcher.enabled")
         if value { start() } else { stop() }
+    }
+
+    func setButtonsEnabled(_ value: Bool) {
+        buttonsEnabled = value
+        UserDefaults.standard.set(value, forKey: "windowSwitcher.buttonsEnabled")
+    }
+
+    func canQuit(_ item: WindowItem) -> Bool {
+        AppQuitPolicy.allows(bundleID: NSRunningApplication(processIdentifier: item.ownerPID)?.bundleIdentifier,
+                             ownBundleID: Bundle.main.bundleIdentifier)
     }
 
     func setSuspended(_ value: Bool) {
@@ -101,6 +114,7 @@ final class WindowSwitcherService: FeatureModule {
 
     func stop() {
         closeSession()
+        quitConfirmation?.close(); quitConfirmation = nil
         if let tap { CGEvent.tapEnable(tap: tap, enable: false); CFMachPortInvalidate(tap) }
         if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
         tap = nil
@@ -117,7 +131,23 @@ final class WindowSwitcherService: FeatureModule {
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
         let command = event.flags.contains(.maskCommand)
 
+        if type == .keyUp, keyCode == 12, bulkQuitChordHeld {
+            bulkQuitChordHeld = false
+            return nil
+        }
         if type == .keyDown {
+            if (bulkQuitChordHeld || quitConfirmation != nil), command, event.flags.contains(.maskShift), keyCode == 12 { return nil }
+            if running, command, [12, 13, 46].contains(keyCode) {
+                guard buttonsEnabled else { return nil }
+                if keyCode == 12, event.flags.contains(.maskShift) {
+                    if event.getIntegerValueField(.keyboardEventAutorepeat) == 0 {
+                        suppressCommit = true
+                        bulkQuitChordHeld = true
+                        DispatchQueue.main.async { [weak self] in self?.confirmQuitAll() }
+                    }
+                    return nil
+                }
+            }
             if running, !items.isEmpty {
                 if keyCode == 123 { advance(by: -1); return nil }
                 if keyCode == 124 { advance(by: 1); return nil }
@@ -285,18 +315,19 @@ final class WindowSwitcherService: FeatureModule {
     }
 
     func quit(_ item: WindowItem) {
+        guard buttonsEnabled, canQuit(item) else { return }
         suppressCommit = true
         NSRunningApplication(processIdentifier: item.ownerPID)?.terminate()
     }
 
     func close(_ item: WindowItem) {
-        guard let window = item.window else { return }
+        guard buttonsEnabled, let window = item.window else { return }
         suppressCommit = true
         Task { await DockWindowAccess.close(window) }
     }
 
     func minimize(_ item: WindowItem) {
-        guard let window = item.window, !window.fullscreen else { return }
+        guard buttonsEnabled, let window = item.window, !window.fullscreen else { return }
         suppressCommit = true
         Task { @MainActor in
             await DockWindowAccess.setMinimized(true, windows: [window])
@@ -307,6 +338,39 @@ final class WindowSwitcherService: FeatureModule {
     func minimizeSelected() {
         guard items.indices.contains(selectedIndex) else { return }
         minimize(items[selectedIndex])
+    }
+
+    private func confirmQuitAll() {
+        guard buttonsEnabled, quitConfirmation == nil else { return }
+        let targets = NSWorkspace.shared.runningApplications.filter {
+            $0.activationPolicy == .regular && !$0.isTerminated &&
+            AppQuitPolicy.allows(bundleID: $0.bundleIdentifier, ownBundleID: Bundle.main.bundleIdentifier)
+        }
+        closeSession()
+        guard !targets.isEmpty else { return }
+        let display = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
+        let frame = display?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1000, height: 700)
+        let panel = NSPanel(contentRect: NSRect(x: frame.midX - 240, y: frame.midY - 160, width: 480, height: 320),
+                            styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: false)
+        panel.titleVisibility = .hidden
+        panel.titlebarAppearsTransparent = true
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.level = .popUpMenu
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.isReleasedWhenClosed = false
+        panel.contentView = PreviewHostingView(rootView: QuitAllConfirmation(
+            names: targets.compactMap(\.localizedName).sorted().joined(separator: "、"),
+            cancel: { [weak self] in self?.quitConfirmation?.close(); self?.quitConfirmation = nil },
+            confirm: { [weak self] in
+                self?.quitConfirmation?.close(); self?.quitConfirmation = nil
+                for app in targets where !app.isTerminated {
+                    if AppQuitPolicy.allows(bundleID: app.bundleIdentifier, ownBundleID: Bundle.main.bundleIdentifier) { app.terminate() }
+                }
+            }))
+        quitConfirmation = panel
+        panel.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     private func commitSelection() {
@@ -388,7 +452,7 @@ private struct WindowSwitcherPanel: View {
                 Text(service.mode == .applications ? "窗口切换" : "应用内窗口")
                     .font(.system(size: 13, weight: .semibold))
                 Spacer()
-                Text("松开 ⌘ 确定 · ⌘Q 退出 · ⌘W 关闭 · ⌘M 最小化")
+                Text(service.buttonsEnabled ? "松开 ⌘ 确定 · ⌘Q 退出 · ⌘W 关闭 · ⌘M 最小化" : "松开 ⌘ 确定")
                     .font(.system(size: 11)).foregroundStyle(.secondary)
             }
             ScrollViewReader { proxy in
@@ -396,6 +460,7 @@ private struct WindowSwitcherPanel: View {
                     LazyVGrid(columns: Array(repeating: GridItem(.fixed(216), spacing: 8), count: service.columns), spacing: 12) {
                         ForEach(Array(service.items.enumerated()), id: \.element.stableID) { index, item in
                             WindowSwitcherCard(item: item, image: service.previews[item.id], selected: index == service.selectedIndex,
+                                               buttonsEnabled: service.buttonsEnabled, canQuit: service.canQuit(item),
                                                quit: { service.quit(item) }, close: { service.close(item) }, minimize: { service.minimize(item) })
                                 .id(item.stableID)
                                 .onTapGesture { service.select(index: index) }
@@ -419,6 +484,8 @@ private struct WindowSwitcherCard: View {
     let item: WindowItem
     let image: NSImage?
     let selected: Bool
+    let buttonsEnabled: Bool
+    let canQuit: Bool
     let quit: () -> Void
     let close: () -> Void
     let minimize: () -> Void
@@ -427,7 +494,8 @@ private struct WindowSwitcherCard: View {
         VStack(spacing: 6) {
             PreviewHeader(title: item.title, description: item.ownerName, hasWindow: !item.isWindowless,
                           canMinimize: !item.isWindowless && !item.isFullscreen && !item.isMinimized,
-                          quit: quit, close: close, minimize: minimize)
+                          quit: quit, close: close, minimize: minimize,
+                          showsControls: buttonsEnabled, canQuit: canQuit)
             ZStack {
                 RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.12))
                 if let image { Image(nsImage: image).resizable().scaledToFit().padding(2).frame(maxWidth: .infinity, maxHeight: .infinity) }
@@ -447,4 +515,25 @@ private struct WindowSwitcherCard: View {
 
 private final class PreviewHostingView<Content: View>: NSHostingView<Content> {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
+private struct QuitAllConfirmation: View {
+    let names: String
+    let cancel: () -> Void
+    let confirm: () -> Void
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Label("退出所有应用？", systemImage: "power").font(.title2.bold())
+            Text("将请求退出以下应用。未保存的内容仍由各应用提示处理，Finder 和系统组件会保留。")
+                .foregroundStyle(.secondary)
+            ScrollView { Text(names).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 100)
+            HStack {
+                Spacer()
+                Button("取消", action: cancel).keyboardShortcut(.cancelAction)
+                Button("退出所有应用", role: .destructive, action: confirm)
+                    .buttonStyle(.borderedProminent).tint(.red)
+            }
+        }.padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
+            .modifier(GlassSurface(radius: 22))
+    }
 }

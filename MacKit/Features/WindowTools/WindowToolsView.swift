@@ -7,21 +7,28 @@ struct WindowSwitcherView: View {
         PageLayout {
             PageHeader(title: "窗口切换", subtitle: "更熟悉的切换预览，快速找到目标窗口。",
                        symbol: "rectangle.on.rectangle", color: .purple)
-            SettingsCard {
-                HStack(spacing: 16) {
-                    Text("窗口切换预览").font(AppStyle.sectionTitle)
-                    Spacer()
-                    Toggle("窗口切换预览", isOn: Binding(get: { service.enabled }, set: service.setEnabled))
-                        .labelsHidden().toggleStyle(.switch)
-                }.frame(minHeight: AppStyle.rowHeight)
+            SettingsRows(title: "窗口切换") {
+                SettingsRow(title: "启用预览") {
+                    Toggle("启用预览", isOn: Binding(get: { service.enabled }, set: service.setEnabled))
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                }
                 Divider()
+                SettingsRow(title: "启用按钮") {
+                    Toggle("启用按钮", isOn: Binding(get: { service.buttonsEnabled }, set: service.setButtonsEnabled))
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                }
+            }
+            SettingsCard(title: "快捷键") {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 240), alignment: .leading)], alignment: .leading, spacing: 16) {
                     shortcut(["⌘", "Tab"], description: "切换窗口")
                     shortcut(["⌘", "`"], description: "切换应用内窗口")
                     shortcut(["↑", "↓", "←", "→"], separator: "/", description: "移动选择")
-                    shortcut(["⌘", "Q"], description: "退出应用")
-                    shortcut(["⌘", "W"], description: "关闭窗口")
-                    shortcut(["⌘", "M"], description: "最小化窗口")
+                    if service.buttonsEnabled {
+                        shortcut(["⌘", "Q"], description: "退出应用")
+                        shortcut(["⌘", "W"], description: "关闭窗口")
+                        shortcut(["⌘", "M"], description: "最小化窗口")
+                        shortcut(["⌘", "⇧", "Q"], description: "退出所有应用")
+                    }
                 }
             }
         }.onAppear { service.sync() }
@@ -56,12 +63,12 @@ struct DockEnhancementView: View {
             SettingsRows(title: "程序坞增强") {
                 SettingsRow(title: "悬停预览") {
                     Toggle("悬停预览", isOn: Binding(get: { service.previewEnabled }, set: service.setPreviewEnabled))
-                        .labelsHidden().toggleStyle(.switch)
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
                 }
                 Divider()
                 SettingsRow(title: "点击图标最小化") {
                     Toggle("点击图标最小化", isOn: Binding(get: { service.clickEnabled }, set: service.setClickEnabled))
-                        .labelsHidden().toggleStyle(.switch)
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
                 }
             }
         }.onAppear { service.sync() }

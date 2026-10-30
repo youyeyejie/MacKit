@@ -7,9 +7,10 @@ struct PreviewControls: View {
     let quit: () -> Void
     let close: () -> Void
     let minimize: () -> Void
+    var canQuit: Bool = true
     var body: some View {
         HStack(spacing: 6) {
-            control("power", color: .blue, help: "退出应用（⌘Q）", action: quit)
+            control("power", color: .blue, help: "退出应用（⌘Q）", enabled: canQuit, action: quit)
             control("xmark", color: .red, help: "关闭窗口（⌘W）", enabled: hasWindow, action: close)
             control("minus", color: .yellow, help: "最小化窗口（⌘M）", enabled: canMinimize, action: minimize)
         }
@@ -48,9 +49,13 @@ struct PreviewHeader: View {
     let quit: () -> Void
     let close: () -> Void
     let minimize: () -> Void
+    var showsControls: Bool = true
+    var canQuit: Bool = true
     var body: some View {
         HStack(alignment: .top, spacing: 6) {
-            PreviewControls(hasWindow: hasWindow, canMinimize: canMinimize, quit: quit, close: close, minimize: minimize)
+            if showsControls {
+                PreviewControls(hasWindow: hasWindow, canMinimize: canMinimize, quit: quit, close: close, minimize: minimize, canQuit: canQuit)
+            }
             Spacer(minLength: 0)
             VStack(alignment: .trailing, spacing: 2) {
                 Text(title).font(.system(size: 11, weight: .medium))

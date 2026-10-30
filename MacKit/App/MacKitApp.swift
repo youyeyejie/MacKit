@@ -44,6 +44,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 860, height: 650),
                                   styleMask: [.titled, .closable, .miniaturizable, .resizable],
                                   backing: .buffered, defer: false)
+            if #available(macOS 26.0, *) {
+                window.styleMask.insert(.fullSizeContentView)
+                window.titlebarAppearsTransparent = true
+            }
             window.title = "MacKit"
             window.titleVisibility = .hidden
             let toolbar = NSToolbar(identifier: "MacKit.Toolbar")

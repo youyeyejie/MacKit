@@ -179,7 +179,11 @@ final class DockPreviewController {
         }
     }
 
-    func quit(_ window: DockWindow) { NSRunningApplication(processIdentifier: window.pid)?.terminate() }
+    func quit(_ window: DockWindow) {
+        guard let app = NSRunningApplication(processIdentifier: window.pid),
+              AppQuitPolicy.allows(bundleID: app.bundleIdentifier, ownBundleID: Bundle.main.bundleIdentifier) else { return }
+        app.terminate()
+    }
     func closeWindow(_ window: DockWindow) { Task { await DockWindowAccess.close(window) } }
     func minimize(_ window: DockWindow) {
         guard !window.fullscreen else { return }
@@ -262,7 +266,8 @@ private struct DockPreviewCard: View {
         VStack(spacing: 6) {
             PreviewHeader(title: window.title.isEmpty ? appName : window.title, description: appName,
                           hasWindow: true, canMinimize: !window.minimized && !window.fullscreen,
-                          quit: quit, close: close, minimize: minimize)
+                          quit: quit, close: close, minimize: minimize,
+                          canQuit: AppQuitPolicy.allows(bundleID: NSRunningApplication(processIdentifier: window.pid)?.bundleIdentifier, ownBundleID: Bundle.main.bundleIdentifier))
             Button(action: activate) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 7).fill(.black.opacity(0.12))

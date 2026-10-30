@@ -5,23 +5,21 @@ struct FinderCutView: View {
     var body: some View {
         PageLayout {
             PageHeader(title: "访达剪切", subtitle: "熟悉的快捷键，更自然的文件移动。", symbol: "scissors")
-            SettingsCard {
-                HStack(alignment: .center, spacing: 16) {
-                    Text("使用 ⌘ X 剪切").font(AppStyle.sectionTitle)
-                    Spacer()
+            SettingsRows(title: "访达剪切") {
+                SettingsRow(title: "使用 ⌘ X 剪切") {
                     Toggle("使用 ⌘ X 剪切", isOn: Binding(get: { service.enabled }, set: service.setEnabled))
-                        .labelsHidden().toggleStyle(.switch)
-                }.frame(minHeight: AppStyle.rowHeight)
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                }
                 Divider()
+                SettingsRow(title: "启用剪切音效") {
+                    Toggle("启用剪切音效", isOn: Binding(get: { service.soundEnabled }, set: service.setSoundEnabled))
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                }
+            }
+            SettingsCard(title: "快捷键") {
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 24) { shortcuts }.fixedSize(horizontal: true, vertical: false)
                     VStack(alignment: .leading, spacing: 16) { shortcuts }
-                }
-            }
-            SettingsRows(title: "声音") {
-                SettingsRow(title: "剪切音效") {
-                    Toggle("剪切音效", isOn: Binding(get: { service.soundEnabled }, set: service.setSoundEnabled))
-                        .labelsHidden().toggleStyle(.switch)
                 }
             }
         }.onAppear { service.sync() }

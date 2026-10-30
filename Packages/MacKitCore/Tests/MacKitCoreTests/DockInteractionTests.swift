@@ -3,6 +3,15 @@ import CoreGraphics
 @testable import MacKitCore
 
 final class DockInteractionTests: XCTestCase {
+    func testQuitProtectionExcludesShellAndOwnApp() {
+        for bundle in ["com.apple.finder", "com.apple.dock", "com.apple.loginwindow", "com.apple.SystemUIServer", "com.apple.controlcenter", "com.apple.systempreferences", "com.mackit.app"] {
+            XCTAssertFalse(AppQuitPolicy.allows(bundleID: bundle, ownBundleID: "com.mackit.app"))
+        }
+        XCTAssertFalse(AppQuitPolicy.allows(bundleID: nil, ownBundleID: "com.mackit.app"))
+        XCTAssertTrue(AppQuitPolicy.allows(bundleID: "com.apple.Safari", ownBundleID: "com.mackit.app"))
+        XCTAssertTrue(AppQuitPolicy.allows(bundleID: "com.microsoft.VSCode", ownBundleID: "com.mackit.app"))
+    }
+
     func testSwitcherGridAvoidsOneWideRowOnBuiltInDisplay() {
         let columns = SwitcherLayout.columns(count: 12, available: CGSize(width: 1512, height: 900), targetAspect: 1.6)
         XCTAssertEqual(columns, 4)

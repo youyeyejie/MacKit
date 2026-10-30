@@ -33,8 +33,10 @@ enum AppPage: String, CaseIterable, Identifiable {
 struct MainView: View {
     @Bindable var model: AppModel
     var body: some View {
-        HStack(spacing: 0) {
-            if model.sidebarVisible {
+        NavigationSplitView(columnVisibility: Binding(
+            get: { model.sidebarVisible ? .all : .detailOnly },
+            set: { model.sidebarVisible = $0 != .detailOnly }
+        )) {
             VStack(spacing: 0) {
                 HStack(spacing: 10) {
                     Image(nsImage: AppBrand.icon).resizable().frame(width: 42, height: 42)
@@ -43,7 +45,7 @@ struct MainView: View {
                         Text("让 Mac 更顺手").font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
-                }.padding(.horizontal, 18).padding(.vertical, 22)
+                }.padding(.horizontal, 18).padding(.vertical, 18)
                 List(selection: $model.page) {
                     Section {
                         ForEach([AppPage.settings, .permissions, .about]) { item in navigationRow(item) }
@@ -51,20 +53,10 @@ struct MainView: View {
                     Section("工具") {
                         ForEach([AppPage.cleaning, .finder, .windowSwitcher, .dockEnhancement]) { item in navigationRow(item) }
                     }
-                }.listStyle(.sidebar)
-                VStack(spacing: 12) {
-                    Divider()
-                    HStack {
-                        if let shortcut = model.shortcuts.show { Text("\(shortcut.label) 唤起").font(.caption).foregroundStyle(.secondary) }
-                        Spacer()
-                        Button { NSApp.terminate(nil) } label: { Image(systemName: "power") }
-                            .buttonStyle(.plain).help("退出 MacKit")
-                    }
-                }.padding(18)
-            }.frame(width: 202)
-            Divider()
+                }.listStyle(.sidebar).scrollContentBackground(.hidden)
             }
-
+            .navigationSplitViewColumnWidth(min: 190, ideal: 202, max: 240)
+        } detail: {
             Group {
                 switch model.page ?? .cleaning {
                 case .settings: settings
@@ -77,6 +69,8 @@ struct MainView: View {
                 }
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .navigationSplitViewStyle(.balanced)
+        .toolbar(removing: .sidebarToggle)
     }
 
     private func navigationRow(_ item: AppPage) -> some View {
@@ -94,18 +88,18 @@ struct MainView: View {
             SettingsRows(title: "启动与运行") {
                 SettingsRow(title: "登录后启动") {
                     Toggle("登录后启动", isOn: Binding(get: { model.loginEnabled }, set: model.setLogin))
-                        .labelsHidden().toggleStyle(.switch)
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
                 }
             }
             SettingsRows(title: "显示位置") {
                 SettingsRow(title: "在 Dock 中显示") {
                     Toggle("在 Dock 中显示", isOn: Binding(get: { model.showDock }, set: model.setDock))
-                        .labelsHidden().toggleStyle(.switch)
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
                 }
                 Divider()
                 SettingsRow(title: "在菜单栏中显示") {
                     Toggle("在菜单栏中显示", isOn: Binding(get: { model.showMenuBar }, set: model.setMenuBar))
-                        .labelsHidden().toggleStyle(.switch)
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
                 }
             }
             SettingsRows(title: "快捷键") {
@@ -117,6 +111,12 @@ struct MainView: View {
                 SettingsRow(title: "开始清洁") {
                     ShortcutRecorder(shortcut: model.shortcuts.clean, save: { model.setShortcut($0, forCleaning: true) },
                                      recordingChanged: { model.recordingChanged?($0) })
+                }
+            }
+            SettingsRows(title: "退出应用") {
+                SettingsRow(title: "退出 MacKit") {
+                    Button("退出应用", role: .destructive) { NSApp.terminate(nil) }
+                        .buttonStyle(.borderedProminent).tint(.red)
                 }
             }
             if let message = model.message { Text(message).font(.callout).foregroundStyle(.orange) }
@@ -146,7 +146,7 @@ struct MainView: View {
                 Image(nsImage: AppBrand.icon).resizable().frame(width: 112, height: 112)
                 Text("MacKit").font(.system(size: 32, weight: .bold, design: .rounded))
                 Text("轻一点，顺手一点。").font(.title3).foregroundStyle(.secondary)
-                StatusPill(text: "v" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.8.0"), color: .blue)
+                StatusPill(text: "v" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.10.0"), color: .blue)
             }.frame(maxWidth: .infinity).padding(.vertical, 30)
             SettingsCard(title: "为你的 Mac 而生") {
                 Text("使用 Swift 与 SwiftUI 构建。功能按需运行，数据留在本机，无需账号或云服务。")

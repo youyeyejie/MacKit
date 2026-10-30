@@ -9,6 +9,7 @@ enum AppStyle {
     static let cardInset: CGFloat = 20
     static let contentSpacing: CGFloat = 14
     static let rowHeight: CGFloat = 44
+    static let sectionHeight: CGFloat = 24
 }
 
 struct PageHeader: View {
@@ -35,11 +36,11 @@ struct SettingsCard<Content: View>: View {
     @ViewBuilder var content: Content
     var body: some View {
         VStack(alignment: .leading, spacing: AppStyle.contentSpacing) {
-            if let title { Text(title).font(AppStyle.sectionTitle).frame(minHeight: AppStyle.rowHeight, alignment: .leading) }
+            if let title { Text(title).font(AppStyle.sectionTitle).frame(minHeight: AppStyle.sectionHeight, alignment: .leading) }
             content
         }.frame(maxWidth: .infinity, alignment: .leading)
             .padding(AppStyle.cardInset)
-            .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 14))
+            .modifier(GlassSurface())
             .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.primary.opacity(0.06)))
     }
 }
@@ -120,5 +121,18 @@ struct SettingsRow<Control: View>: View {
             Spacer(minLength: 12)
             control.controlSize(.regular)
         }.frame(minHeight: AppStyle.rowHeight)
+    }
+}
+
+/// Native Liquid Glass on macOS 26+, with a solid, accessible older-system fallback.
+struct GlassSurface: ViewModifier {
+    var radius: CGFloat = 14
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @ViewBuilder func body(content: Content) -> some View {
+        if #available(macOS 26.0, *), !reduceTransparency {
+            content.glassEffect(.regular, in: RoundedRectangle(cornerRadius: radius))
+        } else {
+            content.background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: radius))
+        }
     }
 }

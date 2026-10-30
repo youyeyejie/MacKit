@@ -10,7 +10,7 @@ struct CleaningView: View {
                 HStack(alignment: .center, spacing: 24) {
                     VStack(alignment: .leading, spacing: AppStyle.contentSpacing) {
                         Text("一键锁定，安心擦拭").font(AppStyle.sectionTitle)
-                            .frame(minHeight: AppStyle.rowHeight, alignment: .leading)
+                            .frame(minHeight: AppStyle.sectionHeight, alignment: .leading)
                         Text("锁定键盘和触控板，解锁需连续按下 5 次 ESC")
                             .font(AppStyle.body).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                         Button("开始清洁") { service.begin() }.buttonStyle(.borderedProminent).controlSize(.large).tint(.teal)
@@ -24,7 +24,7 @@ struct CleaningView: View {
             if !service.hasBuiltinDisplay {
                 SettingsCard {
                     SettingsRow(title: "没有内建显示器时使用当前屏幕") {
-                        Toggle("使用当前屏幕", isOn: $service.useCurrentDisplay).labelsHidden().toggleStyle(.switch)
+                        Toggle("使用当前屏幕", isOn: $service.useCurrentDisplay).labelsHidden().toggleStyle(.switch).controlSize(.small)
                     }
                 }
             }
