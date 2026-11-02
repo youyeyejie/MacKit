@@ -9,6 +9,11 @@
 <key>CFBundleShortVersionString</key><string>$(MARKETING_VERSION)</string>
 <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
 <key>LSMinimumSystemVersion</key><string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+<key>CFBundleURLTypes</key><array><dict>
+<key>CFBundleURLName</key><string>com.mackit.command</string>
+<key>CFBundleURLSchemes</key><array><string>mackit</string></array>
+<key>CFBundleTypeRole</key><string>Editor</string>
+</dict></array>
 <key>LSUIElement</key><true/>
 <key>NSPrincipalClass</key><string>NSApplication</string>
 <key>NSHumanReadableCopyright</key><string>MacKit</string>

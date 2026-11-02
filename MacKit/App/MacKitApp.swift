@@ -14,6 +14,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
     private var window: NSWindow?
     private var hotkeys: GlobalHotKeys?
     private var statusItem: NSStatusItem?
+    private var launched = false
+    private var receivedCommand = false
+    private var pendingCommands: [AppCommand] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         model.appearanceChanged = { [weak self] in self?.applyAppearance() }
@@ -35,7 +38,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
         model.message = hotkeys?.error
         let login = NSAppleEventManager.shared().currentAppleEvent?
             .paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
-        if !login { showWindow() }
+        launched = true
+        let commands = pendingCommands
+        pendingCommands.removeAll()
+        for command in commands { perform(command) }
+        if !login {
+            // Launch Services may deliver the URL just after didFinishLaunching.
+            // This is a single startup deferral, not a polling timer.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                guard let self, !self.receivedCommand else { return }
+                self.showWindow()
+            }
+        }
+    }
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls {
+            guard let command = AppCommand(url: url) else { continue }
+            receivedCommand = true
+            if launched { perform(command) } else { pendingCommands.append(command) }
+        }
+    }
+
+    private func perform(_ command: AppCommand) {
+        switch command {
+        case .clean:
+            model.permissions.refresh()
+            model.cleaning.begin()
+            if !model.cleaning.active {
+                model.page = model.permissions.accessibility ? .cleaning : .permissions
+                showWindow()
+            }
+        }
     }
 
     func showWindow() {

@@ -60,7 +60,7 @@ final class CleaningService: FeatureModule {
                 if done { self.stop() }
             }
         }
-        let worker = EventTapWorker(mask: CleaningFilter.eventMask, healthy: { filter.isHealthy() }, failed: { [weak self] in
+        let worker = EventTapWorker(mask: CleaningFilter.eventMask, location: .cghidEventTap, healthy: { filter.isHealthy() }, failed: { [weak self] in
             filter.deactivate()
             Task { @MainActor in
                 guard let self, self.session == token else { return }
@@ -69,7 +69,7 @@ final class CleaningService: FeatureModule {
         }, handler: { type, event in filter.handle(type, event) })
         guard worker.start() else {
             filter.deactivate(); worker.stop(); onActivity?(false)
-            message = "无法建立输入拦截。请检查辅助功能权限，重新打开 MacKit 后重试。"
+            message = "无法建立 HID 输入拦截，未进入清洁模式。请检查辅助功能权限，重新打开 MacKit 后重试。"
             return
         }
         self.filter = filter; self.worker = worker

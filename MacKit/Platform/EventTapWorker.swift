@@ -8,20 +8,21 @@ final class EventTapWorker: @unchecked Sendable {
     private var runLoop: CFRunLoop?
     private var stopped = false
     private var ready = false
+    private let location: CGEventTapLocation
     private let mask: CGEventMask
     private let handler: Handler
     private let healthy: (@Sendable () -> Bool)?
     private let failed: @Sendable () -> Void
 
-    init(mask: CGEventMask, healthy: (@Sendable () -> Bool)? = nil,
+    init(mask: CGEventMask, location: CGEventTapLocation = .cgSessionEventTap, healthy: (@Sendable () -> Bool)? = nil,
          failed: @escaping @Sendable () -> Void, handler: @escaping Handler) {
-        self.mask = mask; self.handler = handler; self.healthy = healthy; self.failed = failed
+        self.location = location; self.mask = mask; self.handler = handler; self.healthy = healthy; self.failed = failed
     }
 
     func start() -> Bool {
         let semaphore = DispatchSemaphore(value: 0)
         let thread = Thread { [self] in
-            guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap,
+            guard let tap = CGEvent.tapCreate(tap: location, place: .headInsertEventTap,
                                               options: .defaultTap, eventsOfInterest: mask,
                                               callback: { _, type, event, context in
                 guard let context else { return Unmanaged.passUnretained(event) }

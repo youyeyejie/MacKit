@@ -49,6 +49,8 @@ final class CleaningFilter: @unchecked Sendable {
         return result.0 ? nil : Unmanaged.passUnretained(event)
     }
 
+    // Brightness, volume, mute and playback arrive as NX_SYSDEFINED (14),
+    // not ordinary F1–F12 keyDown events. Suppress both at the HID tap.
     static var eventMask: CGEventMask {
         let types: [UInt32] = [
             CGEventType.keyDown.rawValue, CGEventType.keyUp.rawValue, CGEventType.flagsChanged.rawValue,

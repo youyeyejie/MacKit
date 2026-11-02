@@ -3,6 +3,14 @@ import CoreGraphics
 @testable import MacKitCore
 
 final class DockInteractionTests: XCTestCase {
+    func testCleaningCommandAcceptsOnlySupportedURLs() {
+        XCTAssertEqual(AppCommand(url: URL(string: "mackit://clean")!), .clean)
+        XCTAssertEqual(AppCommand(url: URL(string: "mackit://clean/")!), .clean)
+        for raw in ["https://clean", "mackit://quit", "mackit://clean/quit", "mackit://clean?force=true", "mackit://user@clean", "mackit://clean:123", "mackit://clean#quit"] {
+            XCTAssertNil(AppCommand(url: URL(string: raw)!), raw)
+        }
+    }
+
     func testNavigationBackForwardAndBranching() {
         var history = NavigationHistory(current: "cleaning")
         XCTAssertFalse(history.canGoBack)
