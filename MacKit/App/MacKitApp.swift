@@ -62,6 +62,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
 
     private func perform(_ command: AppCommand) {
         switch command {
+        case .wallpaper:
+            model.page = .wallpaper
+            showWindow()
         case .clean:
             model.permissions.refresh()
             model.cleaning.begin()
@@ -161,6 +164,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationWillTerminate(_ notification: Notification) {
+        model.wallpaper.stop()
         model.cleaning.onActivity = nil
         model.cleaning.stop(); model.finderCut.stop()
         model.windowSwitcher.stop(); model.dockEnhancement.stop(); hotkeys?.stop()

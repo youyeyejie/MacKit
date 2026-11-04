@@ -35,6 +35,7 @@ final class AppModel {
         shortcuts.save(show: show, clean: clean)
         return nil
     }
+    let wallpaper = WallpaperService()
     let cleaning = CleaningService()
     let finderCut = FinderCutService()
     let windowSwitcher = WindowSwitcherService()

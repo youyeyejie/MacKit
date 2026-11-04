@@ -4,6 +4,7 @@ import ServiceManagement
 enum AppPage: String, CaseIterable, Identifiable {
     case settings = "软件设置", permissions = "权限管理", about = "关于 MacKit"
     case cleaning = "清洁模式", finder = "访达剪切"
+    case wallpaper = "动态壁纸"
     case windowSwitcher = "窗口切换", dockEnhancement = "程序坞增强"
     var id: String { rawValue }
     var symbol: String {
@@ -11,6 +12,7 @@ enum AppPage: String, CaseIterable, Identifiable {
         case .settings: "gearshape.fill"
         case .permissions: "hand.raised.fill"
         case .about: "info.circle.fill"
+        case .wallpaper: "play.rectangle"
         case .cleaning: "sparkles"
         case .finder: "scissors"
         case .windowSwitcher: "rectangle.on.rectangle"
@@ -22,6 +24,7 @@ enum AppPage: String, CaseIterable, Identifiable {
         case .settings: .gray
         case .permissions: .indigo
         case .about: .blue
+        case .wallpaper: .mint
         case .cleaning: .teal
         case .finder: .blue
         case .windowSwitcher: .purple
@@ -32,6 +35,7 @@ enum AppPage: String, CaseIterable, Identifiable {
 
 struct MainView: View {
     @Bindable var model: AppModel
+    @State private var showLicenses = false
     var body: some View {
         NavigationSplitView(columnVisibility: Binding(
             get: { model.sidebarVisible ? .all : .detailOnly },
@@ -51,7 +55,7 @@ struct MainView: View {
                         ForEach([AppPage.settings, .permissions, .about]) { item in navigationRow(item) }
                     }
                     Section("工具") {
-                        ForEach([AppPage.cleaning, .finder, .windowSwitcher, .dockEnhancement]) { item in navigationRow(item) }
+                        ForEach([AppPage.cleaning, .finder, .windowSwitcher, .dockEnhancement, .wallpaper]) { item in navigationRow(item) }
                     }
                 }.listStyle(.sidebar).scrollContentBackground(.hidden)
             }
@@ -59,6 +63,7 @@ struct MainView: View {
         } detail: {
             Group {
                 switch model.page ?? .cleaning {
+                case .wallpaper: WallpaperView(service: model.wallpaper)
                 case .settings: settings
                 case .permissions: permissions
                 case .about: about
@@ -71,6 +76,7 @@ struct MainView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .toolbar(removing: .sidebarToggle)
+        .sheet(isPresented: $showLicenses) { OpenSourceLicensesView() }
     }
 
     private func navigationRow(_ item: AppPage) -> some View {
@@ -146,19 +152,20 @@ struct MainView: View {
                 Image(nsImage: AppBrand.icon).resizable().frame(width: 112, height: 112)
                 Text("MacKit").font(.system(size: 32, weight: .bold, design: .rounded))
                 Text("轻一点，顺手一点。").font(.title3).foregroundStyle(.secondary)
-                StatusPill(text: "v" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.9.2"), color: .blue)
+                StatusPill(text: "v" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.10.0"), color: .blue)
             }.frame(maxWidth: .infinity).padding(.vertical, 30)
             SettingsCard(title: "为你的 Mac 而生") {
                 Text("使用 Swift 与 SwiftUI 构建。功能按需运行，数据留在本机，无需账号或云服务。")
                     .foregroundStyle(.secondary)
                 Divider()
                 VStack(spacing: 0) {
-                    SettingsRow(title: "系统支持目标") { Text("macOS 14–27").foregroundStyle(.secondary) }
+                    SettingsRow(title: "项目地址") {
+                        Link("GitHub", destination: URL(string: "https://github.com/youyeyejie/MacKit")!)
+                    }
                     Divider()
-                    SettingsRow(title: "当前系统") { Text(ProcessInfo.processInfo.operatingSystemVersionString).foregroundStyle(.secondary).multilineTextAlignment(.trailing) }
-                    Divider()
-                    SettingsRow(title: "GitHub") {
-                        Link("查看项目", destination: URL(string: "https://github.com/youyeyejie/MacKit")!)
+                    SettingsRow(title: "开源许可") {
+                        Button("GPL-3.0") { showLicenses = true }
+                            .buttonStyle(.link)
                     }
                 }
             }

@@ -14,6 +14,7 @@ struct FinderCutView: View {
                 SettingsRow(title: "启用剪切音效") {
                     Toggle("启用剪切音效", isOn: Binding(get: { service.soundEnabled }, set: service.setSoundEnabled))
                         .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                        .disabled(!service.enabled)
                 }
             }
             SettingsCard(title: "快捷键") {

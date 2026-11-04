@@ -1,13 +1,13 @@
 import Foundation
 
 enum AppCommand: Equatable {
-    case clean
+    case clean, wallpaper
 
     init?(url: URL) {
-        guard url.scheme?.lowercased() == "mackit", url.host?.lowercased() == "clean",
+        guard url.scheme?.lowercased() == "mackit", ["clean", "wallpaper"].contains(url.host?.lowercased() ?? ""),
               url.user == nil, url.password == nil, url.port == nil,
               url.query == nil, url.fragment == nil,
               url.path.isEmpty || url.path == "/" else { return nil }
-        self = .clean
+        self = url.host?.lowercased() == "wallpaper" ? .wallpaper : .clean
     }
 }

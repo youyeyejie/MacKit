@@ -1,7 +1,7 @@
 <div align="center">
   <img src="Assets/MacKit-Icon.png" width="112" alt="MacKit 图标">
   <h1>MacKit</h1>
-  <p>轻一点，顺手一点。一个使用 Swift 与 SwiftUI 构建的原生 macOS 工具集，后台占用约 50 MB。</p>
+  <p>轻一点，顺手一点。一个使用 Swift 与 SwiftUI 构建的原生 macOS 工具集，功能按需启用。</p>
   <p>macOS 14+ · Apple Silicon / Intel · 无第三方运行时依赖</p>
 </div>
 
@@ -54,6 +54,14 @@ open -g 'mackit://clean'
 
 macOS 26 及更新系统采用 Liquid Glass 界面，较旧系统使用兼容样式。
 
+### 动态壁纸
+
+- 导入本地视频，在「系统设置 → 墙纸 → MacKit-动态壁纸」选择使用，也可作为系统屏保。
+- 网格预览、文件名和删除管理；导入副本与原文件分开保存。
+- 支持随机轮播与可调切换过渡，锁屏可选择独立视频。
+- 桌面剩余可见区域低于 10% 或切换到其他桌面时暂停播放，遮挡检测间隔可调。
+- 原生墙纸扩展需要 macOS 26 或更新版本，使用私有接口，系统更新可能影响兼容性；独立锁屏素材与过渡效果仍需实机验证。
+
 ### 软件设置
 
 - 自定义登录自启动。
@@ -76,7 +84,7 @@ macOS 26 及更新系统采用 Liquid Glass 界面，较旧系统使用兼容样
 
 ## 开发与构建
 
-需要 macOS、完整安装的 Xcode，以及支持 Swift 6 的工具链。三个脚本使用系统自带的 zsh 和 macOS 工具，不依赖 Python 或第三方工程生成工具。以下命令在项目根目录执行。
+需要 macOS、完整安装的 Xcode，以及支持 Swift 6 的工具链。主要脚本使用 zsh 和 macOS 工具；墙纸扩展工程生成还需要 Python 3。无需第三方工程生成库。以下命令在项目根目录执行。
 
 ### 生成工程
 
@@ -160,12 +168,16 @@ MacKit/
 ├── Features/
 │   ├── Cleaning/              清洁模式界面、输入过滤和服务
 │   ├── FinderCut/             访达剪切界面、焦点识别和服务
-│   └── WindowTools/           窗口切换、程序坞预览和窗口目录
+│   ├── WindowTools/           窗口切换、程序坞预览和窗口目录
+│   └── Wallpaper/             本地视频墙纸管理与设置
 ├── Platform/                  权限、全局快捷键、事件监听和音效
 ├── UI/                        主界面、通用组件和样式
 ├── Resources/                 剪切音效
 └── Assets.xcassets/            应用图标资源
-Packages/MacKitCore/            功能协议、剪切会话和 Esc 退出序列
+Packages/MacKitCore/            功能协议、剪切会话、路由和布局等共享逻辑
+Extensions/Wallpaper/          由系统托管的 macOS 墙纸扩展
+LICENSES/                      第三方完整许可证
+THIRD_PARTY_NOTICES.md          第三方来源与修改说明
 Assets/                        图标原图及 README 展示素材
 Config/                        构建配置、版本号和 Info.plist
 MacKit.xcodeproj/               生成的 Xcode 工程
@@ -182,4 +194,16 @@ dist/                          DMG 和校验文件（不纳入 Git）
 
 ## 开源协议
 
-本项目采用 [MIT License](LICENSE)。
+当前版本整体按 [GPL-3.0-or-later](LICENSE) 分发。Phosphene 的 MIT 许可及原有版权声明继续保留；Vorssaint 参考改编的范围与修改说明见 [第三方声明](THIRD_PARTY_NOTICES.md)。此前已经按 MIT 发布的版本，其已授予权利不被撤回。
+
+分发 Release 二进制时，请同时提供对应提交的完整源码归档及构建脚本，不要只链接不断变化的 main 分支。
+
+### 第三方代码
+
+动态壁纸扩展使用了 [Phosphene](https://github.com/kageroumado/phosphene) 的部分 MIT 授权代码，使用范围和修改说明见 [第三方声明](THIRD_PARTY_NOTICES.md)，完整许可证见 [LICENSES](LICENSES/)。应用内可在「关于 MacKit → 开源许可」查看。
+
+## 卸载动态壁纸
+
+先在系统设置中将墙纸和屏保切换为其他提供方，再退出 MacKit 并删除 App。系统会更新扩展注册，但墙纸面板可能暂时保留缓存；项目 build 目录或其他位置的 MacKit 副本也可能继续注册同名扩展。
+
+导入的视频副本和设置位于 `~/Library/Containers/com.mackit.app.wallpaper.extension/`，删除 App 不保证同步删除这些文件。需要清理时，先确认不再使用该提供方，并自行保留所需媒体。MacKit 的其他功能设置位于独立的偏好域，删除墙纸容器不会清理它们。
