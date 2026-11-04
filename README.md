@@ -194,16 +194,8 @@ dist/                          DMG 和校验文件（不纳入 Git）
 
 ## 开源协议
 
-当前版本整体按 [GPL-3.0-or-later](LICENSE) 分发。Phosphene 的 MIT 许可及原有版权声明继续保留；Vorssaint 参考改编的范围与修改说明见 [第三方声明](THIRD_PARTY_NOTICES.md)。此前已经按 MIT 发布的版本，其已授予权利不被撤回。
+当前版本整体按 [GPL-3.0-or-later](LICENSE) 分发。
 
-分发 Release 二进制时，请同时提供对应提交的完整源码归档及构建脚本，不要只链接不断变化的 main 分支。
+动态壁纸扩展使用了 [Phosphene](https://github.com/kageroumado/phosphene) 的部分 MIT 授权代码，使用范围和修改说明见 [第三方声明](THIRD_PARTY_NOTICES.md)，完整许可证见 [LICENSES](LICENSES/)。
 
-### 第三方代码
-
-动态壁纸扩展使用了 [Phosphene](https://github.com/kageroumado/phosphene) 的部分 MIT 授权代码，使用范围和修改说明见 [第三方声明](THIRD_PARTY_NOTICES.md)，完整许可证见 [LICENSES](LICENSES/)。应用内可在「关于 MacKit → 开源许可」查看。
-
-## 卸载动态壁纸
-
-先在系统设置中将墙纸和屏保切换为其他提供方，再退出 MacKit 并删除 App。系统会更新扩展注册，但墙纸面板可能暂时保留缓存；项目 build 目录或其他位置的 MacKit 副本也可能继续注册同名扩展。
-
-导入的视频副本和设置位于 `~/Library/Containers/com.mackit.app.wallpaper.extension/`，删除 App 不保证同步删除这些文件。需要清理时，先确认不再使用该提供方，并自行保留所需媒体。MacKit 的其他功能设置位于独立的偏好域，删除墙纸容器不会清理它们。
+窗口切换预览及程序坞增前功能参考了 [Vorssaint](https://github.com/vorssaint/vorssaint-utils) 相关模块的实现，改编的范围与修改说明见 [第三方声明](THIRD_PARTY_NOTICES.md)，完整许可证见 [LICENSES](LICENSES/)。
