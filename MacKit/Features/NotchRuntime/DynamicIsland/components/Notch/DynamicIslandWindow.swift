@@ -21,8 +21,41 @@
  */
 
 import Cocoa
+import SwiftUI
 
 class DynamicIslandWindow: NSPanel {
+    private var interactionFrame: NSRect = .zero
+    private var globalPointerMonitor: Any?
+    private var localPointerMonitor: Any?
+
+    func updateInteractionFrame(_ frame: NSRect) {
+        interactionFrame = frame
+        updatePointerRouting()
+    }
+
+    private func updatePointerRouting() {
+        let local = convertPoint(fromScreen: NSEvent.mouseLocation)
+        ignoresMouseEvents = !isVisible || alphaValue < 0.01 || !interactionFrame.contains(local)
+    }
+
+    private func installPointerRouting() {
+        globalPointerMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged]) { [weak self] _ in
+            self?.updatePointerRouting()
+        }
+        localPointerMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged]) { [weak self] event in
+            self?.updatePointerRouting()
+            return event
+        }
+    }
+
+    override func close() {
+        ignoresMouseEvents = true
+        if let globalPointerMonitor { NSEvent.removeMonitor(globalPointerMonitor) }
+        if let localPointerMonitor { NSEvent.removeMonitor(localPointerMonitor) }
+        globalPointerMonitor = nil
+        localPointerMonitor = nil
+        super.close()
+    }
     override init(
         contentRect: NSRect,
         styleMask: NSWindow.StyleMask,
@@ -36,6 +69,9 @@ class DynamicIslandWindow: NSPanel {
             defer: flag
         )
         
+        // Fail open until the visible SwiftUI content reports its hit region.
+        ignoresMouseEvents = true
+        installPointerRouting()
         isFloatingPanel = true
         hidesOnDeactivate = false
         isOpaque = false
@@ -62,8 +98,23 @@ class DynamicIslandWindow: NSPanel {
         true
     }
     
-    override var canBecomeMain: Bool {
-        true
-    }
+    override var canBecomeMain: Bool { false }
 
+}
+
+/// Reports the visible notch, rather than the oversized transparent hosting area.
+struct NotchInteractionRegion: NSViewRepresentable {
+    func makeNSView(context: Context) -> RegionView { RegionView() }
+    func updateNSView(_ view: RegionView, context: Context) {
+        DispatchQueue.main.async { [weak view] in view?.publish() }
+    }
+    final class RegionView: NSView {
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); publish() }
+        override func layout() { super.layout(); publish() }
+        func publish() {
+            guard let window = window as? DynamicIslandWindow else { return }
+            window.updateInteractionFrame(convert(bounds, to: nil))
+        }
+    }
 }

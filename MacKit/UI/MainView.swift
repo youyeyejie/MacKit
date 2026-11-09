@@ -67,7 +67,7 @@ enum AppPage: String, CaseIterable, Identifiable {
 
 struct MainView: View {
     @Bindable var model: AppModel
-    @State private var visitedPages: [AppPage] = [.cleaning]
+    @State private var visitedPages: [AppPage] = [.about]
     private let tools: [AppPage] = [.cleaning, .finder, .windowSwitcher, .wallpaper]
     private let applicationPages: [AppPage] = [.settings, .permissions]
 
@@ -83,7 +83,7 @@ struct MainView: View {
                         Button(action: model.goForward) { Image(systemName: "chevron.right").frame(width: 36, height: 34).contentShape(Rectangle()) }
                             .disabled(!model.canGoForward).help("前进").accessibilityLabel("前进")
                     }.background(.primary.opacity(0.045), in: Capsule())
-                    Text(model.page?.navigationTitle ?? "清洁模式")
+                    Text(model.page?.navigationTitle ?? "关于 MacKit")
                         .font(.system(size: 15, weight: .semibold)).padding(.leading, 4)
                     Spacer()
                 }
@@ -116,7 +116,7 @@ struct MainView: View {
     // Keep the native scroll views alive while showing child destinations. Back
     // switches visibility instead of reconstructing a page and scrolling later.
     private var retainedPages: [AppPage] {
-        let current = model.page ?? .cleaning
+        let current = model.page ?? .about
         return visitedPages.contains(current) ? visitedPages : visitedPages + [current]
     }
 
@@ -250,7 +250,7 @@ struct MainView: View {
                 .background(SettingsPalette.group, in: RoundedRectangle(cornerRadius: 12))
             SettingsRows(title: "软件信息") {
                     SettingsRow(title: "软件版本") {
-                        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.11.0"
+                        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.11.1"
                         Link("v" + version, destination: URL(string: "https://github.com/youyeyejie/MacKit/releases/tag/v" + version)!)
                     }
                     Divider()

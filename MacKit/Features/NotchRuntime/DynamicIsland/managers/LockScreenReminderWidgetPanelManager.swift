@@ -69,7 +69,7 @@ final class LockScreenReminderWidgetPanelManager {
         }
     }
 
-    func previewFrame(size: CGSize, on screen: NSScreen) -> CGRect { frame(for: size, on: screen, useCachedFrames: false) }
+    func previewFrame(size: CGSize, on screen: NSScreen) -> CGRect { frame(for: size, on: screen) }
 
     private func render(snapshot: LockScreenReminderWidgetSnapshot, makeVisible: Bool) {
         guard let screen = currentScreen() else { return }
@@ -122,13 +122,13 @@ final class LockScreenReminderWidgetPanelManager {
         return newWindow
     }
 
-    private func frame(for size: CGSize, on screen: NSScreen, useCachedFrames: Bool = true) -> NSRect {
+    private func frame(for size: CGSize, on screen: NSScreen) -> NSRect {
         let screenFrame = screen.frame
         let horizontalPadding: CGFloat = 24
         let originX = screenFrame.midX - size.width / 2
-        let music = useCachedFrames ? LockScreenPanelManager.shared.latestFrame : nil
-        let validMusic = music.flatMap { $0.intersects(screenFrame) ? $0 : nil }
-        let musicTop = validMusic?.maxY ?? LockScreenPanelManager.shared.previewFrame(on: screen).maxY
+        // Anchor each component to its default screen layout, not another
+        // component's dragged position. Its own offset is the only user input.
+        let musicTop = LockScreenPanelManager.shared.previewFrame(on: screen, includeUserOffset: false).maxY
 
         let marginAboveMusic: CGFloat = 16
         let marginBelowWeather: CGFloat = 16
@@ -139,9 +139,7 @@ final class LockScreenReminderWidgetPanelManager {
 
         let defaultWeatherBottom = screenFrame.midY + (screenFrame.height * 0.14)
         let minimumWeatherBottom = lowerBound + size.height + marginBelowWeather
-        let weather = useCachedFrames ? LockScreenWeatherPanelManager.shared.latestFrame : nil
-        let validWeather = weather.flatMap { $0.intersects(screenFrame) ? $0 : nil }
-        let weatherBottom = validWeather?.minY ?? min(screenFrame.maxY - 120, max(defaultWeatherBottom, minimumWeatherBottom))
+        let weatherBottom = min(screenFrame.maxY - 120, max(defaultWeatherBottom, minimumWeatherBottom))
 
         let upperBound = weatherBottom - marginBelowWeather - size.height
         let clampedUpperBound = max(upperBound, lowerBound)

@@ -166,12 +166,12 @@ class AtollAppDelegate: NSObject, NSApplicationDelegate {
 
         if Defaults[.showOnAllDisplays] {
             for window in windows.values {
-                window.ignoresMouseEvents = false
+                window.ignoresMouseEvents = true
                 window.orderFrontRegardless()
                 window.alphaValue = 1
             }
         } else if let window = window {
-            window.ignoresMouseEvents = false
+            window.ignoresMouseEvents = true
             window.orderFrontRegardless()
             window.alphaValue = 1
         }
@@ -889,7 +889,7 @@ class AtollAppDelegate: NSObject, NSApplicationDelegate {
         adjustWindowPosition(changeAlpha: true)
         let activePanels = Defaults[.showOnAllDisplays] ? Array(windows.values) : [window].compactMap { $0 }
         for panel in activePanels {
-            panel.ignoresMouseEvents = false
+            panel.ignoresMouseEvents = true
             panel.alphaValue = 1
             panel.orderFrontRegardless()
         }

@@ -425,6 +425,7 @@ struct ContentView: View {
             .padding(.top, pillTopOffset)
             .offset(x: closedActivityHorizontalOffset)
             .accessibilityIdentifier("AtollNotch")
+            .background(NotchInteractionRegion())
     }
 
     private var configuredMainLayout: some View {

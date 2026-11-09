@@ -95,7 +95,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             window.title = "MacKit"
             window.titleVisibility = .hidden
             window.delegate = self
-            window.isMovableByWindowBackground = true
+            // Content gestures (especially the lock-screen layout editor) must not
+            // fall through to AppKit's background window dragging.
+            window.isMovableByWindowBackground = false
             window.contentView = NSHostingView(rootView: view)
             if let frameView = window.contentView?.superview {
                 frameView.wantsLayer = true

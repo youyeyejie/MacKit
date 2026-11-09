@@ -6,10 +6,10 @@ import ServiceManagement
 final class AppModel {
     let permissions = PermissionService()
     let shortcuts = ShortcutSettings()
-    var page: AppPage? = .cleaning {
+    var page: AppPage? = .about {
         didSet { if let page { history.visit(page) } }
     }
-    private var history = NavigationHistory<AppPage>(current: .cleaning)
+    private var history = NavigationHistory<AppPage>(current: .about)
     var canGoBack: Bool { history.canGoBack }
     var canGoForward: Bool { history.canGoForward }
     func goBack() { if let destination = history.back() { page = destination } }

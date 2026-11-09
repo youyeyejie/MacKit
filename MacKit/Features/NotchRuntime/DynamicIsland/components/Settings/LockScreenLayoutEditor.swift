@@ -57,7 +57,9 @@ struct LockScreenLayoutEditor: View {
         }
     }
     private func widget<V: View>(_ id: String, offset: Binding<Double>, scale: CGFloat, @ViewBuilder content: () -> V) -> some View {
-        content().allowsHitTesting(false)
+        // Suppress playback controls inside the preview, but leave the outer
+        // surface hit-testable so its drag gesture can receive mouse events.
+        ZStack { content().allowsHitTesting(false) }
             .background { GeometryReader { geometry in Color.clear.onAppear { sizes[id] = geometry.size }.onChange(of: geometry.size) { _, size in sizes[id] = size } } }
             .contentShape(Rectangle())
             .gesture(DragGesture(coordinateSpace: .named("lock-preview"))
@@ -88,5 +90,18 @@ struct LockScreenLayoutEditor: View {
     static var aspectRatio: CGFloat {
         guard let size = screen?.frame.size, size.height > 0 else { return 16.0 / 10.0 }
         return size.width / size.height
+    }
+}
+
+@MainActor enum LockScreenLayoutActions {
+    static func reset() {
+        Defaults[.lockScreenWeatherVerticalOffset] = 0
+        Defaults[.lockScreenMusicVerticalOffset] = 0
+        Defaults[.lockScreenReminderWidgetVerticalOffset] = 0
+        Defaults[.lockScreenLiveActivityVerticalOffset] = 0
+        LockScreenPanelManager.shared.applyOffsetAdjustment(animated: false)
+        LockScreenWeatherPanelManager.shared.refreshPositionForOffsets(animated: false)
+        LockScreenReminderWidgetPanelManager.shared.refreshPosition(animated: false)
+        LockScreenLiveActivityWindowManager.shared.refreshPositionForOffsets()
     }
 }

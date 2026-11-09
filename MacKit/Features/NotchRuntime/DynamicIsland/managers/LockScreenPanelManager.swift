@@ -54,7 +54,9 @@ class LockScreenPanelManager {
         observeDefaultChanges()
     }
 
-    func previewFrame(on screen: NSScreen) -> CGRect { collapsedFrame(for: screen.frame) }
+    func previewFrame(on screen: NSScreen, includeUserOffset: Bool = true) -> CGRect {
+        collapsedFrame(for: screen.frame, includeUserOffset: includeUserOffset)
+    }
 
     private func timestamp() -> String {
         let formatter = DateFormatter()
@@ -290,12 +292,12 @@ class LockScreenPanelManager {
 
 
 
-    private func collapsedFrame(for screenFrame: NSRect) -> NSRect {
+    private func collapsedFrame(for screenFrame: NSRect, includeUserOffset: Bool = true) -> NSRect {
         let collapsedSize = LockScreenMusicPanel.collapsedSize
         let originX = screenFrame.midX - (collapsedSize.width / 2)
         let baseOriginY = screenFrame.origin.y + (screenFrame.height / 2) - collapsedSize.height - 32
         let defaultLowering: CGFloat = -28
-        let userOffset = CGFloat(Defaults[.lockScreenMusicVerticalOffset])
+        let userOffset = includeUserOffset ? CGFloat(Defaults[.lockScreenMusicVerticalOffset]) : 0
         let clampedOffset = min(max(userOffset, -160), 160)
         var originY = baseOriginY + defaultLowering + clampedOffset
 

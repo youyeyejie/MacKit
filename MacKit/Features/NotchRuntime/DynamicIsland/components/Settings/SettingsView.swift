@@ -645,24 +645,36 @@ struct LockScreenSettings: View {
 
 private struct LockScreenPositioningControls: View {
     @State private var previewWidth: CGFloat = 500
+
     var body: some View {
         UnifiedSettingsSection("位置与预览") {
-            VStack(alignment: .leading, spacing: 5) {
-            LockScreenLayoutEditor()
-                .frame(maxWidth: .infinity)
-                .frame(height: max(120, previewWidth / LockScreenPreviewScreen.aspectRatio))
-                .background {
-                    GeometryReader { geometry in
-                        Color.clear.onAppear { previewWidth = geometry.size.width }
-                            .onChange(of: geometry.size.width) { _, width in previewWidth = width }
+            VStack(spacing: 8) {
+                LockScreenLayoutEditor()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: max(120, previewWidth / LockScreenPreviewScreen.aspectRatio))
+                    .background {
+                        GeometryReader { geometry in
+                            Color.clear.onAppear { previewWidth = geometry.size.width }
+                                .onChange(of: geometry.size.width) { _, width in previewWidth = width }
+                        }
                     }
-                }
-            Text("上下拖动组件调整位置，所有组件始终水平居中。")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
-                .multilineTextAlignment(.center).frame(maxWidth: .infinity)
+                    .overlay(alignment: .topTrailing) {
+                        Button("复位", action: LockScreenLayoutActions.reset)
+                            .buttonStyle(.bordered).controlSize(.small)
+                            .padding(10)
+                    }
+                instructions
             }
         }
     }
+
+    private var instructions: some View {
+        Text("上下拖动组件调整位置，所有组件始终水平居中。")
+            .font(.system(size: 11)).foregroundStyle(.secondary)
+            .multilineTextAlignment(.center).frame(maxWidth: .infinity)
+    }
+
+
 }
 
 struct SettingsPermissionCallout: View {
