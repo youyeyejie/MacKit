@@ -20,7 +20,7 @@
 - `⌘ X` 标记剪切，`⌘ V` 执行移动，`Esc` 取消剪切。
 - 可选剪切音效；关闭剪切功能后，音效选项随之禁用。
 
-### 窗口切换
+### 窗口预览
 
 使用更直观的窗口预览，快速找到目标窗口。
 
@@ -29,11 +29,17 @@
 - 使用方向键、Tab 或指针悬停选择，通过 `⌘ Q`、`⌘ W`、`⌘ M` 或预览按钮退出、关闭及最小化。
 - 预览和操作按钮可分别控制；系统重要应用受退出保护，`⌘ ⇧ Q` 可在确认后请求退出所有可退出的应用。
 
-### 程序坞增强
+#### 程序坞增强
 
 - 悬停应用图标查看窗口缩略图，点击预览切换到目标窗口，包括最小化及全屏窗口。
 - 点击当前应用图标最小化窗口，再次点击恢复。
 - 悬停预览与点击最小化可分别开关。
+
+#### 调度中心增强
+
+- 在系统调度中心中，`⌘ Q` 请求退出鼠标悬停窗口所属的应用，`⌘ W` 关闭该窗口。
+- 独立开关，按真实窗口 ID 定位目标，支持带正常窗口的后台型应用。
+- 使用应用原生关闭与退出流程；未保存内容仍由对应应用处理。
 
 ### 动态壁纸
 
@@ -58,10 +64,16 @@
 在系统锁屏上查看媒体和常用信息，固定使用 v11 自定义液态玻璃样式。
 
 - 支持媒体、天气、电池、蓝牙设备、空气质量、日历和专注模式等组件，按设置及可用数据展示。
-- 天气信息组件支持内嵌与环形样式，可设置温度单位与配色。
+- 主页面提供内嵌与环形组件样式、位置预览；天气页可设置温度单位与服务提供方。
 - 按内建显示器比例预览布局，在预览中上下拖动调整组件位置。
 
-软件设置支持登录启动、菜单栏入口、外观和权限管理；可从菜单栏快速开关窗口切换预览与程序坞增强。
+### 设置与快捷键
+
+- 设置窗口采用系统设置式侧栏、分组面板和次级页面；前进、后退保留页面浏览位置。
+- 灵动刘海按媒体控制、实时活动、系统控制、日程提醒、文件托盘和终端组织设置；锁屏组件独立管理。
+- 日历列表显示日历颜色及来源；权限页显示辅助功能、日历和屏幕录制的授权状态。
+- 支持登录启动、Dock 与菜单栏显示，以及打开面板、启动清洁模式的自定义快捷键。
+- 关于页从左上角 MacKit 图标进入，提供版本 Release 链接及窗口内的开源许可页面。
 
 ## 系统与权限
 
@@ -113,12 +125,12 @@ build/DerivedData/Build/Products/Release/MacKit.app
 MacKit/
 ├── App/                         应用入口与全局状态
 ├── Features/
-│   ├── Atoll/                   刘海生命周期与设置承载
+│   ├── Atoll/                   刘海生命周期集成与日历权限状态
 │   ├── NotchRuntime/            整合后的刘海、媒体、终端和锁屏源码与资源
 │   ├── Cleaning/                清洁模式
 │   ├── FinderCut/               访达剪切
 │   ├── Wallpaper/               本地视频管理与设置
-│   └── WindowTools/             窗口切换与程序坞增强
+│   └── WindowTools/             窗口预览、程序坞与调度中心增强
 ├── Platform/                    权限、快捷键与系统接口
 ├── UI/                          主设置界面和共享组件
 └── Resources/                   应用资源
@@ -138,7 +150,7 @@ dist/                           发布包（忽略）
 
 当前组合程序按 [GPL-3.0-or-later](LICENSE) 分发，MacKit 修改部分 Copyright (c) 2026 youyeyejie。
 
-刘海与锁屏功能包含 [Atoll](https://github.com/Ebullioscopic/Atoll) 的改编代码；窗口切换和程序坞实现参考改编了 [Vorssaint](https://github.com/vorssaint/vorssaint-utils)；墙纸扩展包含 [Phosphene](https://github.com/kageroumado/phosphene) 的 MIT 授权代码。具体使用范围、版本及修改说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，完整许可保留在 [LICENSES](LICENSES/)，原始版权、NOTICE、商标与修改说明集中在第三方声明中，均随应用分发。
+刘海与锁屏功能包含 [Atoll](https://github.com/Ebullioscopic/Atoll) 的改编代码；窗口切换和程序坞实现参考改编了 [Vorssaint](https://github.com/vorssaint/vorssaint-utils)；调度中心增强参考改编了 [CloseUp](https://github.com/oomol-lab/CloseUp)；墙纸扩展包含 [Phosphene](https://github.com/kageroumado/phosphene) 的 MIT 授权代码。具体使用范围、版本及修改说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，完整许可保留在 [LICENSES](LICENSES/)，原始版权、NOTICE、商标与修改说明集中在第三方声明中，均随应用分发。
 
 ## 参与贡献
 

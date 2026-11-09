@@ -864,6 +864,7 @@ struct ContentView: View {
                         .renderingMode(.template)
                         .resizable().scaledToFit()
                         .frame(width: item.id == "calendar" ? wingBaseWidth : min(20, wingBaseWidth * 0.78), height: item.id == "calendar" ? notchContentHeight : min(20, notchContentHeight * 0.78))
+                        .scaleEffect(0.8)
                         .foregroundStyle(item.color)
                         .frame(width: !closedMediaVisible && mediaIndicatorItems.count == 1 && item.id == "calendar" ? closedActivityLeftWidth : wingBaseWidth, height: notchContentHeight)
                         .transition(.opacity)

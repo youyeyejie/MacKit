@@ -111,7 +111,9 @@ extension CalendarModel {
             id: calendar.calendarIdentifier,
             title: calendar.title,
             color: calendar.color,
-            isSubscribed: calendar.isSubscribed || calendar.isDelegate
+            isSubscribed: calendar.isSubscribed || calendar.isDelegate,
+            sourceName: calendar.source.sourceType == .subscribed ? "Subscribe" :
+                calendar.source.title + (calendar.isSubscribed ? " · Subscribe" : "")
         )
     }
 }

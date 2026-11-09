@@ -4,8 +4,7 @@ struct WallpaperView: View {
     @Bindable var service: WallpaperService
     var body: some View {
         PageLayout {
-            PageHeader(title: "动态壁纸", subtitle: "让本地视频成为你的桌面风景。", symbol: "play.rectangle", color: .mint)
-            SettingsCard(title: "壁纸管理") {
+            SettingsRows(title: "壁纸管理") {
                 VStack(spacing: 0) {
                     SettingsRow(title: "导入壁纸") {
                         Button(service.busy ? "正在导入…" : "导入本地视频", action: service.importVideos)
@@ -27,22 +26,22 @@ struct WallpaperView: View {
             SettingsRows(title: "动态壁纸") {
                 SettingsRow(title: "选择壁纸") { Button("前往系统设置", action: service.openSettings) }
                 Divider()
-                SettingsRow(title: "壁纸过渡") {
-                    Slider(value: Binding(get: { service.routing.duration }, set: { service.routing.transitionSeconds = $0 }), in: 0...2, step: 0.1,
-                           onEditingChanged: { editing in if !editing { service.saveOptions() } }).frame(width: 140)
-                    Text("\(service.routing.duration, specifier: "%.1f") 秒").monospacedDigit().frame(width: 52, alignment: .trailing)
-                }
+                CompactSettingsSlider(value: Binding(get: { service.routing.duration }, set: { service.routing.transitionSeconds = $0 }),
+                                      in: 0...2, step: 0.1, valueText: String(format: "%.1f 秒", service.routing.duration)) {
+                    Text("壁纸过渡")
+                } onEditingChanged: { editing in if !editing { service.saveOptions() } }
                 Divider()
                 SettingsRow(title: "被遮挡时暂停") {
                     Toggle("被遮挡时暂停", isOn: Binding(get: { service.pauseWhenCovered }, set: { service.pauseWhenCovered = $0; service.saveOptions() }))
                         .labelsHidden().toggleStyle(.switch).controlSize(.small)
                 }
                 Divider()
-                SettingsRow(title: "遮挡检测频率") {
-                    Slider(value: Binding(get: { Double(service.routing.pollingStep) }, set: { service.routing.detectionSeconds = WallpaperRouting.detectionIntervals[Int($0.rounded())] }), in: 0...Double(WallpaperRouting.detectionIntervals.count - 1), step: 1,
-                           onEditingChanged: { editing in if !editing { service.saveOptions() } }).frame(width: 140)
-                    Text("\(service.routing.pollingInterval, specifier: "%.1f") 秒").monospacedDigit().frame(width: 52, alignment: .trailing)
-                }.disabled(!service.pauseWhenCovered)
+                CompactSettingsSlider(value: Binding(get: { Double(service.routing.pollingStep) }, set: { service.routing.detectionSeconds = WallpaperRouting.detectionIntervals[Int($0.rounded())] }),
+                                      in: 0...Double(WallpaperRouting.detectionIntervals.count - 1), step: 1,
+                                      valueText: String(format: "%.1f 秒", service.routing.pollingInterval), uniform: false) {
+                    Text("遮挡检测频率")
+                } onEditingChanged: { editing in if !editing { service.saveOptions() } }
+                .disabled(!service.pauseWhenCovered)
             }
             SettingsRows(title: "动态锁屏") {
                 SettingsRow(title: "锁屏壁纸") {
@@ -51,11 +50,10 @@ struct WallpaperView: View {
                     })) {
                         Text("跟随系统选择").tag("")
                         ForEach(service.videos) { Text($0.name).tag($0.id) }
-                    }.pickerStyle(.menu).labelsHidden().fixedSize().frame(width: 240, alignment: .trailing)
+                    }.frame(minWidth: AppStyle.pickerMinimumWidth).pickerStyle(.menu).labelsHidden().fixedSize().frame(width: 240, alignment: .trailing)
                 }
             }
             if !service.supported { Text("原生墙纸扩展需要 macOS 26 或更新版本。").foregroundStyle(.orange) }
-            if let message = service.message { Text(message).font(.callout).foregroundStyle(.secondary).textSelection(.enabled) }
         }.onAppear { service.reload() }
     }
 }

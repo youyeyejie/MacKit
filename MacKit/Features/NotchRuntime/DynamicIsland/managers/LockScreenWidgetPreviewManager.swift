@@ -35,7 +35,7 @@ import Defaults
         let batteryInfo: LockScreenWeatherSnapshot.BatteryInfo? = Defaults[.lockScreenBatteryShowsBatteryGauge]
             ? LockScreenWeatherSnapshot.BatteryInfo(
                 batteryLevel: 63,
-                usesLaptopSymbol: Defaults[.lockScreenBatteryUsesLaptopSymbol]
+                usesLaptopSymbol: true
             )
             : nil
 

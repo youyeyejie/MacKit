@@ -32,14 +32,12 @@ struct LockScreenWeatherWidget: View {
 	@Default(.lockScreenShowCalendarCountdown) private var lockScreenShowCalendarCountdown
 	@Default(.lockScreenShowCalendarEvent) private var lockScreenShowCalendarEvent
 	@Default(.lockScreenShowCalendarEventEntireDuration) private var lockScreenShowCalendarEventEntireDuration
-	@Default(.lockScreenShowCalendarEventAfterStartWindow) private var lockScreenShowCalendarEventAfterStartWindow
 	@Default(.lockScreenShowCalendarTimeRemaining) private var lockScreenShowCalendarTimeRemaining
 	@Default(.lockScreenShowCalendarStartTimeAfterBegins) private var lockScreenShowCalendarStartTimeAfterBegins
 	@Default(.lockScreenCalendarEventLookaheadWindow) private var lockScreenCalendarEventLookaheadWindow
 	@Default(.lockScreenWeatherWidgetRowOrder) private var lockScreenWeatherWidgetRowOrder
 	@Default(.lockScreenCalendarSelectionMode) private var lockScreenCalendarSelectionMode
 	@Default(.lockScreenSelectedCalendarIDs) private var lockScreenSelectedCalendarIDs
-	@Default(.lockScreenShowCalendarEventAfterStartEnabled) private var lockScreenShowCalendarEventAfterStartEnabled
 	@Default(.lockScreenReminderChipStyle) private var lockScreenReminderChipStyle
 	@Default(.reminderSneakPeekDuration) private var reminderSneakPeekDuration
 
@@ -228,29 +226,7 @@ struct LockScreenWeatherWidget: View {
 		}
 	}
 
-	private enum CalendarAfterStartWindow: String {
-		case min1 = "1m"
-		case mins5 = "5m"
-		case mins10 = "10m"
-		case mins15 = "15m"
-		case mins30 = "30m"
-		case mins45 = "45m"
-		case hour1 = "1h"
-		case hours2 = "2h"
 
-		var minutes: Int {
-			switch self {
-			case .min1: return 1
-			case .mins5: return 5
-			case .mins10: return 10
-			case .mins15: return 15
-			case .mins30: return 30
-			case .mins45: return 45
-			case .hour1: return 60
-			case .hours2: return 120
-			}
-		}
-	}
 
 	private var selectedLookaheadWindow: CalendarLookaheadWindow {
 		let raw = lockScreenCalendarEventLookaheadWindow
@@ -276,33 +252,6 @@ struct LockScreenWeatherWidget: View {
 			return .hours12
 		default:
 			return CalendarLookaheadWindow(rawValue: lockScreenCalendarEventLookaheadWindow) ?? .hours3
-		}
-	}
-
-	private var selectedAfterStartWindow: CalendarAfterStartWindow {
-		let raw = lockScreenShowCalendarEventAfterStartWindow
-			.trimmingCharacters(in: .whitespacesAndNewlines)
-			.lowercased()
-
-		switch raw {
-		case "1m", "1 min", "1 minute", "1min":
-			return .min1
-		case "5m", "5 min", "5 mins", "5 minutes", "5min":
-			return .mins5
-		case "10m", "10 min", "10 mins", "10 minutes", "10min":
-			return .mins10
-		case "15m", "15 min", "15 mins", "15 minutes", "15min":
-			return .mins15
-		case "30m", "30 min", "30 mins", "30 minutes", "30min":
-			return .mins30
-		case "45m", "45 min", "45 mins", "45 minutes", "45min":
-			return .mins45
-		case "1h", "1 hr", "1 hour", "1hour":
-			return .hour1
-		case "2h", "2 hrs", "2 hours", "2hours", "2hour":
-			return .hours2
-		default:
-			return CalendarAfterStartWindow(rawValue: lockScreenShowCalendarEventAfterStartWindow) ?? .mins5
 		}
 	}
 
@@ -357,27 +306,6 @@ struct LockScreenWeatherWidget: View {
 				.filter { isEventEligibleForLookahead($0, now: now) }
 				.sorted { $0.start < $1.start }
 			return candidates.first
-		}
-
-		let graceMinutes = lockScreenShowCalendarEventAfterStartEnabled
-			? selectedAfterStartWindow.minutes
-			: 0
-
-		if graceMinutes > 0 {
-			let graceEndForEvent: (EventModel) -> Date = { event in
-				Calendar.current.date(byAdding: .minute, value: graceMinutes, to: event.start) ?? event.start
-			}
-
-			let activeCandidates = calendarManager.lockScreenEvents
-				.filter { !$0.isAllDay }
-				.filter(passesLockScreenCalendarFilter)
-				.filter { $0.start <= now && $0.end >= now }
-				.filter { now <= graceEndForEvent($0) }
-				.sorted { $0.start < $1.start }
-
-			if let active = activeCandidates.first {
-				return active
-			}
 		}
 
 		let upcoming = calendarManager.lockScreenEvents

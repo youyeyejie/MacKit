@@ -16,218 +16,8 @@ import EventKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Groups for organizing settings tabs in the sidebar.
-enum SettingsTab: String, CaseIterable, Identifiable {
-    case general, media, liveActivities, lockScreen, devices, hudAndOSD, battery, calendar, shelf, terminal, about
-    var id: String { rawValue }
-    var title: String {
-        switch self {
-        case .general: return String(localized: "通用")
-        case .media: return String(localized: "媒体")
-        case .liveActivities: return String(localized: "实时活动")
-        case .lockScreen: return String(localized: "锁屏")
-        case .devices: return String(localized: "设备")
-        case .hudAndOSD: return String(localized: "控制")
-        case .battery: return String(localized: "电池")
-        case .calendar: return String(localized: "日历")
-        case .shelf: return "文件托盘"
-        case .terminal: return String(localized: "终端")
-        case .about: return String(localized: "关于")
-        }
-    }
-    var systemImage: String {
-        switch self {
-        case .general: return "gear"
-        case .media: return "play.laptopcomputer"
-        case .liveActivities: return "waveform.path.ecg"
-        case .lockScreen: return "lock.laptopcomputer"
-        case .devices: return "headphones"
-        case .hudAndOSD: return "dial.medium.fill"
-        case .battery: return "battery.100.bolt"
-        case .calendar: return "calendar"
-        case .shelf: return "books.vertical"
-        case .terminal: return "apple.terminal"
-        case .about: return "info.circle"
-        }
-    }
-    var tint: Color { .accentColor }
-    func highlightID(for title: String) -> String { "\(rawValue).\(title)" }
-}
-
-final class SettingsHighlightCoordinator: ObservableObject {
-    struct ScrollRequest: Identifiable, Equatable {
-        let id: String
-        fileprivate let tab: SettingsTab
-    }
-
-    @Published fileprivate var pendingScrollRequest: ScrollRequest?
-    @Published private(set) var activeHighlightID: String?
-
-    private var clearWorkItem: DispatchWorkItem?
-
-
-
-    func consumeScrollRequest(_ request: ScrollRequest) {
-        guard pendingScrollRequest?.id == request.id else { return }
-        pendingScrollRequest = nil
-    }
-
-    private func activateHighlight(id: String) {
-        activeHighlightID = id
-        clearWorkItem?.cancel()
-
-        let workItem = DispatchWorkItem { [weak self] in
-            guard self?.activeHighlightID == id else { return }
-            self?.activeHighlightID = nil
-        }
-
-        clearWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: workItem)
-    }
-}
-
-private struct SettingsHighlightModifier: ViewModifier {
-    let id: String
-    @EnvironmentObject private var highlightCoordinator: SettingsHighlightCoordinator
-    @State private var animatePulse = false
-
-    private var isActive: Bool {
-        highlightCoordinator.activeHighlightID == id
-    }
-
-    func body(content: Content) -> some View {
-        content
-            .id(id)
-            .background(highlightBackground)
-            .onChange(of: isActive) { _, active in
-                animatePulse = active
-            }
-            .onAppear {
-                if isActive {
-                    animatePulse = true
-                }
-            }
-    }
-
-    private var highlightBackground: some View {
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .stroke(
-                Color.accentColor.opacity(isActive ? (animatePulse ? 0.95 : 0.4) : 0),
-                lineWidth: 2
-            )
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.accentColor.opacity(isActive ? 0.08 : 0))
-            )
-            .padding(-4)
-            .shadow(color: Color.accentColor.opacity(isActive ? 0.25 : 0), radius: animatePulse ? 8 : 2)
-            .animation(
-                isActive ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true) : .default,
-                value: animatePulse
-            )
-    }
-}
-
-extension View {
-    func settingsHighlight(id: String) -> some View {
-        modifier(SettingsHighlightModifier(id: id))
-    }
-
-    @ViewBuilder
-    func settingsHighlightIfPresent(_ id: String?) -> some View {
-        if let id {
-            settingsHighlight(id: id)
-        } else {
-            self
-        }
-    }
-}
-
-private struct SettingsForm<Content: View>: View {
-    let tab: SettingsTab
-    @ViewBuilder var content: () -> Content
-
-    @EnvironmentObject private var highlightCoordinator: SettingsHighlightCoordinator
-
-    var body: some View {
-        ScrollViewReader { proxy in
-            content()
-                .onReceive(highlightCoordinator.$pendingScrollRequest.compactMap { request -> SettingsHighlightCoordinator.ScrollRequest? in
-                    guard let request, request.tab == tab else { return nil }
-                    return request
-                }) { request in
-                    withAnimation(.easeInOut(duration: 0.45)) {
-                        proxy.scrollTo(request.id, anchor: .center)
-                    }
-                    highlightCoordinator.consumeScrollRequest(request)
-                }
-        }
-    }
-}
-
-struct SettingsView: View {
-    var hostedTab: SettingsTab?
-    @StateObject private var highlightCoordinator = SettingsHighlightCoordinator()
-    init(hostedTab: SettingsTab? = nil) {
-        self.hostedTab = hostedTab
-    }
-    var body: some View {
-        detailView(for: hostedTab ?? .general)
-            .environmentObject(highlightCoordinator)
-            .formStyle(.grouped)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    @ViewBuilder
-    private func detailView(for tab: SettingsTab) -> some View {
-        switch tab {
-        case .general:
-            SettingsForm(tab: .general) {
-                GeneralSettings()
-            }
-        case .liveActivities:
-            SettingsForm(tab: .liveActivities) {
-                LiveActivitiesSettings()
-            }
-        case .lockScreen:
-            SettingsForm(tab: .lockScreen) {
-                LockScreenSettings()
-            }
-        case .media:
-            SettingsForm(tab: .media) {
-                Media()
-            }
-        case .devices:
-            SettingsForm(tab: .devices) {
-                DevicesSettingsView()
-            }
-        case .calendar:
-            SettingsForm(tab: .calendar) {
-                CalendarSettings()
-            }
-        case .hudAndOSD:
-            SettingsForm(tab: .hudAndOSD) {
-                HUDAndOSDSettingsView()
-            }
-        case .battery:
-            SettingsForm(tab: .battery) {
-                Charge()
-            }
-        case .shelf:
-            SettingsForm(tab: .shelf) {
-                Shelf()
-            }
-        case .terminal:
-            SettingsForm(tab: .terminal) {
-                TerminalSettings()
-            }
-        case .about:
-            SettingsForm(tab: .about) { About() }
-
-        }
-    }
-}
-
 struct GeneralSettings: View {
+    @Default(.notchEnabled) private var featureEnabled
     @Default(.builtinClosedNotchWidth) private var builtinWidth
     @Default(.externalClosedNotchWidth) private var externalWidth
     @Default(.openNotchWidth) private var width
@@ -246,32 +36,31 @@ struct GeneralSettings: View {
     @Default(.externalDisplayStyle) var externalDisplayStyle
     @Default(.hideNonNotchUntilHover) var hideNonNotchUntilHover
 
-    private func highlightID(_ title: String) -> String {
-        SettingsTab.general.highlightID(for: title)
-    }
 
     var body: some View {
-        Form {
-            
+        Group {
 
-            Section {
+
+            UnifiedSettingsSection {
+                Toggle("启用灵动刘海", isOn: Binding(get: { featureEnabled }, set: { value in
+                    Defaults[.notchEnabled] = value
+                    AtollIntegration.shared.delegate?.applyNotchEnabled(value)
+                }))
                 Defaults.Toggle(key: .showOnAllDisplays) {
                     Text("在所有显示器上显示")
                 }
                 .onChange(of: showOnAllDisplays) {
                     NotificationCenter.default.post(name: Notification.Name.showOnAllDisplaysChanged, object: nil)
                 }
-                .settingsHighlight(id: highlightID("在所有显示器上显示"))
-                Picker("在指定显示器上显示", selection: $coordinator.preferredScreen) {
+                SettingsRow(title: "在指定显示器上显示") { Picker("在指定显示器上显示", selection: $coordinator.preferredScreen) {
                     ForEach(screens, id: \.self) { screen in
                         Text(screen)
                     }
-                }
+                }.frame(minWidth: AppStyle.pickerMinimumWidth).labelsHidden().frame(maxWidth: 200, alignment: .trailing) }
                 .onChange(of: NSScreen.screens) {
                     screens =  NSScreen.screens.compactMap({$0.localizedName})
                 }
                 .disabled(showOnAllDisplays)
-                .settingsHighlight(id: highlightID("在指定显示器上显示"))
                 Defaults.Toggle(key: .automaticallySwitchDisplay) {
                     Text("自动切换显示器")
                 }
@@ -279,26 +68,24 @@ struct GeneralSettings: View {
                     NotificationCenter.default.post(name: Notification.Name.automaticallySwitchDisplayChanged, object: nil)
                 }
                 .disabled(showOnAllDisplays)
-                .settingsHighlight(id: highlightID("自动切换显示器"))
                 Defaults.Toggle(key: .hideDynamicIslandFromScreenCapture) {
                     Text("截图或录屏时隐藏刘海")
                 }
-                .settingsHighlight(id: highlightID("截图或录屏时隐藏刘海"))
             } header: {
-                Text("系统功能")
+                Text("通用")
             }
 
-            Section("展开尺寸") {
+            UnifiedSettingsSection("外观") {
                 let minimum = builtinClosedMinimumWidth()
-                Slider(value: Binding(get: { max(minimum, builtinWidth) }, set: { builtinWidth = $0 }), in: minimum...max(400, minimum + 200), step: 4) {
-                    Text("内建显示器闭合宽度：\(Int(max(minimum, builtinWidth)))")
+                CompactSettingsSlider(value: Binding(get: { max(minimum, builtinWidth) }, set: { builtinWidth = $0 }), in: minimum...max(400, minimum + 200), step: 4, valueText: "\(Int(max(minimum, builtinWidth))) pt") {
+                    Text("内建显示器闭合宽度")
                 }.onChange(of: builtinWidth) { _, _ in NotificationCenter.default.post(name: .notchHeightChanged, object: nil) }
 
-                Slider(value: $externalWidth, in: 120...360, step: 4) { Text("外接显示器闭合宽度：\(Int(externalWidth))") }
+                CompactSettingsSlider(value: $externalWidth, in: 120...360, step: 4, valueText: "\(Int(externalWidth)) pt") { Text("外接显示器闭合宽度") }
                     .onChange(of: externalWidth) { _, _ in NotificationCenter.default.post(name: .notchHeightChanged, object: nil) }
 
-                Slider(value: $width, in: Double(currentRecommendedMinimumNotchWidth())...900, step: 10) {
-                    Text("展开宽度：\(Int(width))")
+                CompactSettingsSlider(value: $width, in: Double(currentRecommendedMinimumNotchWidth())...900, step: 10, valueText: "\(Int(width)) pt") {
+                    Text("展开宽度")
                 } onEditingChanged: { editing in
                     if editing { AtollAppDelegate.shared?.viewModels.values.forEach { $0.open() }; AtollAppDelegate.shared?.vm.open() }
                 }
@@ -306,60 +93,44 @@ struct GeneralSettings: View {
                     AtollAppDelegate.shared?.viewModels.values.forEach { $0.open() }
                     AtollAppDelegate.shared?.vm.open()
                 }
+            SettingsRow(title: "外接显示器样式") { Picker("外接显示器样式", selection: $externalDisplayStyle) {
+                ForEach(ExternalDisplayStyle.allCases) { style in
+                    Text(style.localizedName)
+                        .tag(style)
+                }
+            }.frame(minWidth: AppStyle.pickerMinimumWidth).labelsHidden().frame(maxWidth: 200, alignment: .trailing) }
+            .onChange(of: externalDisplayStyle) {
+                NotificationCenter.default.post(name: Notification.Name.notchHeightChanged, object: nil)
+            }
             }
             NotchBehaviour()
 
 
         }
-        .navigationTitle("通用")
+
 
     }
 
     @ViewBuilder
     func NotchBehaviour() -> some View {
-        Section {
+        UnifiedSettingsSection {
             Defaults.Toggle(key: .enableHaptics) {
                 Text("启用触觉反馈")
             }
-            .settingsHighlight(id: highlightID("启用触觉反馈"))
             Defaults.Toggle(key: .openNotchOnHover) {
                 Text("悬停时展开刘海")
             }
-            .settingsHighlight(id: highlightID("悬停时展开刘海"))
             Toggle("记住上次标签页", isOn: $coordinator.openLastTabByDefault)
             if openNotchOnHover {
-                Slider(value: $minimumHoverDuration, in: 0...1, step: 0.1) {
-                    HStack {
-                        Text("悬停延迟")
-                        Spacer()
-                        Text("\(minimumHoverDuration, specifier: "%.1f")s")
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                CompactSettingsSlider(value: $minimumHoverDuration, in: 0...1, step: 0.1,
+                                      valueText: String(format: "%.1f 秒", minimumHoverDuration)) { Text("悬停延迟") }
                 .onChange(of: minimumHoverDuration) {
                     NotificationCenter.default.post(name: Notification.Name.notchHeightChanged, object: nil)
                 }
             }
-            Picker("外接显示器样式", selection: $externalDisplayStyle) {
-                ForEach(ExternalDisplayStyle.allCases) { style in
-                    Text(style.localizedName)
-                        .tag(style)
-                }
-            }
-            .onChange(of: externalDisplayStyle) {
-                NotificationCenter.default.post(name: Notification.Name.notchHeightChanged, object: nil)
-            }
-            .settingsHighlight(id: highlightID("外接显示器样式"))
-            Text(externalDisplayStyle.description)
-                .font(.caption)
-                .foregroundStyle(.secondary)
             Defaults.Toggle(key: .hideNonNotchUntilHover) {
-                Text("在非刘海显示器上悬停时显示")
+                SettingsDescription(title: "在非刘海显示器上悬停时显示", subtitle: "启用后，外接显示器上的刘海会隐藏，指针悬停时显示。")
             }
-            .settingsHighlight(id: highlightID("Hide until hovered"))
-            Text("启用后，外接显示器上的刘海会隐藏，指针悬停时显示。")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         } header: {
             Text("刘海行为")
         }
@@ -368,8 +139,8 @@ struct GeneralSettings: View {
 
 struct Charge: View {
     var body: some View {
-        Form {
-            Section("电池提示") {
+        Group {
+            UnifiedSettingsSection("电池提示") {
                 Defaults.Toggle(key: .showPowerStatusNotifications) { Text("显示电源状态提示") }
                     .onReceive(Defaults.publisher(.showPowerStatusNotifications, options: [])) { change in if change.newValue { DynamicIslandViewCoordinator.shared.previewSetting("正在充电", symbol: "battery.100percent.bolt", circular: false) } }
                 Defaults.Toggle(key: .showChargingBatteryHUD) { Text("充电提示") }
@@ -379,13 +150,9 @@ struct Charge: View {
                 Defaults.Toggle(key: .showFullBatteryHUD) { Text("充满电提示") }
                     .onReceive(Defaults.publisher(.showFullBatteryHUD, options: [])) { change in if change.newValue { DynamicIslandViewCoordinator.shared.previewSetting("已充满", symbol: "battery.100percent", circular: false) } }
             }
-        }.navigationTitle("电池")
+        }
     }
 }
-
-
-
-
 
 private struct HUDAndOSDSettingsView: View {
     @Default(.enableSystemHUD) private var notchEnabled
@@ -396,61 +163,47 @@ private struct HUDAndOSDSettingsView: View {
     private var enabled: Bool { notchEnabled || verticalEnabled }
     private var style: String { verticalEnabled ? "vertical" : (notchEnabled ? "notch" : (preferredStyle == "vertical" ? "vertical" : "notch")) }
     var body: some View {
-        PageLayout {
-            PageHeader(title: "控制", subtitle: "调节音量、屏幕亮度和键盘背光。", symbol: "slider.horizontal.3", color: .blue)
+        VStack(alignment: .leading, spacing: AppStyle.pageSpacing) {
             SettingsRows(title: "系统控制") {
                 SettingsRow(title: "启用系统控制") {
-                    Toggle("启用系统控制", isOn: Binding(get: { enabled }, set: setEnabled))
-                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    Toggle("启用系统控制", isOn: Binding(get: { enabled }, set: setEnabled)).labelsHidden().toggleStyle(.switch).controlSize(.small)
                 }
-                Divider()
-                option("音量提示", key: .enableVolumeHUD)
-                Divider()
-                option("亮度提示", key: .enableBrightnessHUD)
-                Divider()
-                option("键盘背光提示", key: .enableKeyboardBacklightHUD)
+                Divider(); option("音量提示", key: .enableVolumeHUD)
+                Divider(); option("亮度提示", key: .enableBrightnessHUD)
+                Divider(); option("键盘背光提示", key: .enableKeyboardBacklightHUD)
             }
             SettingsRows(title: "提示样式") {
                 SettingsRow(title: "样式") {
                     Picker("样式", selection: Binding(get: { style }, set: setStyle)) {
-                        Text("刘海").tag("notch")
-                        Text("垂直条").tag("vertical")
-                    }.labelsHidden().pickerStyle(.menu).frame(maxWidth: 160)
+                        Text("刘海").tag("notch"); Text("垂直条").tag("vertical")
+                    }.frame(minWidth: AppStyle.pickerMinimumWidth).labelsHidden().pickerStyle(.menu)
                 }
                 if style == "vertical" {
-                    Divider()
-                    option("显示数值", key: .verticalHUDShowValue)
-                    Divider()
-                    option("鼠标交互", key: .verticalHUDInteractive)
-                    Divider()
-                    option("使用强调色", key: .verticalHUDUseAccentColor)
+                    Divider(); option("显示数值", key: .verticalHUDShowValue)
+                    Divider(); option("鼠标交互", key: .verticalHUDInteractive)
+                    Divider(); option("使用强调色", key: .verticalHUDUseAccentColor)
                 } else {
                     Divider()
                     SettingsRow(title: "提示布局") {
-                        Picker("提示布局", selection: $inlineLayout) {
-                            Text("内嵌").tag(true)
-                            Text("展开").tag(false)
-                        }.labelsHidden().frame(maxWidth: 160)
-                         .onChange(of: inlineLayout) { _, _ in DynamicIslandViewCoordinator.shared.previewSetting("音量", symbol: "speaker.wave.2.fill", type: .volume) }
+                        Picker("提示布局", selection: $inlineLayout) { Text("内嵌").tag(true); Text("展开").tag(false) }.frame(minWidth: AppStyle.pickerMinimumWidth)
+                            .labelsHidden().pickerStyle(.menu)
+                            .onChange(of: inlineLayout) { _, _ in DynamicIslandViewCoordinator.shared.previewSetting("音量", symbol: "speaker.wave.2.fill", type: .volume) }
                     }
-                    Divider()
-                    option("音量颜色提示", key: .useColorCodedVolumeDisplay)
+                    Divider(); option("音量颜色提示", key: .useColorCodedVolumeDisplay)
                     Divider()
                     SettingsRow(title: "进度条样式") {
                         Picker("进度条样式", selection: $progressStyle) {
                             Text("分层").tag(ProgressBarStyle.hierarchical)
                             Text("渐变").tag(ProgressBarStyle.gradient)
                             Text("分段").tag(ProgressBarStyle.segmented)
-                        }.labelsHidden().pickerStyle(.menu).frame(maxWidth: 160)
+                        }.frame(minWidth: AppStyle.pickerMinimumWidth).labelsHidden().pickerStyle(.menu)
                     }
-                    Divider()
-                    option("显示百分比", key: .showProgressPercentages)
-                    Divider()
-                    option("指示器使用强调色", key: .systemEventIndicatorUseAccent)
+                    Divider(); option("显示百分比", key: .showProgressPercentages)
+                    Divider(); option("指示器使用强调色", key: .systemEventIndicatorUseAccent)
                 }
             }
-            SettingsCard(title: "调节步长") { ExternalDisplayIntegrationsSection(stepsOnly: true) }
-            SettingsCard(title: "外接显示器") { ExternalDisplayIntegrationsSection() }
+            ExternalDisplayIntegrationsSection(stepsOnly: true)
+            ExternalDisplayIntegrationsSection()
         }
     }
     private func option(_ title: String, key: Defaults.Key<Bool>) -> some View {
@@ -493,9 +246,6 @@ private struct ExternalDisplayIntegrationsSection: View {
     @ObservedObject private var betterDisplayManager = BetterDisplayManager.shared
     @ObservedObject private var lunarManager = LunarManager.shared
 
-    private func highlightID(_ title: String) -> String {
-        SettingsTab.hudAndOSD.highlightID(for: title)
-    }
 
     private var providerStatusText: String {
         switch thirdPartyDDCProvider {
@@ -559,188 +309,87 @@ private struct ExternalDisplayIntegrationsSection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        Group {
             if stepsOnly {
-            Section {
-                Stepper(value: $volumeStepPercent, in: 1...25) {
-                    HStack {
-                        Text("音量步长")
-                        Spacer()
-                        Text("\(volumeStepPercent)%")
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
+                UnifiedSettingsSection("调节步长") {
+                    SettingsRow(title: "音量步长", subtitle: "每次按键的调节百分比。启用外接设备音量监听时不可用。") {
+                        Text("\(volumeStepPercent)%").foregroundStyle(.secondary).monospacedDigit()
+                        Stepper("音量步长", value: $volumeStepPercent, in: 1...25).labelsHidden().fixedSize()
+                    }.disabled(enableExternalVolumeControlListener)
+                    SettingsRow(title: "音量精细步长", subtitle: "按住 Shift 和 Option 使用精细步长。") {
+                        Text("\(volumeFineStepPercent)%").foregroundStyle(.secondary).monospacedDigit()
+                        Stepper("音量精细步长", value: $volumeFineStepPercent, in: 1...25).labelsHidden().fixedSize()
+                    }.disabled(enableExternalVolumeControlListener)
+                    SettingsRow(title: "亮度步长", subtitle: "每次按键的调节百分比。启用第三方亮度集成时不可用。") {
+                        Text("\(brightnessStepPercent)%").foregroundStyle(.secondary).monospacedDigit()
+                        Stepper("亮度步长", value: $brightnessStepPercent, in: 1...25).labelsHidden().fixedSize()
+                    }.disabled(enableThirdPartyDDCIntegration)
+                    SettingsRow(title: "亮度精细步长", subtitle: "按住 Shift 和 Option 使用精细步长。") {
+                        Text("\(brightnessFineStepPercent)%").foregroundStyle(.secondary).monospacedDigit()
+                        Stepper("亮度精细步长", value: $brightnessFineStepPercent, in: 1...25).labelsHidden().fixedSize()
+                    }.disabled(enableThirdPartyDDCIntegration)
+                }
+            } else {
+                UnifiedSettingsSection("外接显示器") {
+                    Toggle(isOn: $enableThirdPartyDDCIntegration) {
+                        SettingsDescription(title: "启用第三方显示器控制集成", subtitle: "通过刘海提示显示 BetterDisplay 或 Lunar 的显示器调节。")
                     }
-                }
-                .settingsHighlight(id: highlightID("音量步长"))
-                .disabled(enableExternalVolumeControlListener)
-
-                Stepper(value: $volumeFineStepPercent, in: 1...25) {
-                    HStack {
-                        Text("音量精细步长")
-                        Spacer()
-                        Text("\(volumeFineStepPercent)%")
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-                }
-                .settingsHighlight(id: highlightID("音量精细步长"))
-                .disabled(enableExternalVolumeControlListener)
-
-                if enableExternalVolumeControlListener {
-                    Text("启用外接显示器音量集成时不可用。")
-                        .font(.caption).fixedSize(horizontal: false, vertical: true)
-                        .foregroundStyle(.secondary)
-                }
-
-                Stepper(value: $brightnessStepPercent, in: 1...25) {
-                    HStack {
-                        Text("亮度步长")
-                        Spacer()
-                        Text("\(brightnessStepPercent)%")
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-                }
-                .settingsHighlight(id: highlightID("亮度步长"))
-                .disabled(enableThirdPartyDDCIntegration)
-
-                Stepper(value: $brightnessFineStepPercent, in: 1...25) {
-                    HStack {
-                        Text("亮度精细步长")
-                        Spacer()
-                        Text("\(brightnessFineStepPercent)%")
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-                }
-                .settingsHighlight(id: highlightID("亮度精细步长"))
-                .disabled(enableThirdPartyDDCIntegration)
-
-                if enableThirdPartyDDCIntegration {
-                    Text("启用外接显示器亮度集成时不可用。")
-                        .font(.caption).fixedSize(horizontal: false, vertical: true)
-                        .foregroundStyle(.secondary)
-                }
-            } header: {
-                Text("调节步长")
-            } footer: {
-                Text("每次按键的调节百分比。按住 Shift 和 Option 使用精细步长。")
-                    .foregroundStyle(.secondary)
-                    .font(.caption).fixedSize(horizontal: false, vertical: true)
-            }
-
-            }
-            if !stepsOnly {
-            Section {
-                Toggle("启用第三方显示器控制集成", isOn: $enableThirdPartyDDCIntegration)
-                    .settingsHighlight(id: highlightID("Third-party DDC app integration"))
-
-                if enableThirdPartyDDCIntegration {
-                    Picker("服务提供方", selection: $thirdPartyDDCProvider) {
-                        ForEach(ThirdPartyDDCProvider.allCases) { provider in
-                            HStack {
-                                AppIconImage(
-                                    bundleIdentifiers: provider.bundleIdentifiers,
-                                    symbolFallback: "display",
-                                    symbolColor: .secondary, size: 14
-                                )
-                                Text(provider.displayName)
-                            }
-                            .tag(provider)
+                    if enableThirdPartyDDCIntegration {
+                        SettingsRow(title: "服务提供方", subtitle: providerStatusDescription) {
+                            Picker("服务提供方", selection: $thirdPartyDDCProvider) {
+                                ForEach(ThirdPartyDDCProvider.allCases) { provider in
+                                    Text(provider.displayName).tag(provider)
+                                }
+                            }.frame(minWidth: AppStyle.pickerMinimumWidth).labelsHidden().frame(maxWidth: 200, alignment: .trailing)
+                        }
+                        Toggle(isOn: $enableExternalVolumeControlListener) {
+                            SettingsDescription(title: "监听外接设备音量控制", subtitle: "开启后跟随所选服务的音量数据，关闭后使用内建音量键拦截。")
+                        }
+                        SettingsRow(title: "连接状态") {
+                            Text(providerStatusText).foregroundStyle(providerStatusColor)
+                            Button("刷新检测") { refreshDetectionStatus() }
                         }
                     }
-                    .settingsHighlight(id: highlightID("Third-party DDC provider"))
-
-                    Toggle("监听外接设备音量控制", isOn: $enableExternalVolumeControlListener)
-                        .settingsHighlight(id: highlightID("监听外接设备音量控制"))
-
-                    Text(
-                        enableExternalVolumeControlListener
-                        ? "Atoll's built-in volume key interception is disabled while external volume listening is on. Volume HUD/OSD will follow \(thirdPartyDDCProvider.displayName) payloads."
-                        : "Atoll 保持原生音量键拦截。关闭此项时将忽略外部提供商的音量数据。"
-                    )
-                    .font(.caption).fixedSize(horizontal: false, vertical: true)
-                    .foregroundStyle(.secondary)
-
-                    HStack {
-                        Text("状态")
-                        Spacer()
-                        Text(providerStatusText)
-                            .font(.caption).fixedSize(horizontal: false, vertical: true)
-                            .foregroundStyle(providerStatusColor)
-                    }
-
-                    Text(providerStatusDescription)
-                        .font(.caption).fixedSize(horizontal: false, vertical: true)
-                        .foregroundStyle(.secondary)
-
-                    Button {
-                        refreshDetectionStatus()
-                    } label: {
-                        Label("刷新检测", systemImage: "arrow.clockwise")
-                            .font(.caption).fixedSize(horizontal: false, vertical: true)
-                    }
-                    .buttonStyle(.link)
-                } else {
-                    Text("通过刘海提示显示 BetterDisplay 或 Lunar 的显示器调节。")
-                        .font(.caption).fixedSize(horizontal: false, vertical: true)
-                        .foregroundStyle(.secondary)
                 }
-            } footer: {
-                if enableThirdPartyDDCIntegration {
-                    Text("监听所选服务的亮度变化；启用外接音量监听后，同时监听音量变化。")
-                        .foregroundStyle(.secondary)
-                        .font(.caption).fixedSize(horizontal: false, vertical: true)
-                }
-            }
             }
         }
     }
 }
 
-
-
 private struct DevicesSettingsView: View {
     @Default(.useCircularBluetoothBatteryIndicator) private var circular
     var body: some View {
-        Form {
-            Section("蓝牙音频设备") {
+        Group {
+            UnifiedSettingsSection("蓝牙音频设备") {
                 Defaults.Toggle(key: .showBluetoothDeviceConnections) { Text("显示蓝牙设备连接提示") }
                     .onReceive(Defaults.publisher(.showBluetoothDeviceConnections, options: [])) { change in if change.newValue { DynamicIslandViewCoordinator.shared.previewSetting("蓝牙耳机", symbol: "headphones", circular: Defaults[.useCircularBluetoothBatteryIndicator]) } }
-                Picker("电量指示器", selection: $circular) {
+                SettingsRow(title: "电量指示器") { Picker("电量指示器", selection: $circular) {
                     Text("内嵌").tag(false)
                     Text("环形").tag(true)
-                }.onChange(of: circular) { _, value in
+                }.frame(minWidth: AppStyle.pickerMinimumWidth).labelsHidden().frame(maxWidth: 200, alignment: .trailing) }.onChange(of: circular) { _, value in
                     DynamicIslandViewCoordinator.shared.previewSetting("蓝牙耳机 75%", symbol: "headphones", circular: value)
                 }
             }
-        }.navigationTitle("设备")
+        }
     }
 }
-
-
 
 struct Media: View {
     private static let hideDelays: [Double] = [0, 1, 3, 5, 10, 15, 30, 60, -1]
     @Default(.pausedMediaHideDelay) private var pausedMediaHideDelay
     var body: some View {
-        Form {
-            Section("媒体") {
-                Defaults.Toggle(key: .showStandardMediaControls) { Text("在刘海中显示媒体控制") }
+        Group {
+            UnifiedSettingsSection("媒体控制") {
+                Defaults.Toggle(key: .showStandardMediaControls) { Text("启用媒体控制") }
                 Defaults.Toggle(key: .autoHideInactiveNotchMediaPlayer) { Text("自动隐藏未播放媒体的面板") }
-                Slider(value: Binding(get: { Self.hideDelays.firstIndex(of: pausedMediaHideDelay).map(Double.init) ?? 2 }, set: { pausedMediaHideDelay = Self.hideDelays[Int($0.rounded())] }), in: 0...8, step: 1) {
-                    Text(pausedMediaHideDelay < 0 ? "暂停后收回媒体：一直保留" : "暂停后收回媒体：\(Int(pausedMediaHideDelay)) 秒")
+                CompactSettingsSlider(value: Binding(get: { Self.hideDelays.firstIndex(of: pausedMediaHideDelay).map(Double.init) ?? 2 }, set: { pausedMediaHideDelay = Self.hideDelays[Int($0.rounded())] }), in: 0...8, step: 1, valueText: pausedMediaHideDelay < 0 ? "一直保留" : "\(Int(pausedMediaHideDelay)) 秒", uniform: false) {
+                    Text("暂停时收回")
                 }
-                if pausedMediaHideDelay < 0 {
-                    Defaults.Toggle(key: .hideLyricsWhenPaused) { Text("暂停时收回歌词") }
-                }
+                Defaults.Toggle(key: .hideLyricsWhenPaused) { Text("暂停时收回歌词") }
+                    .disabled(pausedMediaHideDelay >= 0)
                 Defaults.Toggle(key: .showLyricsBelowBuiltinNotch) { Text("在常驻灵动岛显示歌词") }
-                Text("查询歌词时，会向网易云和 LRCLIB 发送歌名、艺人或歌曲 ID。").font(.caption).foregroundStyle(.secondary)
             }
-            Section("锁屏媒体") {
-                Defaults.Toggle(key: .enableLockScreenMediaWidget) { Text("显示锁屏媒体") }
-            }
-        }.navigationTitle("媒体")
+        }
     }
 }
 
@@ -752,127 +401,36 @@ struct CalendarSettings: View {
     @Default(.reminderPresentationStyle) private var reminderStyle
     @ObservedObject private var calendar = CalendarManager.shared
     var body: some View {
-        Form {
-            Section("日历") { Toggle("启用日历", isOn: $enabled) }
+        Group {
+            UnifiedSettingsSection("日历") { Toggle("启用日历", isOn: $enabled) }
             if enabled {
-                Section("日历列表") {
+                UnifiedSettingsSection("日历列表") {
                     ForEach(calendar.allCalendars, id: \.id) { item in
-                        Toggle(item.title, isOn: Binding(get: { calendar.selectedCalendarIDs.contains(item.id) }, set: { _ in Task { await calendar.setCalendarSelected(item, isSelected: !calendar.selectedCalendarIDs.contains(item.id)) } }))
+                        Toggle(isOn: Binding(get: { calendar.selectedCalendarIDs.contains(item.id) }, set: { selected in
+                            guard selected != calendar.selectedCalendarIDs.contains(item.id) else { return }
+                            Task { await calendar.setCalendarSelected(item, isSelected: selected) }
+                        })) {
+                            HStack(spacing: 8) {
+                                Circle().fill(Color(nsColor: item.color)).frame(width: 9, height: 9).accessibilityHidden(true)
+                                SettingsDescription(title: item.title, subtitle: item.sourceName ?? item.accountName)
+                            }
+                        }
                     }
                 }
-                Section("提醒实时活动") {
-                    Slider(value: $reminderDuration, in: 3...20, step: 1) { Text("提醒展示时长：\(Int(reminderDuration)) 秒") }
+                UnifiedSettingsSection("提醒实时活动") {
+                    CompactSettingsSlider(value: $reminderDuration, in: 3...20, step: 1, valueText: "\(Int(reminderDuration)) 秒") { Text("提醒展示时长") }
                     Defaults.Toggle(key: .enableReminderLiveActivity) { Text("启用提醒实时活动") }
-                    Picker("倒计时样式", selection: $reminderStyle) {
+                    SettingsRow(title: "倒计时样式") { Picker("倒计时样式", selection: $reminderStyle) {
                         ForEach(ReminderPresentationStyle.allCases) { style in Text(style.displayName).tag(style) }
-                    }
-                    Slider(value: Binding(get: { Double(lead) }, set: { lead = Int($0) }), in: 1...60, step: 1) { Text("提前提醒：\(lead) 分钟") }
+                    }.frame(minWidth: AppStyle.pickerMinimumWidth).labelsHidden().frame(maxWidth: 200, alignment: .trailing) }
+                    CompactSettingsSlider(value: Binding(get: { Double(lead) }, set: { lead = Int($0) }), in: 1...60, step: 1, valueText: "\(lead) 分钟") { Text("提前提醒") }
                 }
-                Section("锁屏") {
-                    Picker("提醒配色", selection: $reminderChipStyle) {
-                        Text("事件颜色").tag(LockScreenReminderChipStyle.eventColor)
-                        Text("白色").tag(LockScreenReminderChipStyle.monochrome)
-                    }
-                    Defaults.Toggle(key: .enableLockScreenReminderWidget) { Text("显示锁屏提醒") }
-                    Defaults.Toggle(key: .lockScreenShowCalendarEvent) { Text("显示日历事件") }
-                    Defaults.Toggle(key: .lockScreenShowCalendarCountdown) { Text("显示事件倒计时") }
-                }
+
             }
-        }.navigationTitle("日历")
+        }
          .onChange(of: enabled) { _, value in calendar.setEnabled(value) }
     }
 }
-
-struct About: View {
-    @State private var showBuildNumber: Bool = false
-    @Environment(\.openWindow) var openWindow
-    var body: some View {
-        VStack {
-            Form {
-                Section {
-                    HStack {
-                        Text("版本名称")
-                        Spacer()
-                        Text(Defaults[.releaseName])
-                            .foregroundStyle(.secondary)
-                    }
-                    HStack {
-                        Text("版本")
-                        Spacer()
-                        if showBuildNumber {
-                            Text("(\(Bundle.main.buildVersionNumber ?? ""))")
-                                .foregroundStyle(.secondary)
-                        }
-                        Text(Bundle.main.releaseVersionNumber ?? "unkown")
-                            .foregroundStyle(.secondary)
-                    }
-                    .onTapGesture {
-                        withAnimation {
-                            showBuildNumber.toggle()
-                        }
-                    }
-                } header: {
-                    Text("版本信息")
-                }
-
-
-                HStack(spacing: 30) {
-                    Spacer(minLength: 0)
-                    Button {
-                        NSWorkspace.shared.open(sponsorPage)
-                    } label: {
-                        VStack(spacing: 5) {
-                            Image(systemName: "cup.and.saucer.fill")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(.white)
-                            Text("捐赠")
-                                .foregroundStyle(.white)
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    Spacer(minLength: 0)
-                    Button {
-                        NSWorkspace.shared.open(productPage)
-                    } label: {
-                        VStack(spacing: 5) {
-                            Image("Github")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 18)
-                            Text("GitHub")
-                                .foregroundStyle(.white)
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    Spacer(minLength: 0)
-                }
-                .buttonStyle(PlainButtonStyle())
-                Text("您的支持将资助高中生的软件开发学习。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-            }
-            VStack(spacing: 0) {
-                Divider()
-                Text("由 Ebullioscopic 用 ❤️ 制作")
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 5)
-                    .padding(.bottom, 7)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 10)
-            }
-            .frame(maxWidth: .infinity, alignment: .center)
-            .background(.regularMaterial)
-        }
-        .navigationTitle("关于")
-    }
-}
-
-
-
-
-
-
 
 struct Shelf: View {
     @Default(.quickShareProvider) var quickShareProvider
@@ -899,14 +457,11 @@ struct Shelf: View {
         QuickShareService.shared.ensureDiscovered()
     }
 
-    private func highlightID(_ title: String) -> String {
-        SettingsTab.shelf.highlightID(for: title)
-    }
 
     var body: some View {
-        Form {
+        Group {
             if !canEnableShelf || !fullDiskAccessPermission.isAuthorized {
-                Section {
+                UnifiedSettingsSection {
                     if !canEnableShelf {
                         SettingsPermissionCallout(
                             title: "需要访问文件夹的权限",
@@ -937,34 +492,27 @@ struct Shelf: View {
                 }
             }
 
-            Section {
+            UnifiedSettingsSection {
                 Defaults.Toggle(key: .dynamicShelf) {
                     Text("启用文件托盘")
                 }
                 .disabled(!canEnableShelf)
-                .settingsHighlight(id: highlightID("启用文件托盘"))
-
-                
-
-                
 
                 Defaults.Toggle(key: .copyOnDrag) {
                     Text("拖动时复制项目")
                 }
-                .settingsHighlight(id: highlightID("拖动时复制项目"))
 
                 Defaults.Toggle(key: .autoRemoveShelfItems) {
                     Text("拖出后从文件托盘移除")
                 }
-                .settingsHighlight(id: highlightID("拖出后从文件托盘移除"))
             } header: {
                 HStack {
-                    Text("通用")
+                    Text("文件托盘")
                 }
             }
 
-            Section {
-                Picker("快速分享服务", selection: $quickShareProvider) {
+            UnifiedSettingsSection {
+                SettingsRow(title: "快速分享服务", subtitle: "选择文件托盘使用的分享服务。拖入文件，或点击托盘按钮选择文件。") { Picker("快速分享服务", selection: $quickShareProvider) {
                     ForEach(quickShareService.availableProviders, id: \.id) { provider in
                         HStack {
                             QuickShareProviderIconImage(provider: provider, size: 12)
@@ -972,39 +520,20 @@ struct Shelf: View {
                         }
                         .tag(provider.id)
                     }
-                }
+                }.frame(minWidth: AppStyle.pickerMinimumWidth).labelsHidden().frame(maxWidth: 200, alignment: .trailing) }
                 .pickerStyle(.menu)
-                .settingsHighlight(id: highlightID("快速分享服务"))
 
-                if let selectedProvider {
-                    HStack {
-                        QuickShareProviderIconImage(provider: selectedProvider, size: 12)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("当前选择：\(selectedProvider.settingsTitle)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text("托盘中的文件将通过此服务分享")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
             } header: {
                 HStack {
                     Text("快速分享")
                 }
-            } footer: {
-                Text("选择文件托盘使用的分享服务。拖入文件，或点击托盘按钮选择文件。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
-            
+
             if quickShareProvider == "LocalSend" {
             }
         }
         .accentColor(.effectiveAccent)
-        .navigationTitle("文件托盘")
+
         .onAppear {
             fullDiskAccessPermission.refreshStatus()
             shelfFolderAccessPermission.refreshStatus()
@@ -1014,90 +543,123 @@ struct Shelf: View {
 
 // MARK: - LocalSend Settings Section
 
-
-
 struct LiveActivitiesSettings: View {
     @ObservedObject private var privacy = PrivacyIndicatorManager.shared
     @ObservedObject private var caps = CapsLockManager.shared
     @ObservedObject private var recording = ScreenRecordingManager.shared
     var body: some View {
-        Form {
-            Section("隐私指示器") {
-                Defaults.Toggle(key: .enableCameraDetection) { Text("相机指示器") }
+        Group {
+            UnifiedSettingsSection("活动指示器") {
+                Defaults.Toggle(key: .enableCameraDetection) { Text("启用相机指示器") }
                     .onReceive(Defaults.publisher(.enableCameraDetection, options: [])) { change in if change.newValue { DynamicIslandViewCoordinator.shared.previewSetting("相机", symbol: "camera.fill", circular: false) } }
-                Defaults.Toggle(key: .enableMicrophoneDetection) { Text("麦克风指示器") }
+                Defaults.Toggle(key: .enableMicrophoneDetection) { Text("启用麦克风指示器") }
                     .onReceive(Defaults.publisher(.enableMicrophoneDetection, options: [])) { change in if change.newValue { DynamicIslandViewCoordinator.shared.previewSetting("麦克风", symbol: "mic.fill", circular: false) } }
-            }
-            Section("大写锁定") {
-                Defaults.Toggle(key: .enableCapsLockIndicator) { Text("大写锁定指示器") }
+                Defaults.Toggle(key: .enableCapsLockIndicator) { Text("启用大写锁定指示器") }
                     .onReceive(Defaults.publisher(.enableCapsLockIndicator, options: [])) { change in if change.newValue { DynamicIslandViewCoordinator.shared.previewSetting("大写锁定", symbol: "capslock.fill", circular: false) } }
-            }
-            Section("系统活动") {
-                Defaults.Toggle(key: .showRecordingIndicator) { Text("显示录制指示器") }
+                Defaults.Toggle(key: .showRecordingIndicator) { Text("启用录制指示器") }
                     .onReceive(Defaults.publisher(.showRecordingIndicator, options: [])) { change in if change.newValue { DynamicIslandViewCoordinator.shared.previewSetting("屏幕录制", symbol: "record.circle.fill", circular: false) } }
-                Defaults.Toggle(key: .showDoNotDisturbIndicator) { Text("专注模式指示器") }
+                Defaults.Toggle(key: .showDoNotDisturbIndicator) { Text("启用专注模式指示器") }
                     .onReceive(Defaults.publisher(.showDoNotDisturbIndicator, options: [])) { change in if change.newValue { DynamicIslandViewCoordinator.shared.previewSetting("专注模式", symbol: "moon.fill", circular: false) } }
             }
-        }.navigationTitle("实时活动")
+        }
     }
 }
 
 struct LockScreenSettings: View {
+    var destination: AppPage = .lockScreen
+    var navigate: (AppPage) -> Void = { _ in }
+    @Default(.lockScreenReminderChipStyle) private var reminderChipStyle
     @Default(.lockScreenWeatherWidgetStyle) private var weatherStyle
     @Default(.lockScreenWeatherTemperatureUnit) private var unit
     @Default(.lockScreenWeatherProviderSource) private var provider
     var body: some View {
-        Form {
-            Section("锁屏") {
-                Defaults.Toggle(key: .enableLockScreenLiveActivity) { Text("显示实时活动") }
+        Group {
+            switch destination {
+            case .lockMedia: mediaPanel
+            case .lockWeather: weather
+            case .lockBattery: battery
+            case .lockSchedule: schedule
+            case .lockFocus: focusSettings
+            default:
+                general
+                SettingsRows(title: "组件") {
+                    SettingsDestinationRow(title: "媒体") { navigate(.lockMedia) }
+                    Divider()
+                    SettingsDestinationRow(title: "天气") { navigate(.lockWeather) }
+                    Divider()
+                    SettingsDestinationRow(title: "电池") { navigate(.lockBattery) }
+                    Divider()
+                    SettingsDestinationRow(title: "日程") { navigate(.lockSchedule) }
+                    Divider()
+                    SettingsDestinationRow(title: "专注模式") { navigate(.lockFocus) }
+                }
+                LockScreenPositioningControls()
+            }
+        }
+    }
+    private var general: some View {
+        UnifiedSettingsSection("通用") {
+                Defaults.Toggle(key: .enableLockScreenLiveActivity) { Text("启用锁屏组件") }
+                SettingsRow(title: "组件样式") {
+                    Picker("组件样式", selection: $weatherStyle) {
+                        ForEach(LockScreenWeatherWidgetStyle.allCases) { style in Text(style.localizedName).tag(style) }
+                    }.frame(minWidth: AppStyle.pickerMinimumWidth).labelsHidden().frame(maxWidth: 200, alignment: .trailing)
+                }
                 Defaults.Toggle(key: .enableLockSounds) { Text("锁定与解锁音效") }
             }
-            Section("媒体面板") {
+    }
+    private var mediaPanel: some View {
+        UnifiedSettingsSection("媒体") {
                 Defaults.Toggle(key: .enableLockScreenMediaWidget) { Text("显示媒体面板") }
                 Defaults.Toggle(key: .lockScreenShowAppIcon) { Text("显示应用图标") }
-
                 Defaults.Toggle(key: .lockScreenPanelShowsBorder) { Text("显示面板边框") }
             }
-            Section("天气") {
+    }
+    private var weather: some View {
+        UnifiedSettingsSection("天气") {
                 Defaults.Toggle(key: .enableLockScreenWeatherWidget) { Text("显示天气") }
-                Picker("样式", selection: $weatherStyle) { ForEach(LockScreenWeatherWidgetStyle.allCases) { style in Text(style.localizedName).tag(style) } }
-                Picker("温度", selection: $unit) { ForEach(LockScreenWeatherTemperatureUnit.allCases) { unit in Text(unit.symbol).tag(unit) } }
-                Picker("服务提供方", selection: $provider) { ForEach(LockScreenWeatherProviderSource.allCases) { provider in Text(provider.displayName).tag(provider) } }
+                SettingsRow(title: "温度单位") { Picker("温度单位", selection: $unit) { ForEach(LockScreenWeatherTemperatureUnit.allCases) { unit in Text(unit.symbol).tag(unit) } }.frame(minWidth: AppStyle.pickerMinimumWidth).labelsHidden().frame(maxWidth: 200, alignment: .trailing) }
+                SettingsRow(title: "服务提供方") { Picker("服务提供方", selection: $provider) { ForEach(LockScreenWeatherProviderSource.allCases) { provider in Text(provider.displayName).tag(provider) } }.frame(minWidth: AppStyle.pickerMinimumWidth).labelsHidden().frame(maxWidth: 200, alignment: .trailing) }
                 Defaults.Toggle(key: .lockScreenWeatherShowsLocation) { Text("显示位置") }
                 Defaults.Toggle(key: .lockScreenWeatherShowsSunrise) { Text("显示日出和日落") }
                 Defaults.Toggle(key: .lockScreenWeatherShowsAQI) { Text("显示空气质量") }
                 Defaults.Toggle(key: .lockScreenWeatherUsesGaugeTint) { Text("天气仪表使用主题色") }
             }
-            Section("电池") {
-                Defaults.Toggle(key: .lockScreenBatteryShowsBatteryGauge) { Text("电池仪表") }
-                Defaults.Toggle(key: .lockScreenBatteryUsesLaptopSymbol) { Text("笔记本图标") }
-                Defaults.Toggle(key: .lockScreenBatteryShowsCharging) { Text("充电状态") }
-                Defaults.Toggle(key: .lockScreenBatteryShowsChargingPercentage) { Text("充电百分比") }
-                Defaults.Toggle(key: .lockScreenBatteryShowsBluetooth) { Text("蓝牙设备电量") }
+    }
+    private var battery: some View {
+        UnifiedSettingsSection("电池") {
+                Defaults.Toggle(key: .lockScreenBatteryShowsBatteryGauge) { Text("显示电池状态") }
+                Defaults.Toggle(key: .lockScreenBatteryShowsCharging) { Text("显示充电状态") }
+                Defaults.Toggle(key: .lockScreenBatteryShowsChargingPercentage) { Text("显示充电百分比") }
+                Defaults.Toggle(key: .lockScreenBatteryShowsBluetooth) { Text("显示蓝牙设备电量") }
             }
-            Section("日历与专注模式") {
+    }
+    private var schedule: some View {
+        UnifiedSettingsSection("日程") {
                 Defaults.Toggle(key: .enableLockScreenReminderWidget) { Text("显示日程到时提醒") }
                 Defaults.Toggle(key: .lockScreenShowCalendarEvent) { Text("显示日历事件") }
                 Defaults.Toggle(key: .lockScreenShowCalendarCountdown) { Text("显示事件倒计时") }
-                Defaults.Toggle(key: .lockScreenShowCalendarEventEntireDuration) { Text("在事件持续期间显示") }
-                Defaults.Toggle(key: .lockScreenShowCalendarEventAfterStartEnabled) { Text("事件开始后继续显示") }
                 Defaults.Toggle(key: .lockScreenShowCalendarTimeRemaining) { Text("显示剩余时间") }
                 Defaults.Toggle(key: .lockScreenShowCalendarStartTimeAfterBegins) { Text("开始后显示起始时间") }
+                Defaults.Toggle(key: .lockScreenShowCalendarEventEntireDuration) { Text("事件持续期间一直显示") }
+                SettingsRow(title: "提醒配色") { Picker("提醒配色", selection: $reminderChipStyle) {
+                    Text("事件颜色").tag(LockScreenReminderChipStyle.eventColor)
+                    Text("白色").tag(LockScreenReminderChipStyle.monochrome)
+                }.frame(minWidth: AppStyle.pickerMinimumWidth).labelsHidden().frame(maxWidth: 200, alignment: .trailing) }
+            }
+    }
+    private var focusSettings: some View {
+        UnifiedSettingsSection("专注模式") {
                 Defaults.Toggle(key: .enableLockScreenFocusWidget) { Text("显示专注模式") }
             }
-            LockScreenPositioningControls()
-        }.navigationTitle("锁屏")
     }
 }
-
-
-
-
 
 private struct LockScreenPositioningControls: View {
     @State private var previewWidth: CGFloat = 500
     var body: some View {
-        Section("位置与预览") {
+        UnifiedSettingsSection("位置与预览") {
+            VStack(alignment: .leading, spacing: 5) {
             LockScreenLayoutEditor()
                 .frame(maxWidth: .infinity)
                 .frame(height: max(120, previewWidth / LockScreenPreviewScreen.aspectRatio))
@@ -1108,129 +670,12 @@ private struct LockScreenPositioningControls: View {
                     }
                 }
             Text("上下拖动组件调整位置，所有组件始终水平居中。")
-                .font(.caption).foregroundStyle(.secondary)
-        }
-    }
-}
-
-
-
-private func copyLatestCrashReport() {
-    let crashReportsPath = NSString(string: "~/Library/Logs/DiagnosticReports").expandingTildeInPath
-    let fileManager = FileManager.default
-
-    do {
-        let files = try fileManager.contentsOfDirectory(atPath: crashReportsPath)
-        let crashFiles = files.filter { $0.contains("DynamicIsland") && $0.hasSuffix(".crash") }
-
-        guard let latestCrash = crashFiles.sorted(by: >).first else {
-            let alert = NSAlert()
-            alert.messageText = "No Crash Reports Found"
-            alert.informativeText = "No crash reports found for DynamicIsland"
-            alert.alertStyle = .informational
-            alert.runModal()
-            return
-        }
-
-        let crashPath = (crashReportsPath as NSString).appendingPathComponent(latestCrash)
-        let crashContent = try String(contentsOfFile: crashPath, encoding: .utf8)
-
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(crashContent, forType: .string)
-
-        let alert = NSAlert()
-        alert.messageText = "Crash Report Copied"
-        alert.informativeText = "Crash report '\(latestCrash)' has been copied to clipboard"
-        alert.alertStyle = .informational
-        alert.runModal()
-    } catch {
-        let alert = NSAlert()
-        alert.messageText = "错误"
-        alert.informativeText = "Failed to read crash reports: \(error.localizedDescription)"
-        alert.alertStyle = .warning
-        alert.runModal()
-    }
-}
-
-
-
-func proFeatureBadge() -> some View {
-    Text("升级至 Pro")
-        .foregroundStyle(Color(red: 0.545, green: 0.196, blue: 0.98))
-        .font(.footnote.bold())
-        .padding(.vertical, 3)
-        .padding(.horizontal, 6)
-        .background(RoundedRectangle(cornerRadius: 4).stroke(Color(red: 0.545, green: 0.196, blue: 0.98), lineWidth: 1))
-}
-
-func comingSoonTag() -> some View {
-    Text("即将上线")
-        .foregroundStyle(.secondary)
-        .font(.footnote.bold())
-        .padding(.vertical, 3)
-        .padding(.horizontal, 6)
-        .background(Color(nsColor: .secondarySystemFill))
-        .clipShape(.capsule)
-}
-
-func customBadge(text: String) -> some View {
-    Text(text)
-        .foregroundStyle(.secondary)
-        .font(.footnote.bold())
-        .padding(.vertical, 3)
-        .padding(.horizontal, 6)
-        .background(Color(nsColor: .secondarySystemFill))
-        .clipShape(.capsule)
-}
-
-func alphaBadge() -> some View {
-    Text("测试版")
-        .font(.system(size: 10, weight: .bold))
-        .foregroundStyle(Color.white)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .background(
-            Capsule()
-                .fill(Color.orange.opacity(0.9))
-        )
-}
-
-func warningBadge(_ text: String, _ description: String) -> some View {
-    Section {
-        HStack(spacing: 12) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 22))
-                .foregroundStyle(.yellow)
-            VStack(alignment: .leading) {
-                Text(text)
-                    .font(.headline)
-                Text(description)
-                    .foregroundStyle(.secondary)
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+                .multilineTextAlignment(.center).frame(maxWidth: .infinity)
             }
-            Spacer()
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 struct SettingsPermissionCallout: View {
     let title: String
@@ -1292,10 +737,6 @@ struct SettingsPermissionCallout: View {
     }
 }
 
-
-
-
-
 // MARK: - Terminal Settings
 
 struct TerminalSettings: View {
@@ -1304,30 +745,30 @@ struct TerminalSettings: View {
     @Default(.terminalFontSize) private var size
     @Default(.terminalMaxHeightFraction) private var height
     var body: some View {
-        Form {
-            Section("终端") {
+        Group {
+            UnifiedSettingsSection("终端") {
                 Defaults.Toggle(key: .enableTerminalFeature) { Text("启用终端") }
-                LabeledContent("命令解释器") {
+                SettingsRow(title: "命令解释器") {
                     TextField("", text: $shell, prompt: Text("/bin/zsh"))
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 260)
+                        .frame(width: 170)
                 }
                 Defaults.Toggle(key: .terminalStickyMode) { Text("鼠标移开时保持终端打开") }
+                SettingsRow(title: "重启终端") { Button("重启") { TerminalManager.shared.restartShell() } }
             }
-            Section("字体") {
-                Picker("字体", selection: $font) {
+            UnifiedSettingsSection("终端字体") {
+                SettingsRow(title: "字体") { Picker("字体", selection: $font) {
                     ForEach(Array(Set(NSFontManager.shared.availableFontFamilies.filter { family in
                         guard let candidate = NSFont(name: family, size: 13) else { return false }
                         return candidate.isFixedPitch || NSFontManager.shared.traits(of: candidate).contains(.fixedPitchFontMask)
                     } + [font])).sorted(), id: \.self) { family in
                         Text(family).font(.custom(family, size: 13)).tag(family)
                     }
-                }
-                Slider(value: $size, in: 9...24, step: 1) { Text("字号：\(Int(size))") }
-                Slider(value: $height, in: 0.2...0.8, step: 0.05) { Text("最大屏幕高度占比：\(Int(height * 100))%") }
+                }.frame(minWidth: AppStyle.pickerMinimumWidth).labelsHidden().frame(maxWidth: 200, alignment: .trailing) }
+                CompactSettingsSlider(value: $size, in: 9...24, step: 1, valueText: "\(Int(size)) pt") { Text("字号") }
+                CompactSettingsSlider(value: $height, in: 0.2...0.8, step: 0.05, valueText: "\(Int(height * 100))%") { Text("最大屏幕高度占比") }
             }
-            Section { Button("重新启动终端") { TerminalManager.shared.restartShell() } }
-        }.navigationTitle("终端")
+        }
          .onChange(of: size) { _, value in TerminalManager.shared.applyFontSize(value) }
          .onChange(of: font) { _, value in TerminalManager.shared.applyFontFamily(value) }
     }
@@ -1337,11 +778,6 @@ struct TerminalSettings: View {
 
 /// Fetches the real app icon from the system using bundle identifiers,
 /// falling back to an asset catalog image or an SF Symbol.
-
-
-
-
-
 
 struct AppIconImage: View {
     let bundleIdentifiers: [String]
@@ -1466,4 +902,57 @@ func compactMenuIcon(_ image: NSImage, size: CGFloat) -> NSImage {
     image.draw(in: NSRect(x: 0, y: 0, width: size, height: size), from: .zero, operation: .copy, fraction: 1)
     result.unlockFocus()
     return result
+}
+
+/// Root settings pages contain general controls and complete-row child destinations.
+struct ConsolidatedNotchSettings: View {
+    let lockScreen: Bool
+    var navigate: (AppPage) -> Void = { _ in }
+    var body: some View {
+        PageLayout {
+            if lockScreen {
+                LockScreenSettings(navigate: navigate)
+            } else {
+                GeneralSettings()
+                SettingsRows(title: "功能") {
+                    SettingsDestinationRow(title: "媒体控制") { navigate(.notchMedia) }
+                    Divider()
+                    SettingsDestinationRow(title: "实时活动") { navigate(.notchActivities) }
+                    Divider()
+                    SettingsDestinationRow(title: "系统控制") { navigate(.notchSystem) }
+                    Divider()
+                    SettingsDestinationRow(title: "日程提醒") { navigate(.notchSchedule) }
+                    Divider()
+                    SettingsDestinationRow(title: "文件托盘") { navigate(.notchShelf) }
+                    Divider()
+                    SettingsDestinationRow(title: "终端") { navigate(.notchTerminal) }
+                }
+            }
+        }
+        .toggleStyle(SettingsTrailingToggleStyle())
+        .controlSize(.small)
+        .buttonStyle(.bordered)
+        .id(lockScreen)
+    }
+}
+
+struct NotchSecondarySettings: View {
+    let destination: AppPage
+    var body: some View {
+        PageLayout {
+            switch destination {
+            case .notchMedia: Media()
+            case .notchActivities: LiveActivitiesSettings(); DevicesSettingsView(); Charge()
+            case .notchSystem: HUDAndOSDSettingsView()
+            case .notchSchedule: CalendarSettings()
+            case .notchShelf: Shelf()
+            case .notchTerminal: TerminalSettings()
+            default: LockScreenSettings(destination: destination)
+            }
+        }
+        .toggleStyle(SettingsTrailingToggleStyle())
+        .controlSize(.small)
+        .buttonStyle(.bordered)
+        .id(destination)
+    }
 }

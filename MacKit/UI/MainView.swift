@@ -4,116 +4,185 @@ import ServiceManagement
 enum AppPage: String, CaseIterable, Identifiable {
     case settings = "软件设置", permissions = "权限管理", about = "关于 MacKit"
     case cleaning = "清洁模式", finder = "访达剪切"
-    case atoll = "灵动刘海"
+    case atoll = "灵动刘海", lockScreen = "锁屏组件"
     case wallpaper = "动态壁纸"
-    case windowSwitcher = "窗口切换", dockEnhancement = "程序坞增强"
+    case windowSwitcher = "窗口预览"
+    case licenses = "开源许可"
+    case notchMedia = "媒体控制", notchActivities = "实时活动"
+    case notchSystem = "系统控制", notchSchedule = "日程提醒", notchShelf = "文件托盘", notchTerminal = "终端"
+    case lockMedia = "锁屏媒体", lockWeather = "锁屏天气", lockBattery = "锁屏电池"
+    case lockSchedule = "日程", lockFocus = "专注模式"
     var id: String { rawValue }
+    var sidebarPage: AppPage {
+        switch self {
+        case .notchMedia, .notchActivities, .notchSystem, .notchSchedule, .notchShelf, .notchTerminal: .atoll
+        case .lockMedia, .lockWeather, .lockBattery, .lockSchedule, .lockFocus: .lockScreen
+        case .licenses: .about
+        default: self
+        }
+    }
+    var navigationTitle: String {
+        if sidebarPage == self { return rawValue }
+        let child: String
+        switch self {
+        case .lockMedia: child = "媒体"
+        case .lockWeather: child = "天气"
+        case .lockBattery: child = "电池"
+        case .lockSchedule: child = "日程"
+        default: child = rawValue
+        }
+        return sidebarPage.rawValue + " - " + child
+    }
     var symbol: String {
         switch self {
         case .atoll: "capsule.tophalf.filled"
+        case .notchMedia: "play.circle"
+        case .notchActivities: "waveform.path.ecg"
+        case .notchSystem, .notchSchedule, .notchShelf, .notchTerminal: "gearshape"
+        case .lockMedia, .lockWeather, .lockBattery, .lockSchedule, .lockFocus: "lock.rectangle"
+        case .lockScreen: "lock.rectangle"
         case .settings: "gearshape.fill"
         case .permissions: "hand.raised.fill"
-        case .about: "info.circle.fill"
+        case .about, .licenses: "info.circle.fill"
         case .wallpaper: "play.rectangle"
         case .cleaning: "sparkles"
         case .finder: "scissors"
         case .windowSwitcher: "rectangle.on.rectangle"
-        case .dockEnhancement: "dock.rectangle"
         }
     }
     var color: Color {
         switch self {
-        case .atoll: .cyan
+        case .atoll, .notchMedia, .notchActivities, .notchSystem, .notchSchedule, .notchShelf, .notchTerminal: .cyan
+        case .lockScreen, .lockMedia, .lockWeather, .lockBattery, .lockSchedule, .lockFocus: .indigo
         case .settings: .gray
         case .permissions: .indigo
-        case .about: .blue
+        case .about, .licenses: .blue
         case .wallpaper: .mint
         case .cleaning: .teal
         case .finder: .blue
         case .windowSwitcher: .purple
-        case .dockEnhancement: .orange
         }
     }
 }
 
 struct MainView: View {
     @Bindable var model: AppModel
-    @State private var showLicenses = false
-    @State private var atollExpanded = false
+    @State private var visitedPages: [AppPage] = [.cleaning]
+    private let tools: [AppPage] = [.cleaning, .finder, .windowSwitcher, .wallpaper]
+    private let applicationPages: [AppPage] = [.settings, .permissions]
+
     var body: some View {
-        NavigationSplitView(columnVisibility: Binding(
-            get: { model.sidebarVisible ? .all : .detailOnly },
-            set: { model.sidebarVisible = $0 != .detailOnly }
-        )) {
+        HStack(spacing: 0) {
+            sidebar.frame(width: 252)
             VStack(spacing: 0) {
-                HStack(spacing: 10) {
-                    Image(nsImage: AppBrand.icon).resizable().frame(width: 42, height: 42)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("MacKit").font(.title3.bold())
-                        Text("让 Mac 更顺手").font(.caption).foregroundStyle(.secondary)
-                    }
+                HStack(spacing: 8) {
+                    HStack(spacing: 0) {
+                        Button(action: model.goBack) { Image(systemName: "chevron.left").frame(width: 36, height: 34).contentShape(Rectangle()) }
+                            .disabled(!model.canGoBack).help("后退").accessibilityLabel("后退")
+                        Rectangle().fill(.primary.opacity(0.12)).frame(width: 1, height: 22)
+                        Button(action: model.goForward) { Image(systemName: "chevron.right").frame(width: 36, height: 34).contentShape(Rectangle()) }
+                            .disabled(!model.canGoForward).help("前进").accessibilityLabel("前进")
+                    }.background(.primary.opacity(0.045), in: Capsule())
+                    Text(model.page?.navigationTitle ?? "清洁模式")
+                        .font(.system(size: 15, weight: .semibold)).padding(.leading, 4)
                     Spacer()
-                }.padding(.horizontal, 18).padding(.vertical, 18)
-                List(selection: $model.page) {
-                    Section {
-                        ForEach([AppPage.settings, .permissions, .about]) { item in navigationRow(item) }
-                    }
-                    Section {
-                        DisclosureGroup("灵动刘海与锁屏", isExpanded: $atollExpanded) {
-                        ForEach(SettingsTab.allCases.filter { $0 != .about }) { section in
-                            Button {
-                                model.atollSection = section
-                                model.page = .atoll
-                            } label: {
-                                Label(section.title, systemImage: section.systemImage)
-                                    .foregroundStyle(model.page == .atoll && model.atollSection == section ? Color.accentColor : .primary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .contentShape(Rectangle())
-                            }.buttonStyle(.plain).padding(.vertical, 3)
-                        }
-                    }
-                    }
-                    Section("工具") {
-                        ForEach([AppPage.cleaning, .finder, .windowSwitcher, .dockEnhancement, .wallpaper]) { item in navigationRow(item) }
-                    }
-                }.listStyle(.sidebar).scrollContentBackground(.hidden)
-            }
-            .navigationSplitViewColumnWidth(min: 190, ideal: 202, max: 240)
-        } detail: {
-            Group {
-                switch model.page ?? .cleaning {
-                case .atoll: AtollSettingsPage(section: model.atollSection)
-                case .wallpaper: WallpaperView(service: model.wallpaper)
-                case .settings: settings
-                case .permissions: permissions
-                case .about: about
-                case .cleaning: CleaningView(service: model.cleaning, shortcut: model.shortcuts.clean?.label)
-                case .finder: FinderCutView(service: model.finderCut)
-                case .windowSwitcher: WindowSwitcherView(service: model.windowSwitcher)
-                case .dockEnhancement: DockEnhancementView(service: model.dockEnhancement)
                 }
-            }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                .buttonStyle(.plain).font(.system(size: 15, weight: .medium))
+                .padding(.leading, 8).padding(.trailing, 20).frame(height: 52)
+                ZStack {
+                    ForEach(retainedPages) { page in
+                        detail(for: page)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .opacity(model.page == page ? 1 : 0)
+                            .allowsHitTesting(model.page == page)
+                            .accessibilityHidden(model.page != page)
+                            .zIndex(model.page == page ? 1 : 0)
+                    }
+                }
+                .transaction { $0.animation = nil }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }.background(SettingsPalette.canvas)
         }
-        .navigationSplitViewStyle(.balanced)
-        .toolbar(removing: .sidebarToggle)
+        .background(SettingsPalette.canvas)
+        .clipShape(RoundedRectangle(cornerRadius: AppStyle.windowRadius))
+        .ignoresSafeArea(.container, edges: .top)
+        .onAppear { if let page = model.page, !visitedPages.contains(page) { visitedPages.append(page) } }
         .onChange(of: model.page) { _, page in
-            if page == .atoll { atollExpanded = true }
+            if let page, !visitedPages.contains(page) { visitedPages.append(page) }
+            if page == .permissions { model.permissions.refresh(); CalendarManager.shared.refreshAuthorizationStatus() }
         }
-        .sheet(isPresented: $showLicenses) { OpenSourceLicensesView() }
+    }
+
+    // Keep the native scroll views alive while showing child destinations. Back
+    // switches visibility instead of reconstructing a page and scrolling later.
+    private var retainedPages: [AppPage] {
+        let current = model.page ?? .cleaning
+        return visitedPages.contains(current) ? visitedPages : visitedPages + [current]
+    }
+
+    @ViewBuilder private func detail(for page: AppPage) -> some View {
+                    switch page {
+                    case .atoll: ConsolidatedNotchSettings(lockScreen: false, navigate: { model.page = $0 })
+                    case .lockScreen: ConsolidatedNotchSettings(lockScreen: true, navigate: { model.page = $0 })
+                    case .notchMedia, .notchActivities, .notchSystem, .notchSchedule, .notchShelf, .notchTerminal,
+                         .lockMedia, .lockWeather, .lockBattery, .lockSchedule, .lockFocus:
+                        NotchSecondarySettings(destination: page)
+                    case .wallpaper: WallpaperView(service: model.wallpaper)
+                    case .settings: settings
+                    case .permissions: permissions
+                    case .about: about
+                    case .licenses: OpenSourceLicensesView()
+                    case .cleaning: CleaningView(model: model)
+                    case .finder: FinderCutView(service: model.finderCut)
+                    case .windowSwitcher: WindowSwitcherView(service: model.windowSwitcher, dock: model.dockEnhancement, missionControl: model.missionControl)
+                    }
+    }
+
+    private var sidebar: some View {
+        VStack(spacing: 4) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    Group {
+                        Button { model.page = .about } label: {
+                            HStack(spacing: 10) {
+                                Image(nsImage: AppBrand.icon).resizable().frame(width: 38, height: 38)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text("MacKit").font(.system(size: 15, weight: .semibold))
+                                    Text("让 Mac 更顺手").font(.system(size: 12)).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                            }.padding(.horizontal, 6).padding(.top, 9).padding(.bottom, 20).contentShape(Rectangle())
+                        }.buttonStyle(.plain)
+                    }
+                    ForEach(tools) { navigationRow($0) }
+                    navigationRow(.atoll)
+                    navigationRow(.lockScreen)
+                    Color.clear.frame(height: 18)
+                    ForEach(applicationPages) { navigationRow($0) }
+                }.padding(.horizontal, 10)
+            }
+        }.padding(.top, 40)
+            .modifier(SidebarGlassSurface())
+            .padding(8)
     }
 
     private func navigationRow(_ item: AppPage) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: item.symbol).font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white).frame(width: 26, height: 26)
-                .background(item.color.gradient, in: RoundedRectangle(cornerRadius: 7))
-            Text(item.rawValue).font(.system(size: 13, weight: .medium))
-        }.padding(.vertical, 5).tag(item)
+        Button { model.page = item } label: {
+            HStack(spacing: 7) {
+                Image(systemName: item.symbol).font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white).frame(width: 26, height: 26)
+                    .background(item.color.gradient, in: RoundedRectangle(cornerRadius: 6))
+                Text(item.rawValue).font(.system(size: 13, weight: .medium))
+                Spacer(minLength: 0)
+            }.padding(.horizontal, 6).frame(height: 40)
+                .background(model.page?.sidebarPage == item ? Color.accentColor : .clear, in: RoundedRectangle(cornerRadius: 7))
+                .foregroundStyle(model.page?.sidebarPage == item ? .white : .primary)
+                .contentShape(Rectangle())
+        }.buttonStyle(.plain)
     }
 
     private var settings: some View {
         PageLayout {
-            PageHeader(title: "软件设置", subtitle: "安静地留在后台，需要时随时唤起。", symbol: "gearshape.fill", color: .gray)
             SettingsRows(title: "启动与运行") {
                 SettingsRow(title: "登录后启动") {
                     Toggle("登录后启动", isOn: Binding(get: { model.loginEnabled }, set: model.setLogin))
@@ -153,45 +222,46 @@ struct MainView: View {
     }
     private var permissions: some View {
         PageLayout {
-            PageHeader(title: "权限管理", subtitle: "只在使用对应功能时需要授权。", symbol: "hand.raised.fill", color: .indigo)
-            PermissionCard(title: "辅助功能", subtitle: "用于锁定输入、识别访达焦点及处理剪切快捷键。") {
-                StatusPill(text: model.permissions.accessibility ? "已授权" : "未授权", color: model.permissions.accessibility ? .green : .orange)
-                Button(model.permissions.accessibility ? "管理…" : "前往授权…") {
-                    model.permissions.requestAccessibility()
+            SettingsRows(title: "权限管理") {
+                SettingsRow(title: "辅助功能", subtitle: "用于锁定输入、识别访达焦点及处理剪切快捷键。") {
+                    StatusPill(text: model.permissions.accessibility ? "已授权" : "未授权", color: model.permissions.accessibility ? .green : .orange)
+                    Button("前往系统设置") { model.permissions.openSettings("Privacy_Accessibility") }
                 }
-            }
-            CalendarPermissionsCard()
-            PermissionCard(title: "屏幕录制", subtitle: "用于生成窗口切换和程序坞预览的缩略图。") {
-                StatusPill(text: model.permissions.screenRecording ? "已授权" : "未授权",
-                           color: model.permissions.screenRecording ? .green : .orange)
-                Button(model.permissions.screenRecording ? "管理…" : "前往授权…") {
-                    model.permissions.requestScreenRecording()
+                Divider()
+                SettingsRow(title: "日历", subtitle: "用于刘海和锁屏组件中的日程。") {
+                    CalendarPermissionStatus()
+                    Button("前往系统设置") { model.permissions.openSettings("Privacy_Calendars") }
+                }
+                Divider()
+                SettingsRow(title: "屏幕录制", subtitle: "用于生成窗口切换和程序坞预览的缩略图。") {
+                    StatusPill(text: model.permissions.screenRecording ? "已授权" : "未授权", color: model.permissions.screenRecording ? .green : .orange)
+                    Button("前往系统设置") { model.permissions.openSettings("Privacy_ScreenCapture") }
                 }
             }
         }.onAppear { model.permissions.refresh() }
     }
     private var about: some View {
         PageLayout {
-            VStack(spacing: 16) {
-                Image(nsImage: AppBrand.icon).resizable().frame(width: 112, height: 112)
-                Text("MacKit").font(.system(size: 32, weight: .bold, design: .rounded))
-                Text("轻一点，顺手一点。").font(.title3).foregroundStyle(.secondary)
-                StatusPill(text: "v" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.10.0"), color: .blue)
-            }.frame(maxWidth: .infinity).padding(.vertical, 30)
-            SettingsCard(title: "为你的 Mac 而生") {
-                Text("使用 Swift 与 SwiftUI 构建。功能按需运行，数据留在本机，无需账号或云服务。")
-                    .foregroundStyle(.secondary)
-                Divider()
-                VStack(spacing: 0) {
+            VStack(spacing: 10) {
+                Image(nsImage: AppBrand.icon).resizable().frame(width: 80, height: 80)
+                Text("MacKit").font(.system(size: 22, weight: .bold))
+                Text("轻一点，顺手一点。").font(AppStyle.body).foregroundStyle(.secondary)
+            }.frame(maxWidth: .infinity).padding(.vertical, 24)
+                .background(SettingsPalette.group, in: RoundedRectangle(cornerRadius: 12))
+            SettingsRows(title: "软件信息") {
+                    SettingsRow(title: "软件版本") {
+                        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.11.0"
+                        Link("v" + version, destination: URL(string: "https://github.com/youyeyejie/MacKit/releases/tag/v" + version)!)
+                    }
+                    Divider()
                     SettingsRow(title: "项目地址") {
                         Link("GitHub", destination: URL(string: "https://github.com/youyeyejie/MacKit")!)
                     }
                     Divider()
                     SettingsRow(title: "开源许可") {
-                        Button("GPL-3.0") { showLicenses = true }
+                        Button("GPL-3.0") { model.page = .licenses }
                             .buttonStyle(.link)
                     }
-                }
             }
         }
     }

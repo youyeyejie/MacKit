@@ -1,30 +1,25 @@
 import SwiftUI
 
 struct CleaningView: View {
-    @Bindable var service: CleaningService
-    var shortcut: String?
+    @Bindable var model: AppModel
+    private var service: CleaningService { model.cleaning }
     var body: some View {
         PageLayout {
-            PageHeader(title: "清洁模式", subtitle: "给屏幕、键盘和触控板一个干净的片刻。", symbol: "sparkles", color: .teal)
-            SettingsCard {
-                HStack(alignment: .center, spacing: 24) {
-                    VStack(alignment: .leading, spacing: AppStyle.contentSpacing) {
-                        Text("一键锁定，安心擦拭").font(AppStyle.sectionTitle)
-                            .frame(minHeight: AppStyle.sectionHeight, alignment: .leading)
-                        Text("锁定键盘和触控板，解锁需连续按下 5 次 ESC")
-                            .font(AppStyle.body).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                        Button("开始清洁") { service.begin() }.buttonStyle(.borderedProminent).controlSize(.large).tint(.teal)
-                        if let shortcut { Text("快捷键 \(shortcut)").font(.caption).foregroundStyle(.secondary) }
-                    }
-                    Spacer(minLength: 0)
-                    Image(systemName: "laptopcomputer").font(.system(size: 54, weight: .ultraLight))
-                        .foregroundStyle(.teal.opacity(0.8)).accessibilityHidden(true)
+            SettingsRows(title: "清洁模式") {
+                SettingsRow(title: "锁定键盘和触控板", subtitle: "连续按下 5 次 ESC 解锁。也可在终端运行：open mackit://clean") {
+                    Button("开始清洁") { service.begin() }.buttonStyle(.bordered)
+                }
+                Divider()
+                SettingsRow(title: "快捷键") {
+                    ShortcutRecorder(shortcut: model.shortcuts.clean,
+                                     save: { model.setShortcut($0, forCleaning: true) },
+                                     recordingChanged: { model.recordingChanged?($0) })
                 }
             }
             if !service.hasBuiltinDisplay {
                 SettingsCard {
                     SettingsRow(title: "没有内建显示器时使用当前屏幕") {
-                        Toggle("使用当前屏幕", isOn: $service.useCurrentDisplay).labelsHidden().toggleStyle(.switch).controlSize(.small)
+                        Toggle("使用当前屏幕", isOn: Binding(get: { service.useCurrentDisplay }, set: { service.useCurrentDisplay = $0 })).labelsHidden().toggleStyle(.switch).controlSize(.small)
                     }
                 }
             }

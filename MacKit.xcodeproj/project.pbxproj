@@ -425,6 +425,7 @@
 				<string>87172D9303D14689B0F5EFDD</string>
 				<string>A59A25D76484A2EDBD558FA5</string>
 				<string>7E99FE9540F14EA805BA5B18</string>
+				<string>0928B6945D7D1EE1BBD2FB7E</string>
 				<string>972D8B11C46C6F6875D6F9B0</string>
 				<string>41C18A986093C8B63C540833</string>
 				<string>353087DE589A20E64F859F18</string>
@@ -1392,6 +1393,24 @@
 			<key>fileRef</key>
 			<string>57991DDB246106241DFED0CD</string>
 		</dict>
+		<key>0D76ABDB7B263700586F07E4</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>MacKit/Features/WindowTools/MissionControlService.swift</string>
+			<key>sourceTree</key>
+			<string>SOURCE_ROOT</string>
+		</dict>
+		<key>0928B6945D7D1EE1BBD2FB7E</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>0D76ABDB7B263700586F07E4</string>
+		</dict>
 		<key>944FD0C2EA69117718438F39</key>
 		<dict>
 			<key>isa</key>
@@ -1925,6 +1944,7 @@
 				<string>5F8BEB4F7A444E0FF81A2180</string>
 				<string>88C3245D5991F7ECB1FDFA7D</string>
 				<string>57991DDB246106241DFED0CD</string>
+				<string>0D76ABDB7B263700586F07E4</string>
 				<string>944FD0C2EA69117718438F39</string>
 				<string>6614B5F87090AC82FCCF48AD</string>
 				<string>92654499C0BD8AFB3CFBCFE4</string>

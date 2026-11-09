@@ -162,13 +162,16 @@ class AtollAppDelegate: NSObject, NSApplicationDelegate {
     private func restoreWindowsAfterLock() {
         guard windowsHiddenForLock else { return }
         windowsHiddenForLock = false
+        guard Defaults[.notchEnabled] else { return }
 
         if Defaults[.showOnAllDisplays] {
             for window in windows.values {
+                window.ignoresMouseEvents = false
                 window.orderFrontRegardless()
                 window.alphaValue = 1
             }
         } else if let window = window {
+            window.ignoresMouseEvents = false
             window.orderFrontRegardless()
             window.alphaValue = 1
         }
@@ -394,6 +397,12 @@ class AtollAppDelegate: NSObject, NSApplicationDelegate {
         // Migrate legacy progress bar settings
         Defaults.Keys.migrateProgressBarStyle()
         Defaults.Keys.migrateThirdPartyDDCIntegration()
+
+        Defaults.publisher(.notchEnabled, options: [])
+            .sink { [weak self] _ in
+                DispatchQueue.main.async { self?.applyNotchEnabled(Defaults[.notchEnabled]) }
+            }
+            .store(in: &cancellables)
 
         Defaults.publisher(.enableThirdPartyDDCIntegration, options: [])
             .sink { _ in
@@ -865,7 +874,33 @@ class AtollAppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     
+    /// Hide desktop panels without tearing down the shared lock-screen runtime.
+    func applyNotchEnabled(_ enabled: Bool) {
+        let panels = Array(windows.values) + [window].compactMap { $0 }
+        guard enabled, Defaults[.notchEnabled], !LockScreenManager.shared.isLocked else {
+            for panel in panels {
+                panel.alphaValue = 0
+                panel.ignoresMouseEvents = true
+                panel.orderOut(nil)
+                NotchSpaceManager.shared.notchSpace.windows.remove(panel)
+            }
+            return
+        }
+        adjustWindowPosition(changeAlpha: true)
+        let activePanels = Defaults[.showOnAllDisplays] ? Array(windows.values) : [window].compactMap { $0 }
+        for panel in activePanels {
+            panel.ignoresMouseEvents = false
+            panel.alphaValue = 1
+            panel.orderFrontRegardless()
+        }
+        syncNotchSpaceMembership()
+    }
+
     @objc func adjustWindowPosition(changeAlpha: Bool = false) {
+        guard Defaults[.notchEnabled] else {
+            applyNotchEnabled(false)
+            return
+        }
         if Defaults[.showOnAllDisplays] {
             let currentScreens = Set(NSScreen.screens)
             
@@ -932,6 +967,7 @@ class AtollAppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @objc func togglePopover(_ sender: Any?) {
+        guard Defaults[.notchEnabled] else { return }
         if window?.isVisible == true {
             window?.orderOut(nil)
         } else {

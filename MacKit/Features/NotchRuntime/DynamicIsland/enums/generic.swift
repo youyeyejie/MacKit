@@ -145,7 +145,7 @@ enum LockScreenWeatherWidgetStyle: String, CaseIterable, Defaults.Serializable, 
         case .inline:
             return String(localized: "Inline")
         case .circular:
-            return String(localized: "Circular")
+            return "环形"
         }
     }
 }

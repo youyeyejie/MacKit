@@ -6,8 +6,6 @@ import ServiceManagement
 final class AppModel {
     let permissions = PermissionService()
     let shortcuts = ShortcutSettings()
-    var atollSection: SettingsTab = .general
-    var sidebarVisible = true
     var page: AppPage? = .cleaning {
         didSet { if let page { history.visit(page) } }
     }
@@ -40,15 +38,17 @@ final class AppModel {
     let cleaning = CleaningService()
     let finderCut = FinderCutService()
     let windowSwitcher = WindowSwitcherService()
+    let missionControl = MissionControlService()
     let dockEnhancement = DockEnhancementService()
     private(set) var loginEnabled = false
     var message: String?
 
     init() {
-        cleaning.onActivity = { [weak finderCut, weak windowSwitcher, weak dockEnhancement] active in
+        cleaning.onActivity = { [weak finderCut, weak windowSwitcher, weak dockEnhancement, weak missionControl] active in
             AtollIntegration.shared.setCleaning(active)
             finderCut?.setSuspended(active)
             windowSwitcher?.setSuspended(active)
+            missionControl?.setSuspended(active)
             dockEnhancement?.setSuspended(active)
         }
         refreshLogin()

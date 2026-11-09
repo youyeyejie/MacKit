@@ -1,51 +1,41 @@
 import SwiftUI
 
 struct OpenSourceLicensesView: View {
-    @Environment(\.dismiss) private var dismiss
+    private struct LicenseSection: Identifiable, Sendable {
+        let id: String
+        let title: String
+        let paragraphs: [String]
+    }
+    @State private var sections: [LicenseSection] = []
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("开源许可与第三方声明").font(.title2.bold())
-                Spacer()
-                Button("完成") { dismiss() }.keyboardShortcut(.defaultAction)
-            }
-            Link("获取 MacKit 源码", destination: URL(string: "https://github.com/youyeyejie/MacKit")!)
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    section("MacKit · GPL-3.0-or-later", file: "MacKit-LICENSE", ext: "txt", subdirectory: "Licenses")
-                    Divider()
-                    section("第三方代码说明", file: "THIRD_PARTY_NOTICES", ext: "md", subdirectory: nil)
-                    Divider()
-                    section("Vorssaint · GPL-3.0-or-later", file: "Vorssaint-GPL-3.0", ext: "txt", subdirectory: "Licenses")
-                    Divider()
-                    section("Phosphene · MIT License", file: "Phosphene-LICENSE", ext: "txt", subdirectory: "Licenses")
-                    ForEach(additionalLicenses, id: \.path) { url in
-                        Divider()
-                        section(url.deletingPathExtension().lastPathComponent,
-                                file: url.deletingPathExtension().lastPathComponent,
-                                ext: url.pathExtension, subdirectory: "Licenses")
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 12) {
+                Link("获取 MacKit 源码", destination: URL(string: "https://github.com/youyeyejie/MacKit")!)
+                ForEach(sections) { section in
+                    Text(section.title).font(.headline).padding(.top, 16)
+                    ForEach(Array(section.paragraphs.enumerated()), id: \.offset) { _, paragraph in
+                        Text(paragraph).font(.system(size: 11, design: .monospaced))
+                            .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
                     }
-                }.frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled)
+                }
+            }.padding(20)
+        }.background(SettingsPalette.canvas)
+            .task {
+                guard sections.isEmpty else { return }
+                sections = await Task.detached(priority: .userInitiated) { Self.loadSections() }.value
             }
-        }.padding(24).frame(width: 620, height: 520)
     }
-    private var additionalLicenses: [URL] {
-        guard let directory = Bundle.main.resourceURL?.appendingPathComponent("Licenses"),
-              let files = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) else { return [] }
-        let shown = Set(["MacKit-LICENSE.txt", "Vorssaint-GPL-3.0.txt", "Phosphene-LICENSE.txt"])
-        return files.filter { $0.pathExtension == "txt" && !shown.contains($0.lastPathComponent) }
-            .sorted { $0.lastPathComponent < $1.lastPathComponent }
-    }
-    private func section(_ title: String, file: String, ext: String, subdirectory: String?) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title).font(.headline)
-            Text(contents(file, ext: ext, subdirectory: subdirectory))
-                .font(.system(size: 12, design: .monospaced)).fixedSize(horizontal: false, vertical: true)
+
+    private nonisolated static func loadSections() -> [LicenseSection] {
+        guard let root = Bundle.main.resourceURL else { return [] }
+        let directory = root.appendingPathComponent("Licenses")
+        let files = ((try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? [])
+            .filter { $0.pathExtension == "txt" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
+        return ([root.appendingPathComponent("THIRD_PARTY_NOTICES.md")] + files).map { url in
+            let text = (try? String(contentsOf: url, encoding: .utf8)) ?? "当前构建中缺少许可文件。"
+            return LicenseSection(id: url.lastPathComponent, title: url.deletingPathExtension().lastPathComponent,
+                                  paragraphs: text.components(separatedBy: "\n\n").filter { !$0.isEmpty })
         }
-    }
-    private func contents(_ file: String, ext: String, subdirectory: String?) -> String {
-        guard let url = Bundle.main.url(forResource: file, withExtension: ext, subdirectory: subdirectory),
-              let text = try? String(contentsOf: url, encoding: .utf8) else { return "当前构建中缺少许可文件。" }
-        return text
     }
 }

@@ -8,11 +8,16 @@ struct ShortcutRecorder: View {
     @State private var monitor: Any?
     @State private var error: String?
     var body: some View {
-        VStack(alignment: .trailing, spacing: 5) {
-            HStack(spacing: 8) {
-            Button(recording ? "按下新组合键…" : (shortcut?.label ?? "未设置")) {
+        HStack(spacing: 8) {
+            Button {
                 if recording { finish() } else { start() }
-            }.monospaced().frame(width: 128, alignment: .trailing)
+            } label: {
+                Text(recording ? "按下组合键…" : (shortcut?.label ?? "点击设置"))
+                    .lineLimit(1)
+                    .frame(width: 100)
+            }
+            .buttonStyle(.bordered)
+            .help(recording ? "Esc 取消；请包含 ⌘、⌃ 或 ⌥ 修饰键" : "点击录制快捷键")
             Button {
                 finish()
                 error = save(nil)
@@ -20,10 +25,12 @@ struct ShortcutRecorder: View {
                 .buttonStyle(.plain).foregroundStyle(.secondary).frame(width: 20, height: 24)
                 .help("清空快捷键").accessibilityLabel("清空快捷键")
                 .disabled(shortcut == nil && !recording)
-            }
-            if let error { Text(error).font(.caption).foregroundStyle(.orange).frame(maxWidth: 240, alignment: .trailing) }
-            if recording { Text("Esc 取消 · 含 ⌘ / ⌃ / ⌥").font(.caption2).foregroundStyle(.secondary) }
-        }.onDisappear { finish() }
+        }
+        .padding(.vertical, 8)
+        .popover(isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+            Text(error ?? "").font(.callout).padding(12)
+        }
+        .onDisappear { finish() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in finish() }
     }
     private func start() {

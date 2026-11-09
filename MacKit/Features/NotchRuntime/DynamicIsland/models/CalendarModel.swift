@@ -28,4 +28,5 @@ struct CalendarModel: Identifiable, Hashable {
     let title: String
     let color: NSColor
     let isSubscribed: Bool
+    var sourceName: String? = nil
 }

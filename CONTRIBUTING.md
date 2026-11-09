@@ -15,7 +15,7 @@ MacKit 是一个原生 macOS 工具集，后续功能会根据我的使用习惯
 
 ## 本地开发
 
-需要完整安装的 Xcode 和支持 Swift 6 的工具链。最低部署版本为 macOS 14。
+需要完整安装的 Xcode 和支持 Swift 6 的工具链。最低部署版本为 macOS 14.6。
 
 ```sh
 ./scripts/generate_project.sh
@@ -26,7 +26,7 @@ MacKit 是一个原生 macOS 工具集，后续功能会根据我的使用习惯
 
 新增、删除或移动源码及资源后，请重新生成工程。生成脚本会覆盖 `project.pbxproj` 和共享 Scheme；需要保留的工程配置变更，应同步修改 `scripts/generate_project.sh`，并提交生成后的工程文件。
 
-脚本均支持 `--help`。签名构建与 DMG 打包方式见 [README](README.md#开发与构建)。
+脚本均支持 `--help`。签名构建与 DMG 打包方式见 [README](README.md#构建)。
 
 ## 修改约定
 

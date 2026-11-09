@@ -388,7 +388,7 @@ final class LockScreenWeatherManager: ObservableObject {
 
         guard clampedLevel >= 0 else { return nil }
 
-        let usesLaptopSymbol = Defaults[.lockScreenBatteryUsesLaptopSymbol]
+        let usesLaptopSymbol = true
 
         return LockScreenWeatherSnapshot.BatteryInfo(
             batteryLevel: clampedLevel,

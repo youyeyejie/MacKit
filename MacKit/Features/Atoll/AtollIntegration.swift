@@ -17,6 +17,14 @@ final class AtollIntegration {
             Defaults[.enableVerticalHUD] = false
         }
         UserDefaults.standard.removeObject(forKey: "enableCustomOSD")
+        if !UserDefaults.standard.bool(forKey: "mackit.migratedCalendarRetention") {
+            if Defaults[.lockScreenShowCalendarEventAfterStartEnabled] {
+                Defaults[.lockScreenShowCalendarEventEntireDuration] = true
+            }
+            Defaults[.lockScreenShowCalendarEventAfterStartEnabled] = false
+            UserDefaults.standard.set(true, forKey: "mackit.migratedCalendarRetention")
+        }
+        Defaults[.lockScreenBatteryUsesLaptopSymbol] = true
         let runtime = AtollAppDelegate()
         delegate = runtime
         runtime.applicationDidFinishLaunching(notification)
@@ -49,17 +57,5 @@ final class AtollIntegration {
             }
             cleaningPanels.removeAll()
         }
-    }
-}
-
-/// Original settings forms embedded in MacKit's detail column.
-struct AtollSettingsPage: View {
-    let section: SettingsTab
-    var body: some View {
-        GeometryReader { geometry in
-            SettingsView(hostedTab: section)
-                .id(section)
-                .frame(width: geometry.size.width, height: geometry.size.height)
-        }.clipped()
     }
 }

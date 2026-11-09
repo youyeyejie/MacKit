@@ -9,7 +9,7 @@ struct MacKitApp: App {
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSMenuDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelegate {
     let model = AppModel()
     private var window: NSWindow?
     private var hotkeys: GlobalHotKeys?
@@ -27,6 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
         model.recordingChanged = { [weak self] recording in
             if recording { self?.hotkeys?.suspend() } else { self?.hotkeys?.resume() }
             self?.model.windowSwitcher.setSuspended(recording)
+            self?.model.missionControl.setSuspended(recording)
             self?.model.dockEnhancement.setSuspended(recording)
         }
         AtollIntegration.shared.openSettings = { [weak self] in
@@ -87,19 +88,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 860, height: 650),
                                   styleMask: [.titled, .closable, .miniaturizable, .resizable],
                                   backing: .buffered, defer: false)
-            if #available(macOS 26.0, *) {
-                window.styleMask.insert(.fullSizeContentView)
-                window.titlebarAppearsTransparent = true
-            }
+            window.styleMask.insert(.fullSizeContentView)
+            window.isOpaque = false
+            window.backgroundColor = .clear
+            window.titlebarAppearsTransparent = true
             window.title = "MacKit"
             window.titleVisibility = .hidden
-            let toolbar = NSToolbar(identifier: "MacKit.Toolbar")
-            toolbar.delegate = self
-            toolbar.displayMode = .iconOnly
-            toolbar.allowsUserCustomization = false
-            window.toolbar = toolbar
-            window.toolbarStyle = .unifiedCompact
+            window.delegate = self
+            window.isMovableByWindowBackground = true
             window.contentView = NSHostingView(rootView: view)
+            if let frameView = window.contentView?.superview {
+                frameView.wantsLayer = true
+                frameView.layer?.cornerRadius = AppStyle.windowRadius
+                frameView.layer?.masksToBounds = true
+            }
             window.minSize = NSSize(width: 720, height: 540)
             window.isReleasedWhenClosed = false
             window.center()
@@ -108,14 +110,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
         model.permissions.refresh()
         model.refreshLogin()
         window?.makeKeyAndOrderFront(nil)
+        if let window {
+            DispatchQueue.main.async { [weak self, weak window] in
+                if let window { self?.positionWindowControls(window) }
+            }
+        }
         NSApp.activate(ignoringOtherApps: true)
     }
 
 
+    func windowDidResize(_ notification: Notification) {
+        if let window = notification.object as? NSWindow { positionWindowControls(window) }
+    }
+
+    private func positionWindowControls(_ window: NSWindow) {
+        for (index, type) in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].enumerated() {
+            guard let button = window.standardWindowButton(type),
+                  let frameView = window.contentView?.superview else { continue }
+            // Keep AppKit's titlebar layout from restoring the edge-aligned positions.
+            if button.superview !== frameView { frameView.addSubview(button) }
+            button.setFrameOrigin(NSPoint(x: 23 + CGFloat(index) * 23,
+                                           y: frameView.bounds.height - 32))
+        }
+    }
+
     func applicationDidBecomeActive(_ notification: Notification) {
         AtollIntegration.shared.delegate?.applicationDidBecomeActive(notification)
         model.permissions.refresh(); model.refreshLogin(); model.finderCut.sync()
-        model.windowSwitcher.sync(); model.dockEnhancement.sync()
+        model.missionControl.sync(); model.windowSwitcher.sync(); model.dockEnhancement.sync()
     }
 
     private func applyAppearance() {
@@ -145,25 +167,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
         menu.items.first(where: { $0.action == #selector(toggleDockFromMenu) })?.title = model.dockEnhancement.enabled ? "关闭程序坞增强" : "启用程序坞增强"
     }
     @objc private func quitFromMenu() { NSApp.terminate(nil) }
-    @objc private func toggleSidebar() { model.sidebarVisible.toggle() }
-
-    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { [.init("MacKit.Sidebar"), .init("MacKit.Navigation")] }
-    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { [.init("MacKit.Sidebar"), .init("MacKit.Navigation")] }
-    func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
-        let item = NSToolbarItem(itemIdentifier: identifier)
-        if identifier.rawValue == "MacKit.Navigation" {
-            item.label = "前进与后退"
-            let view = NSHostingView(rootView: NavigationButtons(model: model))
-            view.frame = NSRect(x: 0, y: 0, width: 64, height: 28)
-            item.view = view
-            return item
-        }
-        item.label = "显示或隐藏侧栏"; item.toolTip = item.label
-        item.image = NSImage(systemSymbolName: "sidebar.left", accessibilityDescription: item.label)
-        item.target = self; item.action = #selector(toggleSidebar)
-        return item
-    }
-
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         showWindow()
         return true
@@ -175,18 +178,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
         model.wallpaper.stop()
         model.cleaning.onActivity = nil
         model.cleaning.stop(); model.finderCut.stop()
-        model.windowSwitcher.stop(); model.dockEnhancement.stop(); hotkeys?.stop()
-    }
-}
-
-private struct NavigationButtons: View {
-    @Bindable var model: AppModel
-    var body: some View {
-        HStack(spacing: 2) {
-            Button(action: model.goBack) { Image(systemName: "chevron.left").frame(width: 26, height: 22) }
-                .disabled(!model.canGoBack).help("后退").accessibilityLabel("后退")
-            Button(action: model.goForward) { Image(systemName: "chevron.right").frame(width: 26, height: 22) }
-                .disabled(!model.canGoForward).help("前进").accessibilityLabel("前进")
-        }.buttonStyle(.borderless).controlSize(.small)
+        model.missionControl.stop(); model.windowSwitcher.stop(); model.dockEnhancement.stop(); hotkeys?.stop()
     }
 }

@@ -1,34 +1,36 @@
 import SwiftUI
 
-/// Shared typography and spacing for every main-panel page.
-enum AppStyle {
-    static let sectionTitle: Font = .title3.bold()
-    static let body: Font = .body
-    static let pageInset: CGFloat = 24
-    static let pageSpacing: CGFloat = 18
-    static let cardInset: CGFloat = 20
-    static let contentSpacing: CGFloat = 14
-    static let rowHeight: CGFloat = 44
-    static let sectionHeight: CGFloat = 24
+
+/// System Settings uses opaque grouped surfaces above the window canvas.
+enum SettingsPalette {
+    static let canvas = adaptive(light: 0xF5F5F5, dark: 0x202124)
+    static let group = adaptive(light: 0xFFFFFF, dark: 0x27282D)
+    static let sidebar = adaptive(light: 0xE8E8EC, dark: 0x29292D)
+    static let separator = adaptive(light: 0xE1E1E3, dark: 0x37383D)
+    private static func adaptive(light: Int, dark: Int) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let hex = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
+            return NSColor(srgbRed: CGFloat((hex >> 16) & 255) / 255,
+                           green: CGFloat((hex >> 8) & 255) / 255,
+                           blue: CGFloat(hex & 255) / 255, alpha: 1)
+        })
+    }
 }
 
-struct PageHeader: View {
-    let title: String
-    let subtitle: String
-    let symbol: String
-    var color: Color = .blue
-    var body: some View {
-        HStack(alignment: .center, spacing: 14) {
-            Image(systemName: symbol).font(.system(size: 24, weight: .medium))
-                .foregroundStyle(.white).frame(width: 54, height: 54)
-                .background(color.gradient, in: RoundedRectangle(cornerRadius: 15))
-            VStack(alignment: .leading, spacing: 5) {
-                Text(title).font(.system(size: 23, weight: .bold))
-                Text(subtitle).font(AppStyle.body).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 0)
-        }.padding(.bottom, 8)
-    }
+/// Shared typography and spacing for every main-panel page.
+enum AppStyle {
+    static let windowRadius: CGFloat = 20
+    static let sliderWidth: CGFloat = 170
+    // Four ideographs plus native popup-button arrows and horizontal insets.
+    static let pickerMinimumWidth: CGFloat = ceil(("四个汉字" as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 13)]).width) + 32
+    static let sectionTitle: Font = .system(size: 13, weight: .semibold)
+    static let body: Font = .system(size: 13)
+    static let pageInset: CGFloat = 20
+    static let pageSpacing: CGFloat = 10
+    static let cardInset: CGFloat = 10
+    static let contentSpacing: CGFloat = 10
+    static let rowHeight: CGFloat = 42
+    static let sectionHeight: CGFloat = 24
 }
 
 struct SettingsCard<Content: View>: View {
@@ -40,8 +42,8 @@ struct SettingsCard<Content: View>: View {
             content
         }.frame(maxWidth: .infinity, alignment: .leading)
             .padding(AppStyle.cardInset)
-            .modifier(GlassSurface())
-            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.primary.opacity(0.06)))
+            .background(SettingsPalette.group, in: RoundedRectangle(cornerRadius: 10))
+
     }
 }
 
@@ -62,34 +64,10 @@ struct PageLayout<Content: View>: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppStyle.pageSpacing) { content }
-                .frame(maxWidth: 800, alignment: .leading)
-                .padding(AppStyle.pageInset).frame(maxWidth: .infinity, alignment: .topLeading)
-        }.font(AppStyle.body).lineSpacing(3)
-            .background(Color(nsColor: .windowBackgroundColor))
-    }
-}
-
-/// Keep actions at the title's trailing edge when space allows; stack on narrow windows.
-struct PermissionCard<Actions: View>: View {
-    let title: String
-    let subtitle: String
-    @ViewBuilder var actions: Actions
-    var body: some View {
-        SettingsCard {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .center, spacing: 18) {
-                    Text(title).font(AppStyle.sectionTitle).fixedSize()
-                    Spacer(minLength: 12)
-                    HStack(spacing: 8) { actions }.fixedSize()
-                }
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(title).font(AppStyle.sectionTitle)
-                    HStack(spacing: 8) { actions }
-                }
-            }.frame(minHeight: AppStyle.rowHeight)
-            Text(subtitle).font(AppStyle.body).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
+                .frame(maxWidth: 820, alignment: .leading)
+                .padding(.horizontal, AppStyle.pageInset).padding(.top, 0).padding(.bottom, 20).frame(maxWidth: .infinity, alignment: .top)
+        }.font(AppStyle.body)
+            .background(SettingsPalette.canvas)
     }
 }
 
@@ -150,33 +128,199 @@ struct SettingsRows<Content: View>: View {
     let title: String
     @ViewBuilder var content: Content
     var body: some View {
-        SettingsCard(title: title) {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(title).font(AppStyle.sectionTitle).padding(.leading, 5).padding(.top, 16).padding(.bottom, 5)
             VStack(spacing: 0) { content }
+                .padding(.horizontal, 10)
+                .background(SettingsPalette.group, in: RoundedRectangle(cornerRadius: 12))
         }
+    }
+}
+
+private struct EmbeddedSettingsRowKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var embeddedSettingsRow: Bool {
+        get { self[EmbeddedSettingsRowKey.self] }
+        set { self[EmbeddedSettingsRowKey.self] = newValue }
     }
 }
 
 struct SettingsRow<Control: View>: View {
+    @Environment(\.embeddedSettingsRow) private var embedded
     let title: String
+    var subtitle: String? = nil
     @ViewBuilder var control: Control
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
-            Text(title).font(.body)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(AppStyle.body)
+                if let subtitle {
+                    Text(subtitle).font(.system(size: 11)).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }.padding(.vertical, embedded ? 0 : 9)
             Spacer(minLength: 12)
             control.controlSize(.regular)
-        }.frame(minHeight: AppStyle.rowHeight)
+        }.frame(minHeight: embedded ? 24 : AppStyle.rowHeight)
     }
 }
 
-/// Native Liquid Glass on macOS 26+, with a solid, accessible older-system fallback.
-struct GlassSurface: ViewModifier {
-    var radius: CGFloat = 14
+/// Sample the desktop behind the window, then apply the native glass container.
+private struct SidebarBackdrop: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .sidebar
+        view.blendingMode = .behindWindow
+        view.state = .followsWindowActiveState
+        return view
+    }
+    func updateNSView(_ view: NSVisualEffectView, context: Context) {}
+}
+
+struct SidebarGlassSurface: ViewModifier {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @ViewBuilder func body(content: Content) -> some View {
-        if #available(macOS 26.0, *), !reduceTransparency {
-            content.glassEffect(.regular, in: RoundedRectangle(cornerRadius: radius))
+        if reduceTransparency {
+            content.background(SettingsPalette.sidebar, in: RoundedRectangle(cornerRadius: AppStyle.windowRadius))
+        } else if #available(macOS 26.0, *) {
+            content
+                .background(SidebarBackdrop().clipShape(RoundedRectangle(cornerRadius: AppStyle.windowRadius)))
+                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: AppStyle.windowRadius))
         } else {
-            content.background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: radius))
+            content.background(SidebarBackdrop().clipShape(RoundedRectangle(cornerRadius: AppStyle.windowRadius)))
         }
+    }
+}
+
+/// Shared section renderer for feature content with dynamic and conditional rows.
+struct UnifiedSettingsSection<Content: View, Header: View, Footer: View>: View {
+    private let content: Content
+    private let header: Header
+    private let footer: Footer
+
+    init(@ViewBuilder content: () -> Content,
+         @ViewBuilder header: () -> Header,
+         @ViewBuilder footer: () -> Footer) {
+        self.content = content(); self.header = header(); self.footer = footer()
+    }
+    init(_ title: String, @ViewBuilder content: () -> Content) where Header == Text, Footer == EmptyView {
+        self.content = content(); header = Text(title); footer = EmptyView()
+    }
+    init(@ViewBuilder content: () -> Content, @ViewBuilder header: () -> Header) where Footer == EmptyView {
+        self.content = content(); self.header = header(); footer = EmptyView()
+    }
+    init(@ViewBuilder content: () -> Content, @ViewBuilder footer: () -> Footer) where Header == EmptyView {
+        self.content = content(); header = EmptyView(); self.footer = footer()
+    }
+    init(@ViewBuilder content: () -> Content) where Header == EmptyView, Footer == EmptyView {
+        self.content = content(); header = EmptyView(); footer = EmptyView()
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if Header.self != EmptyView.self {
+                header.font(AppStyle.sectionTitle).padding(.leading, 5).padding(.top, 16).padding(.bottom, 5)
+            }
+            _VariadicView.Tree(SettingsSectionRows()) { content }
+                .environment(\.embeddedSettingsRow, true)
+                .padding(.horizontal, 10)
+                .background(SettingsPalette.group, in: RoundedRectangle(cornerRadius: 12))
+            if Footer.self != EmptyView.self {
+                footer.font(.system(size: 11)).foregroundStyle(.secondary).padding(.horizontal, 10)
+            }
+        }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct SettingsSectionRows: _VariadicView.MultiViewRoot {
+    func body(children: _VariadicView.Children) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(children) { child in
+                if child.id != children.first?.id { Divider() }
+                child.frame(maxWidth: .infinity, minHeight: 24, alignment: .leading)
+                    .padding(.vertical, 9)
+            }
+        }
+    }
+}
+
+struct SettingsTrailingToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 16) {
+            configuration.label
+            Spacer(minLength: 12)
+            Toggle(isOn: configuration.$isOn) { EmptyView() }
+                .labelsHidden().toggleStyle(.switch).controlSize(.small)
+        }
+    }
+}
+
+/// A separate value column precedes the track. Uniform ranges snap without tick marks.
+struct CompactSettingsSlider<Value: BinaryFloatingPoint, Label: View>: View where Value.Stride: BinaryFloatingPoint {
+    @Environment(\.embeddedSettingsRow) private var embedded
+    @Binding var value: Value
+    let bounds: ClosedRange<Value>
+    let step: Value.Stride
+    let valueText: String
+    let uniform: Bool
+    let label: Label
+    let onEditingChanged: (Bool) -> Void
+
+    init(value: Binding<Value>, in bounds: ClosedRange<Value>, step: Value.Stride,
+         valueText: String, uniform: Bool = true,
+         @ViewBuilder label: () -> Label, onEditingChanged: @escaping (Bool) -> Void = { _ in }) {
+        _value = value; self.bounds = bounds; self.step = step
+        self.valueText = valueText; self.uniform = uniform
+        self.label = label(); self.onEditingChanged = onEditingChanged
+    }
+    var body: some View {
+        HStack(spacing: 12) {
+            label
+            Spacer(minLength: 12)
+            Text(valueText).foregroundStyle(.secondary).monospacedDigit()
+            if uniform {
+                Slider(value: Binding(get: { value }, set: { raw in
+                    let offset = Double(raw - bounds.lowerBound)
+                    let snapped = bounds.lowerBound + Value((offset / Double(step)).rounded() * Double(step))
+                    value = min(bounds.upperBound, max(bounds.lowerBound, snapped))
+                }), in: bounds) { label } onEditingChanged: { onEditingChanged($0) }
+                    .labelsHidden().frame(width: AppStyle.sliderWidth)
+            } else {
+                Slider(value: $value, in: bounds, step: step) { label } onEditingChanged: { onEditingChanged($0) }
+                    .labelsHidden().frame(width: AppStyle.sliderWidth)
+            }
+        }
+        .frame(minHeight: embedded ? 24 : AppStyle.rowHeight)
+    }
+}
+
+struct SettingsDescription: View {
+    let title: String
+    let subtitle: String
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+            Text(subtitle).font(.system(size: 11)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+/// The complete padded row is an interactive navigation target.
+struct SettingsDestinationRow: View {
+    let title: String
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Text(title).foregroundStyle(.primary)
+                Spacer(minLength: 12)
+                Image(systemName: "chevron.right").foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, minHeight: AppStyle.rowHeight, alignment: .leading)
+            .contentShape(Rectangle())
+        }.buttonStyle(.plain)
     }
 }
