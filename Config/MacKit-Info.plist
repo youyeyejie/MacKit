@@ -63,7 +63,5 @@
 	<string>MacKit 用于显示正在播放的媒体信息。</string>
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>MacKit uses screen recording for window previews.</string>
-	<key>NSAudioCaptureUsageDescription</key>
-	<string>MacKit 仅在你调整应用音量时，在本机捕获该应用的系统音频以应用音量增益；不保存或上传音频。</string>
 </dict>
 </plist>

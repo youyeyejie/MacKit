@@ -119,7 +119,11 @@ struct ContentView: View {
         }
         }
 
-        return NotchOpenLayout.size(for: coordinator.currentView, screenName: vm.screen)
+        var size = NotchOpenLayout.size(for: coordinator.currentView, screenName: vm.screen)
+        if vm.notchState == .closed {
+            size.width = max(size.width, vm.closedNotchSize.width + 2 * reminderActivityWingWidth + notchHorizontalPadding * 2 + 8)
+        }
+        return size
     }
 
     @State private var hoverTask: Task<Void, Never>?
@@ -202,6 +206,7 @@ struct ContentView: View {
 
     private var notchHorizontalPadding: CGFloat {
         guard vm.notchState == .open else {
+            if !closedMediaVisible, mediaIndicatorItems.count == 1, mediaIndicatorItems.first?.id == "calendar" { return 6 }
             return activeCornerRadiusInsets.closed.bottom
         }
         
@@ -229,16 +234,9 @@ struct ContentView: View {
     }
 
     private var closedLiveActivitySwapTransition: AnyTransition {
-        .asymmetric(
-            insertion: .opacity
-                .combined(with: .scale(scale: 0.965, anchor: .center))
-                .animation(.spring(response: 0.34, dampingFraction: 0.88)),
-            removal: .opacity
-                .combined(with: .scale(scale: 0.92, anchor: .center))
-                .animation(.smooth(duration: 0.22))
-        )
+        .opacity.animation(.smooth(duration: 0.28))
     }
-    
+
     // Use minimalistic corner radius ONLY when opened, keep normal when closed
     private var activeCornerRadiusInsets: (opened: (top: CGFloat, bottom: CGFloat), closed: (top: CGFloat, bottom: CGFloat)) {
         
@@ -283,7 +281,7 @@ struct ContentView: View {
     }
 
     private var builtinLyricShelfVisible: Bool {
-        guard !hidePausedLyrics, showBuiltinLyrics, builtinIsOnlyPersistentIsland, vm.notchState == .closed,
+        guard musicManager.lyricsReadyForCurrentTrack, !hidePausedLyrics, showBuiltinLyrics, builtinIsOnlyPersistentIsland, vm.notchState == .closed,
               !musicManager.isPlayerIdle, !lockScreenManager.isLocked,
               let screen = NSScreen.screens.first(where: { $0.localizedName == currentScreenName }),
               let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return false }
@@ -409,7 +407,8 @@ struct ContentView: View {
         NotchLayout()
             .frame(alignment: .top)
             .padding(.horizontal, notchHorizontalPadding)
-            .padding([.horizontal, .bottom], vm.notchState == .open ? 12 : 0)
+            .padding(.horizontal, vm.notchState == .open ? 12 : 0)
+            .padding(.bottom, vm.notchState == .open ? (coordinator.currentView == .terminal ? 4 : 12) : 0)
             .background(.black)
             .clipShape(resolvedClipShape)
             .compositingGroup()
@@ -424,6 +423,7 @@ struct ContentView: View {
             .padding(.horizontal, isIslandMode ? dynamicIslandShadowInset : 0)
             .padding(.bottom, isIslandMode ? dynamicIslandShadowInset : 0)
             .padding(.top, pillTopOffset)
+            .offset(x: closedActivityHorizontalOffset)
             .accessibilityIdentifier("AtollNotch")
     }
 
@@ -597,20 +597,24 @@ struct ContentView: View {
 
     private func installPrimaryRootLifecycleHandlers<Content: View>(on view: Content) -> some View {
         view.onAppear {
+            updateIndicatorLayout()
             startHiddenEdgeHoverPolling()
             vm.onViewTeardown = { performViewTeardown() }
-        }.onChange(of: terminalStickyMode) { _, _ in syncStickyTerminalOutsideClickMonitor() }
+        }.onChange(of: mediaIndicatorItems.map(\.id)) { _, _ in updateIndicatorLayout() }
+         .onChange(of: terminalStickyMode) { _, _ in syncStickyTerminalOutsideClickMonitor() }
     }
 
     private func installSecondaryRootLifecycleHandlers<Content: View>(on view: Content) -> some View {
-        view.onDisappear { performViewTeardown() }
+        view.onDisappear {
+            performViewTeardown()
+        }
     }
 
     @ViewBuilder
       func NotchLayout() -> some View {
           VStack(alignment: .leading, spacing: 0) {
               if vm.notchState == .closed {
-              VStack(alignment: .leading) {
+              VStack(alignment: .leading, spacing: 0) {
                   if let preview = coordinator.settingsPreview, preview.type == .battery {
                       BatteryTemporaryActivityView(kind: preview.title.contains("不足") ? .lowBattery : (preview.title.contains("充满") ? .fullBattery : .charging), baseWidth: vm.closedNotchSize.width, baseHeight: vm.effectiveClosedNotchHeight, isDynamicIslandMode: isDynamicIslandMode, topCornerRadius: activeCornerRadiusInsets.closed.top, previewLevel: preview.title.contains("不足") ? 20 : (preview.title.contains("充满") ? 100 : 75))
                   } else if coordinator.firstLaunch {
@@ -659,26 +663,20 @@ struct ContentView: View {
                             topCornerRadius: activeCornerRadiusInsets.closed.top,
                         )
                         .id(batteryModel.activeTemporaryHUDToken)
-                      } else if isSneakPeekVisibleOnCurrentScreen && (inlineHUDLayout || isAirPodsListeningModeSneak) && (coordinator.sneakPeek.type != .music) && (coordinator.sneakPeek.type != .battery) && (coordinator.sneakPeek.type != .reminder) && coordinator.sneakPeek.type != .capsLock && coordinator.sneakPeek.type != .privacy && coordinator.sneakPeek.type != .recording && coordinator.sneakPeek.type != .doNotDisturb && ((coordinator.sneakPeek.type != .volume && coordinator.sneakPeek.type != .brightness && coordinator.sneakPeek.type != .backlight) || vm.notchState == .closed) {
+                      } else if isSneakPeekVisibleOnCurrentScreen && (inlineHUDLayout || isAirPodsListeningModeSneak || coordinator.sneakPeek.type == .bluetoothAudio) && (coordinator.sneakPeek.type != .music) && (coordinator.sneakPeek.type != .battery) && (coordinator.sneakPeek.type != .reminder) && coordinator.sneakPeek.type != .capsLock && coordinator.sneakPeek.type != .privacy && coordinator.sneakPeek.type != .recording && coordinator.sneakPeek.type != .doNotDisturb && ((coordinator.sneakPeek.type != .volume && coordinator.sneakPeek.type != .brightness && coordinator.sneakPeek.type != .backlight) || vm.notchState == .closed) {
                           InlineHUD(type: $coordinator.sneakPeek.type, value: $coordinator.sneakPeek.value, icon: $coordinator.sneakPeek.icon, hoverAnimation: $isHovering, gestureProgress: .constant(0))
                               .transition(
                                   coordinator.sneakPeek.type == .capsLock
                                       ? AnyTransition.move(edge: .trailing).combined(with: .opacity)
                                       : AnyTransition.opacity
                               )
-                      } else if vm.notchState == .closed && !musicPairingEligible && !lockScreenManager.isLocked && !statusItems.isEmpty {
-                          let wing = CGFloat(statusItems.count) * 20
-                          HStack(spacing: 0) {
-                              PersistentActivityIcons(items: statusItems, diameter: 18).frame(width: wing, alignment: .trailing)
-                              Color.clear.frame(width: vm.closedNotchSize.width)
-                              Color.clear.frame(width: wing)
-                          }.frame(height: vm.effectiveClosedNotchHeight)
-                      } else if canShowMusicDuringExpansion && musicPairingEligible {
+                      } else if canShowMusicDuringExpansion && vm.notchState == .closed && !lockScreenManager.isLocked && !vm.hideOnClosed && (musicPairingEligible || !mediaIndicatorItems.isEmpty) {
                           MusicLiveActivity(secondary: musicSecondary)
                               .id("closed-music-live-activity")
                               .transition(closedLiveActivitySwapTransition)
                       } else if (!isCurrentScreenExpansionVisible || currentScreenExpansionType == .reminder) && vm.notchState == .closed && reminderManager.isActive && enableReminderLiveActivity && !vm.hideOnClosed {
-                          ReminderLiveActivity()
+                          ReminderLiveActivity(matchedWingWidth: reminderActivityWingWidth)
+                              .transition(closedLiveActivitySwapTransition)
                       } else if !isCurrentScreenExpansionVisible && vm.notchState == .closed && localSendLiveActivityActive && !vm.hideOnClosed {
                           LocalSendLiveActivity()
                               .transition(.blurReplace.animation(.interactiveSpring(dampingFraction: 1.2)))
@@ -697,11 +695,12 @@ struct ContentView: View {
                        }
                       
                       if isSneakPeekVisibleOnCurrentScreen {
-                          if (coordinator.sneakPeek.type != .music) && (coordinator.sneakPeek.type != .battery) && (coordinator.sneakPeek.type != .reminder) && (coordinator.sneakPeek.type != .capsLock) && coordinator.sneakPeek.type != .privacy && coordinator.sneakPeek.type != .recording && coordinator.sneakPeek.type != .doNotDisturb && !inlineHUDLayout && !isAirPodsListeningModeSneak && ((coordinator.sneakPeek.type != .volume && coordinator.sneakPeek.type != .brightness && coordinator.sneakPeek.type != .backlight) || vm.notchState == .closed) {
+                          if (coordinator.sneakPeek.type != .music) && (coordinator.sneakPeek.type != .battery) && (coordinator.sneakPeek.type != .reminder) && (coordinator.sneakPeek.type != .capsLock) && coordinator.sneakPeek.type != .privacy && coordinator.sneakPeek.type != .recording && coordinator.sneakPeek.type != .doNotDisturb && coordinator.sneakPeek.type != .bluetoothAudio && !inlineHUDLayout && !isAirPodsListeningModeSneak && ((coordinator.sneakPeek.type != .volume && coordinator.sneakPeek.type != .brightness && coordinator.sneakPeek.type != .backlight) || vm.notchState == .closed) {
                               SystemEventIndicatorModifier(eventType: $coordinator.sneakPeek.type, value: $coordinator.sneakPeek.value, icon: $coordinator.sneakPeek.icon, sendEventBack: { _ in
                                   //
                               })
-                              .padding(.bottom, 10)
+                              .padding(.top, 8)
+                              .padding(.bottom, builtinLyricShelfVisible ? 6 : 10)
                               .padding(.leading, 4)
                               .padding(.trailing, 8)
                           }
@@ -753,9 +752,11 @@ struct ContentView: View {
               if builtinLyricShelfVisible {
                   let lyricWidth = max(180, vm.closedNotchSize.width + 2 * max(0, vm.effectiveClosedNotchHeight - 12))
                   TimedLyricLine(width: lyricWidth - 20, color: Color(nsColor: musicManager.avgColor))
+                      .frame(height: 20, alignment: .leading)
+                      .matchedGeometryEffect(id: "lyricLine", in: albumArtNamespace, properties: .position, anchor: .leading, isSource: vm.notchState == .closed)
                       .padding(.horizontal, 10).padding(.vertical, 6)
                       .frame(width: lyricWidth).background(.black)
-                      .transition(.opacity.combined(with: .move(edge: .top)))
+                      .transition(.opacity)
               }
               ZStack {
                   if vm.notchState == .open {
@@ -848,14 +849,8 @@ struct ContentView: View {
             NotchConfiguration.enableSneakPeek &&
             Defaults[.sneakPeekStyles] == .inline
         )
-        let badgeRowWidth = CGFloat(statusItems.count) * (max(13, notchContentHeight * 0.36) + 2)
-        let leftWingWidth = max(wingBaseWidth, badgeRowWidth)
-        let rightWingWidth = max(leftWingWidth, resolvedRightWingWidth(
-            for: secondary,
-            baseWidth: wingBaseWidth,
-            centerBaseWidth: centerBaseWidth,
-            notchHeight: notchContentHeight
-        ))
+        let leftWingWidth = closedActivityLeftWidth
+        let rightWingWidth = leftWingWidth
         let effectiveCenterWidth = inlineSneakPeekActive ? 380 : centerBaseWidth
         let notchWidth = leftWingWidth + effectiveCenterWidth + rightWingWidth
         let badgeBaseSize = max(13, notchContentHeight * 0.36)
@@ -863,32 +858,28 @@ struct ContentView: View {
         let badgeOffset = badgeOverlayOffset(for: secondary, badgeSize: badgeDisplaySize)
 
         HStack(spacing: 0) {
-            ZStack(alignment: .bottomTrailing) {
-                Color.clear
-                    .aspectRatio(1, contentMode: .fit)
-                    .background(
-                        Image(nsImage: musicManager.albumArt)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .clipShape(RoundedRectangle(cornerRadius: musicManager.albumArt.size.width/musicManager.albumArt.size.height > 1.0 ? MusicPlayerImageSizes.cornerRadiusInset.closed/3.0 : MusicPlayerImageSizes.cornerRadiusInset.closed))
-                    )
-                    .clipped()
-                    .matchedGeometryEffect(id: "albumArt", in: albumArtNamespace, properties: .size)
-                    .albumArtFlip(angle: musicManager.flipAngle)
-                if statusItems.isEmpty {
-                    albumArtBadge(for: secondary, badgeSize: badgeDisplaySize)
-                        .offset(x: badgeOffset.width, y: badgeOffset.height)
+            HStack(alignment: .center, spacing: 6) {
+                ForEach(mediaIndicatorItems) { item in
+                    Image(systemName: item.symbol)
+                        .renderingMode(.template)
+                        .resizable().scaledToFit()
+                        .foregroundStyle(item.color)
+                        .frame(width: !closedMediaVisible && mediaIndicatorItems.count == 1 && item.id == "calendar" ? closedActivityLeftWidth : wingBaseWidth, height: notchContentHeight)
+                        .transition(.opacity)
+                }
+                if closedMediaVisible {
+                    Image(nsImage: musicManager.albumArt)
+                        .resizable().aspectRatio(contentMode: .fit)
+                        .frame(width: wingBaseWidth, height: notchContentHeight)
+                        .clipShape(RoundedRectangle(cornerRadius: MusicPlayerImageSizes.cornerRadiusInset.closed))
+                        .matchedGeometryEffect(id: "albumArt", in: albumArtNamespace, properties: .frame, anchor: .topLeading, isSource: vm.notchState == .closed)
+                        .albumArtFlip(angle: musicManager.flipAngle)
+                        .transition(.opacity)
                 }
             }
-            .frame(width: wingBaseWidth, height: notchContentHeight)
-            .overlay(alignment: .bottomLeading) {
-                if !statusItems.isEmpty {
-                    PersistentActivityIcons(items: statusItems, diameter: badgeBaseSize, compact: true)
-                        .offset(x: 0, y: 2)
-                }
-            }
-
-            .frame(width: leftWingWidth, alignment: .leading)
+            .frame(width: leftWingWidth, height: notchContentHeight, alignment: .trailing)
+            .animation(.smooth(duration: 0.3), value: closedMediaVisible)
+            .animation(.smooth(duration: 0.3), value: mediaIndicatorItems.map(\.id))
 
             Rectangle()
                 .fill(.black)
@@ -913,16 +904,34 @@ struct ContentView: View {
                                 .foregroundStyle(NotchConfiguration.coloredSpectrogram ? Color(nsColor: musicManager.avgColor) : Color.gray)
                                 .padding(.trailing, 8)
                                 .opacity((coordinator.expandingView.show && coordinator.expandingView.type == .music && NotchConfiguration.enableSneakPeek && Defaults[.sneakPeekStyles] == .inline) ? 1 : 0)
-                        } else if showBuiltinLyrics && !builtinIsOnlyPersistentIsland && isNonNotchScreen {
+                        } else if showBuiltinLyrics && musicManager.lyricsReadyForCurrentTrack && !builtinIsOnlyPersistentIsland && isNonNotchScreen {
                             TimedLyricLine(width: max(0, effectiveCenterWidth - 16), color: NotchConfiguration.coloredSpectrogram ? Color(nsColor: musicManager.avgColor) : .white)
+                                .matchedGeometryEffect(id: "lyricLine", in: albumArtNamespace, properties: .position, anchor: .leading, isSource: vm.notchState == .closed)
                             .padding(.horizontal, 8)
                         }
                     }
                     .clipped()
                 )
 
-            musicRightWing(for: secondary, notchHeight: notchContentHeight, trailingWidth: rightWingWidth)
-                .frame(width: rightWingWidth, height: notchContentHeight, alignment: .center)
+            let waveWidth: CGFloat = closedMediaVisible ? max(0, CGFloat(Defaults[.visualizerBarCount]) * 4 - 2) : 0
+            let countdownWidth = closedCountdownWidth
+            let elementCount = (closedMediaVisible ? 1 : 0) + (countdownWidth > 0 ? 1 : 0)
+            // Account for visible bars, ring stroke and the shell's outer padding.
+            let gap = max(0, (rightWingWidth + notchHorizontalPadding - waveWidth - countdownWidth) / CGFloat(elementCount + 1))
+            ZStack(alignment: .leading) {
+                if closedMediaVisible {
+                    spectrumView(forceSpectrum: true)
+                        .frame(width: 50, height: notchContentHeight)
+                        .frame(width: waveWidth, height: notchContentHeight).clipped()
+                        .offset(x: gap)
+                }
+                if let secondary, case .reminder = secondary {
+                    musicRightWing(for: secondary, notchHeight: notchContentHeight, trailingWidth: rightWingWidth)
+                        .frame(width: countdownWidth, height: notchContentHeight)
+                        .offset(x: closedMediaVisible ? gap * 2 + waveWidth : gap)
+                }
+            }
+                .frame(width: rightWingWidth, height: notchContentHeight, alignment: .leading)
                 .contentShape(Rectangle())
                 .onHover { hovering in
                     guard shouldShowClosedMusicWaveformPlayPauseOverlay(for: secondary) else {
@@ -941,6 +950,59 @@ struct ContentView: View {
         .frame(width: notchWidth, height: notchContentHeight)
         .frame(height: vm.effectiveClosedNotchHeight + (isHovering ? 8 : 0), alignment: .center)
         .animation(.smooth(duration: 0.25), value: secondary?.id)
+        .animation(.smooth(duration: 0.3), value: mediaIndicatorItems.map(\.id))
+    }
+
+    private var mediaIndicatorItems: [PersistentActivityItem] {
+        var items = statusItems
+        if enableReminderLiveActivity, reminderManager.isActive, let entry = reminderManager.activeReminder {
+            items.append(.init(id: "calendar", symbol: "calendar.badge.clock", color: reminderColor(for: entry, now: reminderManager.currentDate)))
+        }
+        return items
+    }
+
+    private func updateIndicatorLayout() {
+        if let delegate = AtollAppDelegate.shared {
+            let window = delegate.windows.first(where: { $0.key.localizedName == currentScreenName })?.value ?? delegate.window
+            let required = addShadowPadding(to: dynamicNotchSize, isMinimalistic: false)
+            if let window, window.frame.width < required.width {
+                delegate.ensureWindowSize(required, animated: false, force: true)
+            }
+        }
+    }
+
+    private var closedMediaVisible: Bool {
+        !musicManager.isPlayerIdle && coordinator.musicLiveActivityEnabled && closedMusicContentEnabled
+    }
+
+    private var closedActivityLeftWidth: CGFloat {
+        let size = max(0, vm.effectiveClosedNotchHeight - 12)
+        let count = mediaIndicatorItems.count + (closedMediaVisible ? 1 : 0)
+        if !closedMediaVisible, count == 1, mediaIndicatorItems.first?.id == "calendar" { return max(24, size * 0.9) }
+        return max(size, CGFloat(count) * size + CGFloat(max(0, count - 1)) * 6)
+    }
+    private var closedCountdownWidth: CGFloat {
+        guard enableReminderLiveActivity, let entry = reminderManager.activeReminder, reminderManager.isActive else { return 0 }
+        let size = max(0, vm.effectiveClosedNotchHeight - 12)
+        switch reminderPresentationStyle {
+        case .ringCountdown: return ReminderSupplementMetrics.ringDiameter(for: size) + 3
+        case .digital: return ReminderSupplementMetrics.digitalFrameWidth(for: ReminderSupplementMetrics.digitalCountdownText(for: entry, now: reminderManager.currentDate))
+        case .minutes: return ReminderSupplementMetrics.minutesFrameWidth(for: ReminderSupplementMetrics.minutesCountdownText(for: entry, now: reminderManager.currentDate))
+        }
+    }
+    private var closedActivityRightContentWidth: CGFloat {
+        (closedMediaVisible ? 50 : 0) + closedCountdownWidth + (closedMediaVisible && closedCountdownWidth > 0 ? 10 : 0)
+    }
+    private var reminderActivityWingWidth: CGFloat {
+        closedActivityLeftWidth
+    }
+    private var closedActivityHorizontalOffset: CGFloat {
+        guard vm.notchState == .closed, !lockScreenManager.isLocked,
+              closedMediaVisible || !mediaIndicatorItems.isEmpty,
+              !(isSneakPeekVisibleOnCurrentScreen && (inlineHUDLayout || coordinator.sneakPeek.type == .bluetoothAudio)),
+              currentScreenExpansionType != .battery else { return 0 }
+        // Keep the physical notch gap centered while allowing unequal outer wings.
+        return 0
     }
 
     private var statusItems: [PersistentActivityItem] {
@@ -1127,7 +1189,7 @@ struct ContentView: View {
         useMusicVisualizer: Bool,
         forceSpectrum: Bool
     ) -> some View {
-        let width = CGFloat(Defaults[.visualizerBarCount]) * 4
+        let width = max(0, CGFloat(Defaults[.visualizerBarCount]) * 4 - 2)
         
             Rectangle()
                 .fill((NotchConfiguration.coloredSpectrogram ? Color(nsColor: musicManager.avgColor) : Color.gray).readableOnBlack())
@@ -1616,7 +1678,8 @@ private struct MusicReminderSupplementView: View {
                 .animation(.smooth(duration: 0.25), value: progressValue)
         }
         .frame(width: ringDiameter, height: ringDiameter)
-        .frame(width: max(ringDiameter + 4, 26), height: notchHeight, alignment: .center)
+        .padding(1.5)
+        .frame(height: notchHeight, alignment: .center)
     }
 
     private var digitalCountdownView: some View {
@@ -1684,7 +1747,7 @@ private typealias MusicSupplementFont = NSFont
 private typealias MusicSupplementFont = UIFont
 #endif
 
-private enum ReminderSupplementMetrics {
+enum ReminderSupplementMetrics {
     static func digitalCountdownText(for entry: ReminderLiveActivityManager.ReminderEntry, now: Date) -> String {
         let remaining = max(entry.event.start.timeIntervalSince(now), 0)
         let totalSeconds = Int(remaining.rounded(.down))

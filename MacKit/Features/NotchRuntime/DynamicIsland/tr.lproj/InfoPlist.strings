@@ -10,5 +10,4 @@
 "NSLocationUsageDescription" = "Atoll, doğru kilit ekranı hava durumunu göstermek için konumunuzu kullanır.";
 "NSLocationWhenInUseUsageDescription" = "Atoll, doğru kilit ekranı hava durumunu göstermek için konumunuzu kullanır.";
 "NSRemindersUsageDescription" = "Atoll, anımsatıcılarınızı göstermek için Anımsatıcılar erişimine ihtiyaç duyar.";
-"NSAudioCaptureUsageDescription" = "Atoll, gerçek zamanlı müzik dalga biçimi görselleştiricisini göstermek için ses yakalama iznine ihtiyaç duyar.";
 "NSScreenCaptureUsageDescription" = "Atoll, yapay zeka asistanı özelliği için ekran görüntüleri yakalamak üzere ekran kaydı iznine ihtiyaç duyar.";

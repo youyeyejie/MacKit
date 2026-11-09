@@ -120,7 +120,7 @@ class AtollAppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         SystemOSDManager.restoreImmediately()
         MusicManager.shared.shutdown()
-        if #available(macOS 15.0, *) { AppVolumeMixer.shared.reset() }        // Cancel any pending window size updates
+        // Cancel any pending window size updates
         windowSizeUpdateWorkItem?.cancel()
         NotificationCenter.default.removeObserver(self)
         

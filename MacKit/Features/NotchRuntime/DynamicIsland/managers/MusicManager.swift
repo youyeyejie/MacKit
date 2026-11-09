@@ -505,6 +505,7 @@ class MusicManager: ObservableObject {
 
     // MARK: - Lyrics Properties
     @Published var currentLyrics: String = ""
+    @Published private(set) var lyricsReadyForCurrentTrack = false
     @Published var syncedLyrics: [LyricLine] = []
     @Published var showLyrics: Bool = false
     @Published var currentLyricIndex: Int = -1
@@ -598,6 +599,7 @@ class MusicManager: ObservableObject {
     }
     
     public func destroy() {
+        lyricsRetryTask?.cancel()
         debounceIdleTask?.cancel()
         lyricsFetchTask?.cancel()
         lyricSyncTask?.cancel()
@@ -693,6 +695,20 @@ class MusicManager: ObservableObject {
         let shouldAutoPeekOnTrackChange = NotchConfiguration.showSneakPeekOnTrackChange
 
         let trackChanged = titleChanged || artistChanged || bundleChanged
+        if trackChanged {
+            withAnimation(.smooth(duration: 0.25)) { lyricsReadyForCurrentTrack = false }
+            currentLyrics = ""
+            syncedLyrics = []
+            currentLyricIndex = -1
+            stopLyricSync()
+            lyricsFetchTask?.cancel()
+            lyricsFetchTask = nil
+            lyricsFetchKey = nil
+            activeLyricsKey = nil
+        }
+        if !eventIsPlaying && songDuration > 0 && elapsedTime >= songDuration - 0.25 {
+            lyricsReadyForCurrentTrack = false
+        }
         if hasContentChange {
             if trackChanged { self.triggerFlipAnimation() }
 
@@ -1116,6 +1132,7 @@ class MusicManager: ObservableObject {
 
     func shutdown() {
         lyricsFetchTask?.cancel()
+        lyricsRetryTask?.cancel()
         stopLyricSync()
         (activeController as? NowPlayingController)?.stopMonitoring()
     }
@@ -1131,6 +1148,12 @@ class MusicManager: ObservableObject {
 
     // MARK: - Lyrics Methods
     func fetchLyrics() {
+        lyricsRetryTask?.cancel()
+        lyricsRetryTask = nil
+        lyricsRetryCount = 0
+        lyricsFetchTask?.cancel()
+        lyricsFetchTask = nil
+        lyricsFetchKey = nil
         prepareLyricsForCurrentTrack(forceFetch: true, prioritizeVisibleResult: (Defaults[.enableLyrics] || Defaults[.showLyricsBelowBuiltinNotch]))
     }
 
@@ -1149,9 +1172,31 @@ class MusicManager: ObservableObject {
         }
     }
 
+    private var lyricsRetryTask: Task<Void, Never>?
+    private var lyricsRetryCount = 0
+    private func retryMissingLyrics() {
+        guard syncedLyrics.isEmpty, lyricsRetryTask == nil else { return }
+        guard lyricsRetryCount < 3 else {
+            lyricsReadyForCurrentTrack = false
+            return
+        }
+        let retryDelay = [2.0, 5.0, 10.0][lyricsRetryCount]
+        lyricsRetryCount += 1
+        let key = activeLyricsKey
+        lyricsRetryTask = Task { @MainActor [weak self] in
+            do { try await Task.sleep(for: .seconds(retryDelay)) } catch { return }
+            guard let self else { return }
+            self.lyricsRetryTask = nil
+            guard self.activeLyricsKey == key, self.syncedLyrics.isEmpty else { return }
+            self.prepareLyricsForCurrentTrack(forceFetch: true)
+        }
+    }
+
     private func prepareLyricsForCurrentTrack(forceFetch: Bool = false, prioritizeVisibleResult: Bool = false) {
         guard Defaults[.enableLyrics] || Defaults[.showLyricsBelowBuiltinNotch] else { return }
         guard let lookup = currentLyricsLookupContext() else {
+            // Empty metadata can be a transitional snapshot while changing songs.
+            lyricsReadyForCurrentTrack = false
             activeLyricsKey = nil
             lyricsFetchKey = nil
             lyricsFetchTask?.cancel()
@@ -1170,13 +1215,21 @@ class MusicManager: ObservableObject {
         activeLyricsKey = key
 
         if trackChanged {
+            lyricsReadyForCurrentTrack = false
+            currentLyrics = ""
+            lyricsRetryTask?.cancel()
+            lyricsRetryTask = nil
+            lyricsRetryCount = 0
             syncedLyrics = []
             currentLyricIndex = -1
-            currentLyrics = shouldShowLoading ? "正在获取歌词…" : ""
+            currentLyrics = ""
             stopLyricSync()
         }
 
-        if !forceFetch, let until = lyricsMissUntil[key], until > Date() { return }
+        if !forceFetch, let until = lyricsMissUntil[key], until > Date() {
+            retryMissingLyrics()
+            return
+        }
 
         if !forceFetch, let cachedLyrics = lyricsCache[key] {
             applyLyricsToDisplay(cachedLyrics)
@@ -1185,7 +1238,7 @@ class MusicManager: ObservableObject {
 
         if lyricsFetchKey == key {
             if shouldShowLoading && syncedLyrics.isEmpty {
-                currentLyrics = "正在获取歌词…"
+                currentLyrics = ""
             }
             return
         }
@@ -1194,7 +1247,7 @@ class MusicManager: ObservableObject {
         lyricsFetchKey = key
 
         if shouldShowLoading || (lyricsEnabled && syncedLyrics.isEmpty) {
-            currentLyrics = "正在获取歌词…"
+            currentLyrics = ""
         }
 
         let requestArtist = lookup.requestArtist
@@ -1225,6 +1278,7 @@ class MusicManager: ObservableObject {
                     self.lyricsFetchKey = nil
                     self.lyricsFetchTask = nil
                     self.applyLyricsToDisplay(lyrics)
+                    if lyrics.isEmpty { self.retryMissingLyrics() }
                 }
             } catch {
                 guard !Task.isCancelled else { return }
@@ -1233,9 +1287,12 @@ class MusicManager: ObservableObject {
                     guard self.activeLyricsKey == key else { return }
                     self.lyricsFetchKey = nil
                     self.lyricsFetchTask = nil
+                    self.currentLyrics = ""
+                    self.lyricsReadyForCurrentTrack = false
                     self.syncedLyrics = []
                     self.currentLyricIndex = -1
-                    self.currentLyrics = lyricsEnabled ? "暂无匹配歌词" : ""
+                    self.currentLyrics = ""
+                    self.retryMissingLyrics()
                     self.stopLyricSync()
                 }
             }
@@ -1292,11 +1349,13 @@ class MusicManager: ObservableObject {
 
 
     private func applyLyricsToDisplay(_ lyrics: [LyricLine]) {
+        currentLyrics = ""
         syncedLyrics = lyrics
+        lyricsReadyForCurrentTrack = false
         currentLyricIndex = -1
 
         guard !lyrics.isEmpty else {
-            currentLyrics = (Defaults[.enableLyrics] || Defaults[.showLyricsBelowBuiltinNotch]) ? "暂无匹配歌词" : ""
+            currentLyrics = ""
             stopLyricSync()
             return
         }
@@ -1308,6 +1367,7 @@ class MusicManager: ObservableObject {
             currentLyrics = firstLine
         }
 
+        withAnimation(.smooth(duration: 0.25)) { lyricsReadyForCurrentTrack = true }
         if (Defaults[.enableLyrics] || Defaults[.showLyricsBelowBuiltinNotch]) {
             startLyricSync()
         } else {
@@ -1396,7 +1456,7 @@ class MusicManager: ObservableObject {
         // show a loading placeholder and start fetching asynchronously.
         if showLyrics && syncedLyrics.isEmpty {
             // Provide immediate feedback so the UI can show a loading state.
-            currentLyrics = "正在获取歌词…"
+            currentLyrics = ""
 
             Task {
                 await fetchLyrics()
@@ -1404,7 +1464,7 @@ class MusicManager: ObservableObject {
                 // If fetch completed but no lyrics were found, show a friendly message.
                 await MainActor.run {
                     if self.syncedLyrics.isEmpty && self.currentLyrics.isEmpty {
-                        self.currentLyrics = "暂无匹配歌词"
+                        self.currentLyrics = ""
                     }
                 }
             }

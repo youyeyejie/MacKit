@@ -13,7 +13,7 @@ struct PersistentActivityIcons: View {
         HStack(spacing: 2) {
             ForEach(items) { item in
                 Image(systemName: item.symbol)
-                    .font(.system(size: diameter * (compact ? 0.7 : 0.55), weight: .semibold))
+                    .font(.system(size: compact ? max(10, diameter * 0.7) : 16, weight: .semibold))
                     .foregroundStyle(item.color)
                     .frame(width: diameter, height: diameter)
                     .background(compact ? Color.clear : .black, in: Circle())

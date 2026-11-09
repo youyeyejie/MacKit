@@ -28,6 +28,7 @@ private typealias ReminderFont = UIFont
 #endif
 
 struct ReminderLiveActivity: View {
+    var matchedWingWidth: CGFloat? = nil
     @EnvironmentObject var vm: DynamicIslandViewModel
     @ObservedObject var manager = ReminderLiveActivityManager.shared
 
@@ -43,7 +44,7 @@ struct ReminderLiveActivity: View {
     var body: some View {
         if let reminder = manager.activeReminder {
             content(for: reminder, now: manager.currentDate)
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                .transition(.opacity.animation(.smooth(duration: 0.28)))
         }
     }
 
@@ -163,10 +164,11 @@ struct ReminderLiveActivity: View {
     }
 
     private var leftWingWidth: CGFloat {
-        wingPadding + iconDiameter
+        matchedWingWidth ?? (wingPadding + iconDiameter)
     }
 
     private func rightWingWidth(for reminder: ReminderLiveActivityManager.ReminderEntry, now: Date) -> CGFloat {
+        if let matchedWingWidth { return matchedWingWidth }
         var width = wingPadding
         switch presentationStyle {
         case .ringCountdown:
@@ -196,7 +198,7 @@ struct ReminderLiveActivity: View {
     }
 
     private var ringDiameter: CGFloat {
-        max(min(notchContentHeight - 12, 22), 16)
+        ReminderSupplementMetrics.ringDiameter(for: max(0, notchContentHeight - 12))
     }
 
     private func measureTextWidth(_ text: String, font: ReminderFont) -> CGFloat {

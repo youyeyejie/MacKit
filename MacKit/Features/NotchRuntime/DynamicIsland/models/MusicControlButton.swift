@@ -2,18 +2,20 @@
 import Foundation
 
 enum MusicControlButton: String, Identifiable {
-    case appVolume, trackBackward, playPause, trackForward, mediaOutput
+    case reloadLyrics, trackBackward, playPause, trackForward, mediaOutput
     var id: String { rawValue }
     static let slotCount = 5
-    static let defaultLayout: [MusicControlButton] = [.appVolume, .trackBackward, .playPause, .trackForward, .mediaOutput]
+    static let defaultLayout: [MusicControlButton] = [.reloadLyrics, .trackBackward, .playPause, .trackForward, .mediaOutput]
     var prefersLargeScale: Bool { self == .playPause }
     var iconName: String {
         switch self {
-        case .appVolume: "slider.horizontal.3"
-        case .trackBackward: "backward.fill"
-        case .playPause: "playpause"
-        case .trackForward: "forward.fill"
-        case .mediaOutput: "speaker.wave.2"
+        case .reloadLyrics:
+            if #available(macOS 15, *) { return "arrow.trianglehead.clockwise" }
+            return "arrow.clockwise"
+        case .trackBackward: return "backward.fill"
+        case .playPause: return "playpause"
+        case .trackForward: return "forward.fill"
+        case .mediaOutput: return "speaker.wave.2"
         }
     }
 }

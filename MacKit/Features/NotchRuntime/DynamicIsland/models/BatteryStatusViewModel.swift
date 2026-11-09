@@ -106,14 +106,12 @@ class BatteryStatusViewModel: ObservableObject {
 
         case .lowPowerModeChanged(let isEnabled):
             print("⚡ Low power mode: \(isEnabled ? "Enabled" : "Disabled")")
-            let wasEnabled = self.isInLowPowerMode
             withAnimation {
                 self.isInLowPowerMode = isEnabled
                 self.statusText = String(localized: "Low Power: \(self.isInLowPowerMode ? String(localized: "On") : String(localized: "Off"))")
             }
-            if !wasEnabled && isEnabled {
-                presentTemporaryBatteryHUDIfNeeded(kind: .lowBattery)
-            }
+            // Low Power Mode may be enabled automatically on battery power,
+            // even at high charge. It is not a low-battery threshold event.
 
         case .isChargingChanged(let isCharging):
             print("🔌 Charging: \(isCharging ? "Yes" : "No")")
@@ -169,6 +167,10 @@ class BatteryStatusViewModel: ObservableObject {
         force: Bool
     ) {
         guard force || Defaults[.showPowerStatusNotifications] else { return }
+        if kind == .lowBattery && !force {
+            guard levelBattery <= Float(NotchConfiguration.lowBatteryHUDThreshold),
+                  !isPluggedIn, !isCharging else { return }
+        }
 
         let duration: Int
         let isEnabled: Bool

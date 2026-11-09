@@ -130,7 +130,7 @@ struct NotchTerminalView: View {
                         EdgeInsets(
                             top: 0,
                             leading: notchTerminalContentEdgePadding.horizontal,
-                            bottom: notchTerminalContentEdgePadding.bottom,
+                            bottom: 4,
                             trailing: notchTerminalContentEdgePadding.horizontal
                         )
                     )

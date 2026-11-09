@@ -159,7 +159,7 @@ struct MusicPlayerView: View {
         HStack(alignment: .top, spacing: 12) {
             AlbumArtView(vm: vm, albumArtNamespace: albumArtNamespace)
                 .frame(width: 132, height: 132)
-            MusicControlsView()
+            MusicControlsView(lyricNamespace: albumArtNamespace)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -214,7 +214,6 @@ struct AlbumArtView: View {
                 }
                 .albumArtFlip(angle: musicManager.flipAngle)
                 
-                .padding(.bottom, -5)
 
             }
             .buttonStyle(PlainButtonStyle())
@@ -241,7 +240,7 @@ struct AlbumArtView: View {
                     contentMode: .fit
                 )
             }
-            .matchedGeometryEffect(id: "albumArt", in: albumArtNamespace, properties: .size)
+            .matchedGeometryEffect(id: "albumArt", in: albumArtNamespace, properties: .frame, anchor: .topLeading, isSource: vm.notchState == .open)
         .clipped()
     }
 
@@ -252,7 +251,7 @@ struct AlbumArtView: View {
                 .resizable()
                 .scaledToFill()
                 .frame(width: 36, height: 36)
-                .offset(x: 10, y: 10)
+                .offset(x: -4, y: -4)
                 .transition(.scale.combined(with: .opacity).animation(.bouncy.delay(0.3)))
                 .zIndex(2)
         }
@@ -260,6 +259,7 @@ struct AlbumArtView: View {
 }
 
 struct MusicControlsView: View {
+    let lyricNamespace: Namespace.ID
     @EnvironmentObject var vm: DynamicIslandViewModel
     @ObservedObject var musicManager = MusicManager.shared
     @ObservedObject var coordinator = DynamicIslandViewCoordinator.shared
@@ -325,34 +325,31 @@ struct MusicControlsView: View {
                 frameWidth: width
             )
             .fontWeight(.medium)
-            // Lyrics shown under the author name (same font size as author) when enabled in settings
             if enableLyrics {
-                let transition = AnyTransition.asymmetric(
-                    insertion: .move(edge: .bottom).combined(with: .opacity),
-                    removal: .move(edge: .top).combined(with: .opacity)
-                )
-
                 let line = musicManager.currentLyrics.trimmingCharacters(in: .whitespacesAndNewlines)
-
-                if !line.isEmpty {
-                    let lyricsBinding = Binding<String>(
-                        get: { musicManager.currentLyrics },
-                        set: { _ in }
-                    )
-
+                ZStack(alignment: .topLeading) {
+                    // Freeze each outgoing line instead of binding it to the next lyric.
                     MarqueeText(
-                        lyricsBinding,
+                        .constant(line),
                         font: .system(size: 12, weight: .regular),
                         nsFont: .headline,
                         textColor: .white.opacity(0.7),
                         minDuration: 0.35,
                         frameWidth: width
                     )
+                    .frame(height: 18, alignment: .leading)
                     .padding(.top, 2)
+                    .opacity(line.isEmpty ? 0 : 1)
                     .id(line)
-                    .transition(transition)
-                    .animation(.easeInOut(duration: 0.32), value: line)
+                    .transition(.asymmetric(
+                        insertion: .offset(y: 20).combined(with: .opacity),
+                        removal: .offset(y: -20).combined(with: .opacity)
+                    ))
                 }
+                .frame(width: width, height: 20, alignment: .topLeading)
+                .clipped()
+                .animation(.easeInOut(duration: 0.24), value: line)
+                .matchedGeometryEffect(id: "lyricLine", in: lyricNamespace, properties: .position, anchor: .leading, isSource: vm.notchState == .open)
             }
         }
     }
@@ -388,7 +385,7 @@ struct MusicControlsView: View {
     private var playbackControls: some View {
         HStack(spacing: 2) {
             ForEach(Array(displayedSlots.enumerated()), id: \.offset) { _, slot in
-                slotView(for: slot).scaleEffect(slot == .playPause ? 1.04 : 0.96).frame(height: 30)
+                slotView(for: slot).scaleEffect(slot == .playPause ? 1.24 : 0.96).frame(height: 30)
             }
         }
         .frame(maxWidth: .infinity, alignment: .center)
@@ -565,8 +562,8 @@ struct MusicControlsView: View {
             ) {
                 musicManager.nextTrack()
             }
-        case .appVolume:
-            AppVolumeButton()
+        case .reloadLyrics:
+            HoverButton(icon: MusicControlButton.reloadLyrics.iconName, scale: .medium) { musicManager.fetchLyrics() }.help("重新加载歌词")
         case .mediaOutput:
             MediaOutputPickerButton()
         }

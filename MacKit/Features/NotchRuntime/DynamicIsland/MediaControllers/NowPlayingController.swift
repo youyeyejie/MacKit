@@ -254,6 +254,11 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
         // an empty track (which refetches lyrics and flips the artwork twice).
         var value = changedSource ? PlaybackState(bundleIdentifier: source ?? "", title: "", artist: "", album: "") : playbackState
         if let title = payload.title, title != playbackState.title {
+            // Metadata and the elapsed-time update can arrive separately.
+            // Never use the preceding song's clock to select the new song's lyric.
+            value.currentTime = 0
+            value.duration = 0
+            value.lastUpdated = Date()
             value.artwork = nil
             value.contentIdentifier = nil
             value.contentURL = nil

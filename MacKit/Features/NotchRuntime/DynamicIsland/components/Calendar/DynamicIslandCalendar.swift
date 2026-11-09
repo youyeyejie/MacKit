@@ -232,14 +232,21 @@ struct CalendarView: View {
             }
         }
         .listRowBackground(Color.clear)
-        .frame(height: 120)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onChange(of: selectedDate) {
             Task {
                 await calendarManager.updateCurrentDate(selectedDate)
             }
         }
         .contentShape(Rectangle())
-        .onHover { hovering in withAnimation(.smooth(duration: 0.25)) { timelineVisible = hovering } }
+        .onContinuousHover { phase in
+            let visible: Bool
+            switch phase {
+            case .active(let point): visible = point.y < (timelineVisible ? 64 : 24)
+            case .ended: visible = false
+            }
+            if timelineVisible != visible { withAnimation(.smooth(duration: 0.25)) { timelineVisible = visible } }
+        }
         .onChange(of: vm.notchState) { _, _ in
             Task {
                 await calendarManager.updateCurrentDate(Date.now)

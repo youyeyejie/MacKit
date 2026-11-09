@@ -106,7 +106,7 @@ struct LockScreenMusicPanel: View {
     private var showsDetachedFullscreenLyrics: Bool { false }
 
     private var shouldShowInlineLyrics: Bool {
-        enableLyrics
+        enableLyrics && !musicManager.syncedLyrics.isEmpty && !musicManager.currentLyrics.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     
     var body: some View {
@@ -537,8 +537,8 @@ struct LockScreenMusicPanel: View {
             ) {
                 musicManager.nextTrack()
             }
-        case .appVolume:
-            AppVolumeButton(iconSize: isExpanded ? 26 : 18, buttonSize: isExpanded ? 56 : 32)
+        case .reloadLyrics:
+            controlButton(icon: MusicControlButton.reloadLyrics.iconName, size: 18) { musicManager.fetchLyrics() }.help("重新加载歌词")
         case .mediaOutput:
             mediaOutputControlButton
         }

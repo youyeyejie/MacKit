@@ -53,7 +53,7 @@ enum NotchConfiguration {
     static let capsLockIndicatorTintMode: CapsLockIndicatorTintMode = .accent
     static let sliderColor: SliderColorEnum = .albumArt
     static let hideNotchOption: HideNotchOption = .never
-    static let musicControlSlots: [MusicControlButton] = [.appVolume, .trackBackward, .playPause, .trackForward, .mediaOutput]
+    static let musicControlSlots: [MusicControlButton] = [.reloadLyrics, .trackBackward, .playPause, .trackForward, .mediaOutput]
     static let mediaController: MediaControllerType = .nowPlaying
     static let closedNotchWidth: CGFloat = 150
     static let lockScreenGlassStyle: LockScreenGlassStyle = .liquid
