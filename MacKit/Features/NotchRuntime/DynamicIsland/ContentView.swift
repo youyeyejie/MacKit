@@ -863,6 +863,7 @@ struct ContentView: View {
                     Image(systemName: item.symbol)
                         .renderingMode(.template)
                         .resizable().scaledToFit()
+                        .frame(width: item.id == "calendar" ? wingBaseWidth : min(20, wingBaseWidth * 0.78), height: item.id == "calendar" ? notchContentHeight : min(20, notchContentHeight * 0.78))
                         .foregroundStyle(item.color)
                         .frame(width: !closedMediaVisible && mediaIndicatorItems.count == 1 && item.id == "calendar" ? closedActivityLeftWidth : wingBaseWidth, height: notchContentHeight)
                         .transition(.opacity)
@@ -918,32 +919,36 @@ struct ContentView: View {
             let elementCount = (closedMediaVisible ? 1 : 0) + (countdownWidth > 0 ? 1 : 0)
             // Account for visible bars, ring stroke and the shell's outer padding.
             let gap = max(0, (rightWingWidth + notchHorizontalPadding - waveWidth - countdownWidth) / CGFloat(elementCount + 1))
+            let innerShift = min(8, gap * 0.35)
             ZStack(alignment: .leading) {
                 if closedMediaVisible {
                     spectrumView(forceSpectrum: true)
                         .frame(width: 50, height: notchContentHeight)
                         .frame(width: waveWidth, height: notchContentHeight).clipped()
-                        .offset(x: gap)
+                        .blur(radius: isHoveringClosedMusicWaveformControl ? 2 : 0)
+                        .overlay {
+                            if shouldShowClosedMusicWaveformPlayPauseOverlay(for: secondary) && isHoveringClosedMusicWaveformControl {
+                                Image(systemName: musicManager.isPlaying ? "pause.fill" : "play.fill")
+                                    .font(.system(size: 16, weight: .semibold)).foregroundStyle(.white)
+                                    .padding(3).background(.black.opacity(0.8), in: RoundedRectangle(cornerRadius: 4))
+                            }
+                        }
+                        .contentShape(Rectangle().inset(by: -4))
+                        .onHover { hovering in
+                            withAnimation(.smooth(duration: 0.16)) {
+                                isHoveringClosedMusicWaveformControl = hovering && shouldShowClosedMusicWaveformPlayPauseOverlay(for: secondary)
+                            }
+                        }
+                        .offset(x: max(0, gap - innerShift))
                 }
                 if let secondary, case .reminder = secondary {
                     musicRightWing(for: secondary, notchHeight: notchContentHeight, trailingWidth: rightWingWidth)
                         .frame(width: countdownWidth, height: notchContentHeight)
-                        .offset(x: closedMediaVisible ? gap * 2 + waveWidth : gap)
+                        .offset(x: max(0, (closedMediaVisible ? gap * 2 + waveWidth : gap) - innerShift))
                 }
             }
                 .frame(width: rightWingWidth, height: notchContentHeight, alignment: .leading)
                 .contentShape(Rectangle())
-                .onHover { hovering in
-                    guard shouldShowClosedMusicWaveformPlayPauseOverlay(for: secondary) else {
-                        if isHoveringClosedMusicWaveformControl {
-                            isHoveringClosedMusicWaveformControl = false
-                        }
-                        return
-                    }
-                    withAnimation(.smooth(duration: 0.16)) {
-                        isHoveringClosedMusicWaveformControl = hovering
-                    }
-                }
                 .id(secondary?.id ?? "music-spectrum")
                 .contentTransition(.symbolEffect(.replace))
         }
@@ -1283,7 +1288,6 @@ struct ContentView: View {
     }
 
     private func shouldShowClosedMusicWaveformPlayPauseOverlay(for secondary: MusicSecondaryLiveActivity?) -> Bool {
-        guard secondary == nil else { return false }
         return isClosedMusicContext && !Defaults[.openNotchOnHover]
     }
 
@@ -1294,7 +1298,7 @@ struct ContentView: View {
             && !vm.hideOnClosed
             && !lockScreenManager.isLocked
             && !isMusicHUDDeferredAfterUnlock
-            && !isCurrentScreenExpansionVisible
+            && (!isCurrentScreenExpansionVisible || currentScreenExpansionType == .reminder)
             && (!musicManager.isPlayerIdle || musicManager.bundleIdentifier != nil)
             && !coordinator.firstLaunch
     }
