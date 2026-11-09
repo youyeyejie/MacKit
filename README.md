@@ -1,201 +1,99 @@
-<div align="center">
-  <img src="Assets/MacKit-Icon.png" width="112" alt="MacKit 图标">
-  <h1>MacKit</h1>
-  <p>轻一点，顺手一点。一个使用 Swift 与 SwiftUI 构建的原生 macOS 工具集，功能按需启用。</p>
-  <p>macOS 14+ · Apple Silicon / Intel · 无第三方运行时依赖</p>
-</div>
+# MacKit
+
+轻一点，顺手一点。一个使用 Swift 与 SwiftUI 构建的原生 macOS 工具集。
 
 ## 功能
 
-### 清洁模式
+- **灵动刘海**：系统正在播放、同步歌词、日历、文件托盘和交互式终端；支持多显示器、独立闭合宽度及悬停展开。
+- **媒体控制**：播放暂停、切歌、按应用调节音量和选择输出设备；暂停后的媒体保留时间可调，歌词优先显示在常驻外接灵动岛上。
+- **实时活动**：相机、麦克风、屏幕录制、大写锁定与专注模式指示，以及蓝牙连接、电池、音量、亮度和键盘背光提示。
+- **锁屏组件**：媒体、天气、电池、蓝牙、日历和专注模式；使用液态玻璃样式，可预览并调整垂直位置。
+- **窗口切换**：⌘Tab 预览并切换窗口，⌘\` 切换应用内窗口；支持最小化和全屏窗口、方向键与指针选择，以及退出、关闭和最小化操作。
+- **程序坞增强**：悬停预览应用窗口，点击预览切换；点击当前应用图标最小化，再次点击恢复。两项可分别控制。
+- **动态壁纸**：导入本地视频到系统墙纸设置，管理缩略图与素材副本，设置过渡和遮挡暂停；支持锁屏素材选择。
+- **访达剪切**：在访达中使用 ⌘X、⌘V 移动文件，Esc 取消剪切，可选音效。
+- **清洁模式**：临时阻止键盘、功能键、鼠标和触控板输入；连续按下并松开 Esc 五次退出。
+- **软件设置**：登录启动、菜单栏、外观、权限管理与功能开关。
 
-擦拭屏幕、键盘和触控板时，临时拦截键盘、鼠标及触控板输入。
+## 系统与权限
 
-- 内建显示器显示黑色清洁遮罩，其他屏幕显示退出提示。
-- 没有内建显示器时，可选择使用当前屏幕。
-- 连续按下并松开 **Esc 5 次**退出；相邻两次间隔不超过 3 秒，长按不计为多次。
-- 系统休眠、会话失活、显示器配置变化或输入监听中断时，自动退出清洁模式。
+应用最低支持 macOS 14.6；原生动态壁纸扩展需要 macOS 26 或更新版本，按应用调音需要 macOS 15 或更新版本。部分效果与系统硬件、权限和系统接口可用性有关。
 
-安装并打开一次 MacKit 后，也可从终端进入清洁模式：
+在权限管理页按需开启辅助功能和屏幕录制权限。日历默认关闭，启用后再申请日历权限；天气使用系统定位。按应用调音首次使用时请求系统音频访问，音频仅在本机处理。
 
-```sh
-open -g 'mackit://clean'
-```
+天气查询使用 Open-Meteo，失败时尝试 wttr.in；歌词查询会向网易云和 LRCLIB 发送当前歌曲的查询信息，不发送账号或 Cookie。导入壁纸会创建独立素材副本，删除原视频不会自动移除已导入的副本。
 
-应用已运行时复用现有进程，未运行时由系统启动。
+## 构建
 
-### 访达剪切
-
-在访达的文件浏览区域，使用熟悉的快捷键移动文件。
-
-| 快捷键 | 操作 |
-| --- | --- |
-| `⌘ X` | 将选中的文件标记为待移动 |
-| `⌘ V` | 将待移动文件交给访达执行移动 |
-| `Esc` | 取消待移动状态 |
-
-在「访达剪切」页面开启功能，可单独开关剪切音效。文件移动、重名冲突及撤销由访达处理。剪贴板内容变化后，待移动状态会失效；取消访达的移动操作后，需要重新按 `⌘ X`。
-
-### 窗口切换
-
-通过窗口预览快速选择目标窗口，支持最小化、全屏窗口及同一应用的多个窗口。
-
-- `⌘ Tab` 切换窗口，``⌘ ` `` 切换应用内窗口，松开 `⌘` 确认选择。
-- 使用方向键或指针悬停选择窗口，窗口较多时自动换行显示。
-- 可单独开启预览操作按钮及 `⌘ Q`、`⌘ W`、`⌘ M` 快捷键；Finder 等系统组件受退出保护。`⌘ ⇧ Q` 可在确认后请求退出所有可退出的应用。
-- 最小化窗口排在普通窗口之后；无窗口应用排在最后，选中确认后打开应用。
-
-### 程序坞增强
-
-- **悬停预览**：将指针停在程序坞应用图标上，查看窗口缩略图，点击预览切换到对应窗口。
-- **点击图标最小化**：点击当前应用的程序坞图标最小化窗口，再次点击还原；全屏窗口则隐藏应用。
-- 在预览中查看最小化和全屏状态，并直接退出应用、关闭或最小化窗口。
-- 悬停预览与点击最小化可分别开关。
-
-macOS 26 及更新系统采用 Liquid Glass 界面，较旧系统使用兼容样式。
-
-### 动态壁纸
-
-- 导入本地视频，在「系统设置 → 墙纸 → MacKit-动态壁纸」选择使用，也可作为系统屏保。
-- 网格预览、文件名和删除管理；导入副本与原文件分开保存。
-- 支持随机轮播与可调切换过渡，锁屏可选择独立视频。
-- 桌面剩余可见区域低于 10% 或切换到其他桌面时暂停播放，遮挡检测间隔可调。
-- 原生墙纸扩展需要 macOS 26 或更新版本，使用私有接口，系统更新可能影响兼容性；独立锁屏素材与过渡效果仍需实机验证。
-
-### 软件设置
-
-- 自定义登录自启动。
-- 自定义是否在 Dock 和菜单栏显示。
-- 自定义打开 MacKit、开始清洁的全局快捷键。
-- 设置保存在本机，无需账号或云服务。
-
-默认全局快捷键：
-
-| 操作 | 快捷键 |
-| --- | --- |
-| 打开 MacKit | `⌃ ⌥ ⌘ M` |
-| 开始清洁 | `⌃ ⌥ ⌘ K` |
-
-## 使用
-
-从 [Releases](https://github.com/youyeyejie/MacKit/releases) 下载构建好的应用，将 DMG 中的 `MacKit.app` 拖入 `Applications`，即可安装应用并使用。
-
-清洁模式、访达剪切、窗口切换和程序坞增强需要**辅助功能权限**；窗口预览还需要**屏幕录制权限**。在应用的「权限管理」页面点击对应的「前往授权…」，按系统提示允许 MacKit。授权后若功能仍未生效，退出并重新打开应用。
-
-## 开发与构建
-
-需要 macOS、完整安装的 Xcode，以及支持 Swift 6 的工具链。主要脚本使用 zsh 和 macOS 工具；墙纸扩展工程生成还需要 Python 3。无需第三方工程生成库。以下命令在项目根目录执行。
-
-### 生成工程
+需要完整 Xcode、命令行工具和 Python 3。所有构建产物保留在项目目录下。
 
 ```sh
+# 重新生成工程（build.sh 也会自动执行）
 ./scripts/generate_project.sh
+
+# 构建 Apple Silicon / Intel 通用签名版
+./scripts/build.sh Release --signed
 ```
 
-扫描应用源码、核心源码、配置和资源，生成 `MacKit.xcodeproj` 及共享的 `MacKit` Scheme。新增、删除或移动文件后，重新运行此脚本。
-
-**生成操作会覆盖 `project.pbxproj` 和共享 Scheme。** 需要长期保留的工程配置调整，应同步修改生成脚本。
-
-### 构建 App
-
-```sh
-# 默认：Release、开发签名、同时构建 arm64 和 x86_64
-./scripts/build.sh
-
-# Debug 构建
-./scripts/build.sh Debug
-```
-
-构建脚本使用现有工程，不会自动重新生成工程。也可以用 Xcode 打开 `MacKit.xcodeproj`，选择 `MacKit` Scheme 构建和运行。
-
-产物位置：
-
-```text
-build/DerivedData/Build/Products/Release/MacKit.app
-build/DerivedData/Build/Products/Debug/MacKit.app
-```
-
-默认使用开发签名。在 `Config/Local.xcconfig` 中填写：
+签名配置放在不纳入 Git 的 `Config/Local.xcconfig`：
 
 ```xcconfig
 DEVELOPMENT_TEAM = YOUR_TEAM_ID
 ```
 
-然后执行：
-
-```sh
-./scripts/build.sh Release --signed
-```
-
-`Config/Local.xcconfig` 已被 Git 忽略。签名构建需要本机配置对应的开发账号及签名证书。仅需无签名构建时显式传入 `--unsigned`。
-
-### 打包 DMG
-
-```sh
-# 打包默认位置的 Release App
-./scripts/package.sh
-
-# 打包指定 App
-./scripts/package.sh /path/to/MacKit.app
-```
-
-打包脚本只处理已有 App，不会触发构建。它会在临时目录中复制应用，为无签名副本添加临时签名（ad-hoc），保留已有签名，并验证签名及 DMG 完整性。DMG 内包含指向 `Applications` 的快捷方式。
-
-输出文件使用 App 自身的版本号：
+默认构建包含主应用、系统托管的墙纸扩展、所需资源和开源声明，并验证签名。测试不签名构建可使用 `--unsigned`。输出位置：
 
 ```text
-dist/MacKit-<version>-macOS.dmg
-dist/MacKit-<version>-macOS.dmg.sha256
+build/DerivedData/Build/Products/Release/MacKit.app
 ```
 
-脚本不会覆盖同名产物；再次打包前，请先移走旧文件。当前流程不包含公证。
+工程生成逻辑全部包含在 `scripts/generate_project.sh` 中，其中内嵌 Python 用于处理工程结构；不再依赖独立的 `generate_project.py`。依赖版本保存在 `Config/RuntimePackages.resolved`。
 
-### 脚本帮助
-
-三个脚本均支持 `-h`、`--help` 和 `help`：
+## 打包
 
 ```sh
-./scripts/generate_project.sh --help
-./scripts/build.sh --help
-./scripts/package.sh --help
+./scripts/package.sh
 ```
+
+打包已有 Release 应用，不会重新编译；已有签名会保留。输出为 `dist/MacKit-<版本>-macOS.dmg` 和对应 SHA-256 文件。同名产物不会被覆盖，当前流程不包含 Apple 公证。
+
+三个脚本均支持 `--help`。
 
 ## 项目结构
 
 ```text
 MacKit/
-├── App/                       应用入口、生命周期和全局状态
+├── App/                         应用入口与全局状态
 ├── Features/
-│   ├── Cleaning/              清洁模式界面、输入过滤和服务
-│   ├── FinderCut/             访达剪切界面、焦点识别和服务
-│   ├── WindowTools/           窗口切换、程序坞预览和窗口目录
-│   └── Wallpaper/             本地视频墙纸管理与设置
-├── Platform/                  权限、全局快捷键、事件监听和音效
-├── UI/                        主界面、通用组件和样式
-├── Resources/                 剪切音效
-└── Assets.xcassets/            应用图标资源
-Packages/MacKitCore/            功能协议、剪切会话、路由和布局等共享逻辑
-Extensions/Wallpaper/          由系统托管的 macOS 墙纸扩展
-LICENSES/                      第三方完整许可证
-THIRD_PARTY_NOTICES.md          第三方来源与修改说明
-Assets/                        图标原图及 README 展示素材
-Config/                        构建配置、版本号和 Info.plist
-MacKit.xcodeproj/               生成的 Xcode 工程
-scripts/                       工程生成、App 构建和 DMG 打包脚本
-build/                         构建产物与缓存（不纳入 Git）
-dist/                          DMG 和校验文件（不纳入 Git）
+│   ├── Atoll/                   刘海生命周期与设置承载
+│   ├── NotchRuntime/            整合后的刘海、媒体、终端和锁屏源码与资源
+│   ├── Cleaning/                清洁模式
+│   ├── FinderCut/               访达剪切
+│   ├── Wallpaper/               本地视频管理与设置
+│   └── WindowTools/             窗口切换与程序坞增强
+├── Platform/                    权限、快捷键与系统接口
+├── UI/                          主设置界面和共享组件
+└── Resources/                   应用资源
+Extensions/Wallpaper/            系统墙纸扩展
+Packages/MacKitCore/             共享功能逻辑
+Config/                         构建配置、工程模板与依赖版本
+LICENSES/                       仍使用组件的原始许可正文
+scripts/                        工程生成、构建和打包
+MacKit.xcodeproj/                自动生成的工程
+build/                          本地构建产物与缓存（忽略）
+dist/                           发布包（忽略）
 ```
 
-`MacKitCore` 保留 Swift Package 描述文件；当前生成的 Xcode 工程直接将其源码加入应用编译。版本号和最低系统版本在 `Config/Shared.xcconfig` 中维护。
+版本号在 `Config/Shared.xcconfig` 中维护。`MacKitCore` 源码由生成的工程直接编译到应用中。
+
+## 开源许可与来源
+
+当前组合程序按 [GPL-3.0-or-later](LICENSE) 分发，MacKit 修改部分 Copyright (c) 2026 youyeyejie。
+
+刘海与锁屏功能包含 [Atoll / boring.notch](https://github.com/Atoll-Labs/Atoll) 的改编代码；窗口切换和程序坞实现参考改编了 [Vorssaint](https://github.com/vorssaint/vorssaint-utils)；墙纸扩展包含 [Phosphene](https://github.com/kageroumado/phosphene) 的 MIT 授权代码。迁移到 MacKit 目录不改变原作者版权或许可。
+
+具体使用范围、版本及修改说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，完整许可保留在 [LICENSES](LICENSES/)，原始版权、NOTICE、商标与修改说明集中在第三方声明中，均随应用分发。素材与商标遵循各自声明；用户导入的视频不属于项目源码许可范围。发布二进制时应同时提供与该发布版本对应的完整源码。
 
 ## 参与贡献
 
-欢迎提交问题反馈和改进建议。开发约定与 Pull Request 要求见 [贡献指南](CONTRIBUTING.md)。后续功能会根据我的使用习惯逐步添加。
-
-## 开源协议
-
-当前版本整体按 [GPL-3.0-or-later](LICENSE) 分发。
-
-动态壁纸扩展使用了 [Phosphene](https://github.com/kageroumado/phosphene) 的部分 MIT 授权代码，使用范围和修改说明见 [第三方声明](THIRD_PARTY_NOTICES.md)，完整许可证见 [LICENSES](LICENSES/)。
-
-窗口切换预览及程序坞增前功能参考了 [Vorssaint](https://github.com/vorssaint/vorssaint-utils) 相关模块的实现，改编的范围与修改说明见 [第三方声明](THIRD_PARTY_NOTICES.md)，完整许可证见 [LICENSES](LICENSES/)。
+反馈与贡献约定见 [CONTRIBUTING.md](CONTRIBUTING.md)。

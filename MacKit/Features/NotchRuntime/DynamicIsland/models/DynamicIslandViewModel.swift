@@ -1,0 +1,293 @@
+// MacKit feature reduction, modified 2026-11-08.
+// See THIRD_PARTY_NOTICES.md; GPL-3.0-or-later.
+// MacKit host adaptation, modified 2026-11-08.
+// See THIRD_PARTY_NOTICES.md for the host integration changes; GPL-3.0-or-later.
+/*
+ * Atoll (DynamicIsland)
+ * Copyright (C) 2024-2026 Atoll Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+import Combine
+import Defaults
+import SwiftUI
+
+@MainActor
+class DynamicIslandViewModel: NSObject, ObservableObject {
+    @ObservedObject var coordinator = DynamicIslandViewCoordinator.shared
+
+    let animationLibrary: DynamicIslandAnimations = .init()
+    let animation: Animation?
+
+    @Published var contentType: ContentType = .normal
+    @Published private(set) var notchState: NotchState = .closed
+
+    @Published var dragDetectorTargeting: Bool = false
+    @Published var dropZoneTargeting: Bool = false
+    @Published var dropEvent: Bool = false
+    @Published var anyDropZoneTargeting: Bool = false
+    var cancellables: Set<AnyCancellable> = []
+
+    /// Teardown hook ContentView registers in `onAppear`; the window-cleanup path
+    /// invokes it before closing the panel since `.onDisappear` is unreliable for
+    /// borderless panels, preventing leaked hover-polling Tasks from accumulating.
+    var onViewTeardown: (() -> Void)?
+    
+    let hideOnClosed = false
+    @Published var isHoveringCalendar: Bool = false
+    @Published var isBatteryPopoverActive: Bool = false
+    @Published var isReminderPopoverActive: Bool = false
+    @Published var isMediaOutputPopoverActive: Bool = false
+    @Published var shouldRecheckHover: Bool = false
+    @Published var isScrollGestureActive: Bool = false
+    private var scrollGestureSuppressionTokens: Set<UUID> = []
+    @Published private(set) var isAutoCloseSuppressed: Bool = false
+    private var autoCloseSuppressionTokens: Set<UUID> = []
+
+    func setScrollGestureSuppression(_ active: Bool, token: UUID) {
+        if active {
+            let inserted = scrollGestureSuppressionTokens.insert(token).inserted
+            if inserted {
+                isScrollGestureActive = true
+            }
+        } else {
+            if scrollGestureSuppressionTokens.remove(token) != nil {
+                isScrollGestureActive = !scrollGestureSuppressionTokens.isEmpty
+            }
+        }
+    }
+
+    private func resetScrollGestureSuppression() {
+        scrollGestureSuppressionTokens.removeAll()
+        isScrollGestureActive = false
+    }
+
+    func setAutoCloseSuppression(_ active: Bool, token: UUID) {
+        if active {
+            let inserted = autoCloseSuppressionTokens.insert(token).inserted
+            if inserted {
+                isAutoCloseSuppressed = true
+            }
+        } else if autoCloseSuppressionTokens.remove(token) != nil {
+            isAutoCloseSuppressed = !autoCloseSuppressionTokens.isEmpty
+        }
+    }
+
+    private func resetAutoCloseSuppression() {
+        autoCloseSuppressionTokens.removeAll()
+        isAutoCloseSuppressed = false
+    }
+
+
+    @Published var screen: String?
+
+    @Published var notchSize: CGSize = getClosedNotchSize()
+    @Published var closedNotchSize: CGSize = getClosedNotchSize()
+    
+    @MainActor
+    deinit {
+        destroy()
+    }
+
+    func destroy() {
+        onViewTeardown?()
+        onViewTeardown = nil
+        cancellables.forEach { $0.cancel() }
+        cancellables.removeAll()
+    }
+
+    init(screen: String? = nil) {
+        animation = animationLibrary.animation
+
+        super.init()
+        
+        self.screen = screen
+        notchSize = getClosedNotchSize(screen: screen)
+        closedNotchSize = notchSize
+
+        Publishers.CombineLatest($dropZoneTargeting, $dragDetectorTargeting)
+            .map { value1, value2 in
+                value1 || value2
+            }
+            .assign(to: \.anyDropZoneTargeting, on: self)
+            .store(in: &cancellables)
+        
+
+        ReminderLiveActivityManager.shared.$activeWindowReminders
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                let updatedTarget = self.calculateDynamicNotchSize()
+                guard self.notchState == .open else { return }
+                guard self.notchSize != updatedTarget else { return }
+                withAnimation(.smooth) {
+                    self.notchSize = updatedTarget
+                }
+                if let delegate = AtollAppDelegate.shared {
+                    delegate.ensureWindowSize(
+                        addShadowPadding(to: updatedTarget, isMinimalistic: NotchConfiguration.enableMinimalisticUI),
+                        animated: true,
+                        force: false
+                    )
+                }
+            }
+            .store(in: &cancellables)
+
+        // Observe settings + lyrics changes to dynamically resize the notch
+        let enableLyricsPublisher = Defaults.publisher(.enableLyrics).map { $0.newValue }
+
+        enableLyricsPublisher
+            .combineLatest(MusicManager.shared.$currentLyrics)
+            .removeDuplicates { $0.0 == $1.0 && $0.1 == $1.1 }
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                guard NotchConfiguration.enableMinimalisticUI else { return }
+                let updatedTarget = self.calculateDynamicNotchSize()
+                guard self.notchState == .open else { return }
+                guard self.notchSize != updatedTarget else { return }
+                withAnimation(.smooth) {
+                    self.notchSize = updatedTarget
+                }
+                if let delegate = AtollAppDelegate.shared {
+                    delegate.ensureWindowSize(
+                        addShadowPadding(to: updatedTarget, isMinimalistic: NotchConfiguration.enableMinimalisticUI),
+                        animated: true,
+                        force: false
+                    )
+                }
+            }
+            .store(in: &cancellables)
+
+        Defaults.publisher(.openNotchWidth, options: [])
+            .map { $0.newValue }
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                guard self.notchState == .open else { return }
+                guard !NotchConfiguration.enableMinimalisticUI else { return }
+                let updatedTarget = self.calculateDynamicNotchSize()
+                guard self.notchSize != updatedTarget else { return }
+                withAnimation(.smooth) {
+                    self.notchSize = updatedTarget
+                }
+                if let delegate = AtollAppDelegate.shared {
+                    delegate.ensureWindowSize(
+                        addShadowPadding(to: updatedTarget, isMinimalistic: false),
+                        animated: true,
+                        force: false
+                    )
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+
+    
+    // Computed property for effective notch height
+    var effectiveClosedNotchHeight: CGFloat {
+        let currentScreen = NSScreen.screens.first { $0.localizedName == screen }
+        let noNotchAndFullscreen = hideOnClosed && (currentScreen?.safeAreaInsets.top ?? 0 <= 0 || currentScreen == nil)
+        return noNotchAndFullscreen ? 0 : closedNotchSize.height
+    }
+
+    func isMouseHovering(position: NSPoint = NSEvent.mouseLocation) -> Bool {
+        let screenFrame = getScreenFrame(screen)
+        if let frame = screenFrame {
+            
+            let baseY = frame.maxY - notchSize.height
+            let baseX = frame.midX - notchSize.width / 2
+            
+            return position.y >= baseY && position.x >= baseX && position.x <= baseX + notchSize.width
+        }
+        
+        return false
+    }
+
+    func open() {
+        let targetSize = calculateDynamicNotchSize()
+
+        let applyWindowResize: () -> Void = {
+            guard let delegate = AtollAppDelegate.shared else { return }
+            delegate.ensureWindowSize(
+                addShadowPadding(to: targetSize, isMinimalistic: NotchConfiguration.enableMinimalisticUI),
+                animated: false,
+                force: true
+            )
+        }
+
+        if Thread.isMainThread {
+            applyWindowResize()
+        } else {
+            DispatchQueue.main.async(execute: applyWindowResize)
+        }
+
+        notchSize = targetSize
+        notchState = .open
+
+        // Force music information update when notch is opened
+        MusicManager.shared.forceUpdate()
+    }
+    
+    private func calculateDynamicNotchSize() -> CGSize {
+        NotchOpenLayout.size(for: coordinator.currentView, screenName: screen)
+    }
+
+    func close() {
+        let targetSize = getClosedNotchSize(screen: screen)
+        notchSize = targetSize
+        closedNotchSize = targetSize
+        notchState = .closed
+        resetScrollGestureSuppression()
+        resetAutoCloseSuppression()
+
+        // Set the current view to shelf if it contains files and the user enables openShelfByDefault
+        // Otherwise, if the user has not enabled openLastShelfByDefault, set the view to home
+        if !ShelfStateViewModel.shared.isEmpty && NotchConfiguration.openShelfByDefault && !NotchConfiguration.enableMinimalisticUI {
+            coordinator.currentView = .shelf
+        } else if !coordinator.openLastTabByDefault {
+            coordinator.currentView = .home
+        }
+    }
+
+    func closeForLockScreen() {
+        let targetSize = getClosedNotchSize(screen: screen)
+        withAnimation(.none) {
+            notchSize = targetSize
+            closedNotchSize = targetSize
+            notchState = .closed
+            resetScrollGestureSuppression()
+            resetAutoCloseSuppression()
+        }
+    }
+
+    private var helloCloseScheduled = false
+
+    func closeHello() {
+        guard !helloCloseScheduled else { return }
+        helloCloseScheduled = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { [weak self] in
+            guard let self else { return }
+            self.coordinator.firstLaunch = false
+            withAnimation(self.animationLibrary.animation) {
+                self.close()
+            }
+        }
+    }
+    
+
+}

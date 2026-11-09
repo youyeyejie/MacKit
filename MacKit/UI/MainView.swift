@@ -4,11 +4,13 @@ import ServiceManagement
 enum AppPage: String, CaseIterable, Identifiable {
     case settings = "软件设置", permissions = "权限管理", about = "关于 MacKit"
     case cleaning = "清洁模式", finder = "访达剪切"
+    case atoll = "灵动刘海"
     case wallpaper = "动态壁纸"
     case windowSwitcher = "窗口切换", dockEnhancement = "程序坞增强"
     var id: String { rawValue }
     var symbol: String {
         switch self {
+        case .atoll: "capsule.tophalf.filled"
         case .settings: "gearshape.fill"
         case .permissions: "hand.raised.fill"
         case .about: "info.circle.fill"
@@ -21,6 +23,7 @@ enum AppPage: String, CaseIterable, Identifiable {
     }
     var color: Color {
         switch self {
+        case .atoll: .cyan
         case .settings: .gray
         case .permissions: .indigo
         case .about: .blue
@@ -36,6 +39,7 @@ enum AppPage: String, CaseIterable, Identifiable {
 struct MainView: View {
     @Bindable var model: AppModel
     @State private var showLicenses = false
+    @State private var atollExpanded = false
     var body: some View {
         NavigationSplitView(columnVisibility: Binding(
             get: { model.sidebarVisible ? .all : .detailOnly },
@@ -54,6 +58,21 @@ struct MainView: View {
                     Section {
                         ForEach([AppPage.settings, .permissions, .about]) { item in navigationRow(item) }
                     }
+                    Section {
+                        DisclosureGroup("灵动刘海与锁屏", isExpanded: $atollExpanded) {
+                        ForEach(SettingsTab.allCases.filter { $0 != .about }) { section in
+                            Button {
+                                model.atollSection = section
+                                model.page = .atoll
+                            } label: {
+                                Label(section.title, systemImage: section.systemImage)
+                                    .foregroundStyle(model.page == .atoll && model.atollSection == section ? Color.accentColor : .primary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .contentShape(Rectangle())
+                            }.buttonStyle(.plain).padding(.vertical, 3)
+                        }
+                    }
+                    }
                     Section("工具") {
                         ForEach([AppPage.cleaning, .finder, .windowSwitcher, .dockEnhancement, .wallpaper]) { item in navigationRow(item) }
                     }
@@ -63,6 +82,7 @@ struct MainView: View {
         } detail: {
             Group {
                 switch model.page ?? .cleaning {
+                case .atoll: AtollSettingsPage(section: model.atollSection)
                 case .wallpaper: WallpaperView(service: model.wallpaper)
                 case .settings: settings
                 case .permissions: permissions
@@ -76,6 +96,9 @@ struct MainView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .toolbar(removing: .sidebarToggle)
+        .onChange(of: model.page) { _, page in
+            if page == .atoll { atollExpanded = true }
+        }
         .sheet(isPresented: $showLicenses) { OpenSourceLicensesView() }
     }
 
@@ -137,6 +160,7 @@ struct MainView: View {
                     model.permissions.requestAccessibility()
                 }
             }
+            CalendarPermissionsCard()
             PermissionCard(title: "屏幕录制", subtitle: "用于生成窗口切换和程序坞预览的缩略图。") {
                 StatusPill(text: model.permissions.screenRecording ? "已授权" : "未授权",
                            color: model.permissions.screenRecording ? .green : .orange)

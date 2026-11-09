@@ -1,20 +1,69 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-<key>CFBundleDisplayName</key><string>MacKit</string>
-<key>CFBundleName</key><string>MacKit</string>
-<key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-<key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
-<key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>$(MARKETING_VERSION)</string>
-<key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
-<key>LSMinimumSystemVersion</key><string>$(MACOSX_DEPLOYMENT_TARGET)</string>
-<key>CFBundleURLTypes</key><array><dict>
-<key>CFBundleURLName</key><string>com.mackit.command</string>
-<key>CFBundleURLSchemes</key><array><string>mackit</string></array>
-<key>CFBundleTypeRole</key><string>Editor</string>
-</dict></array>
-<key>LSUIElement</key><true/>
-<key>NSPrincipalClass</key><string>NSApplication</string>
-<key>NSHumanReadableCopyright</key><string>MacKit</string>
-</dict></plist>
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>MacKit</string>
+	<key>CFBundleName</key>
+	<string>MacKit</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.mackit.command</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>mackit</string>
+			</array>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+		</dict>
+	</array>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>MacKit</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>MacKit 使用自动化控制音乐播放器和系统功能。</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>MacKit 使用蓝牙检测设备连接并显示电量。</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>MacKit 在刘海和锁屏组件中显示日程。</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>MacKit 在刘海和锁屏组件中显示日程。</string>
+	<key>NSCameraUsageDescription</key>
+	<string>MacKit 用于显示摄像头使用状态。</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>MacKit 用于显示麦克风使用状态。</string>
+	<key>NSLocationUsageDescription</key>
+	<string>MacKit 使用你的位置查询锁屏天气。</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>MacKit 使用你的位置查询锁屏天气。</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>MacKit accesses desktop files selected for the file shelf.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>MacKit 使用文件托盘读取和保存你选择的文件。</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>MacKit 显示下载进度并访问你选择的下载文件。</string>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>MacKit 用于显示正在播放的媒体信息。</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>MacKit uses screen recording for window previews.</string>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>MacKit 仅在你调整应用音量时，在本机捕获该应用的系统音频以应用音量增益；不保存或上传音频。</string>
+</dict>
+</plist>

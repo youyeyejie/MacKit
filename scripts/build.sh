@@ -20,6 +20,7 @@ HELP
   esac
 done
 cd "${0:A:h:h}"
+scripts/generate_project.sh
 [[ -f MacKit.xcodeproj/project.pbxproj ]] || { print -u2 'Run scripts/generate_project.sh first.'; exit 1; }
 signing=(CODE_SIGNING_ALLOWED=NO)
 if [[ "$mode" == --signed ]]; then
@@ -79,11 +80,20 @@ extension="$PWD/build/WallpaperExtension/DerivedData/Build/Products/$configurati
 mkdir -p "$app_path/Contents/Extensions"
 ditto "$extension" "$app_path/Contents/Extensions/MacKitWallpaper.appex"
 if [[ "$identity" == - ]]; then codesign --force --sign - "$app_path/Contents/Extensions/MacKitWallpaper.appex"; fi
+rm -rf "$app_path/Contents/Frameworks/Sparkle.framework"
+rm -rf "$app_path/Contents/Resources/Licenses"
 mkdir -p "$app_path/Contents/Resources/Licenses"
 ditto LICENSES "$app_path/Contents/Resources/Licenses"
 ditto LICENSE "$app_path/Contents/Resources/Licenses/MacKit-LICENSE.txt"
 ditto THIRD_PARTY_NOTICES.md "$app_path/Contents/Resources/THIRD_PARTY_NOTICES.md"
 rm -rf "$app_path/Contents/Resources/ThirdParty-Licenses"
-codesign --force --options runtime --sign "$identity" "$app_path"
+# Remove the obsolete compatibility probe from incremental build products.
+# The adapter is dynamically loaded from Resources by the upstream Perl bridge.
+# Sign it explicitly with the host identity before sealing the outer application.
+adapter="$app_path/Contents/Resources/MediaRemoteAdapter.framework"
+rm -rf "$adapter"
+ditto MacKit/Features/NotchRuntime/Frameworks/MediaRemoteAdapter.framework "$adapter"
+codesign --force --options runtime --sign "$identity" "$adapter"
+codesign --force --options runtime --entitlements Config/MacKit.entitlements --sign "$identity" "$app_path"
 codesign --verify --deep --strict "$app_path"
 print "Built: $PWD/build/DerivedData/Build/Products/$configuration/MacKit.app"

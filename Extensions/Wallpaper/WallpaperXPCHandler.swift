@@ -134,8 +134,10 @@ final class WallpaperXPCHandler: NSObject, WallpaperExtensionXPCProtocol {
                         for destProp in destMirror.children {
                             if destProp.label == "size", let size = destProp.value as? CGSize {
                                 destSize = size
-                            } else if destProp.label == "scaleFactor", let sf = destProp.value as? CGFloat {
-                                scaleFactor = sf
+                            } else if destProp.label == "scaleFactor" {
+                                if let sf = destProp.value as? CGFloat { scaleFactor = sf }
+                                else if let sf = destProp.value as? Double { scaleFactor = CGFloat(sf) }
+                                else if let sf = destProp.value as? NSNumber { scaleFactor = CGFloat(sf.doubleValue) }
                             } else if destProp.label == "directDisplayID", let did = destProp.value as? UInt32 {
                                 displayID = did
                             }
@@ -300,7 +302,9 @@ final class WallpaperXPCHandler: NSObject, WallpaperExtensionXPCProtocol {
 
         let layerFrame = CGRect(origin: .zero, size: destSize)
         let rootLayer = CALayer()
-        rootLayer.frame = layerFrame
+        rootLayer.anchorPoint = .zero
+        rootLayer.position = .zero
+        rootLayer.bounds = layerFrame
         rootLayer.contentsScale = scaleFactor
         rootLayer.contentsGravity = .resizeAspectFill
         if let cachedStill {

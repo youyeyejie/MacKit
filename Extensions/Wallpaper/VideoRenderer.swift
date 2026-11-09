@@ -65,43 +65,75 @@ final class VideoRenderer: @unchecked Sendable {
 
     /// Diagnostic: number of remaining feed-loop ticks to log after a restart.
     private var feedLogBudget = 0
+    private var feedEpoch: UInt64 = 0
+    private var feedDelayScheduled = false
 
     private let transitionStill = AVSampleBufferDisplayLayer()
     private var hasTransitionFrame = false
     private var transitionID = UUID()
+    private var transitionPixel: CVPixelBuffer?
+    private var transitionFadeRunning = false
+    private var transitionProbeScheduled = false
 
     private func captureTransitionFrame() {
-        guard MacKitRouting.load().duration > 0, !hasTransitionFrame,
-              let pixel = renderer.displayedPixelBuffer() else { return }
-        var image: CGImage?
-        guard VTCreateCGImageFromCVPixelBuffer(pixel, options: nil, imageOut: &image) == noErr, let image,
-              let sample = makeStillSampleBuffer(from: image) else { return }
-        CATransaction.begin(); CATransaction.setDisableActions(true)
+        guard MacKitRouting.load().duration > 0, let pixel = renderer.displayedPixelBuffer() else { return }
+        var format: CMVideoFormatDescription?
+        guard CMVideoFormatDescriptionCreateForImageBuffer(allocator: kCFAllocatorDefault, imageBuffer: pixel, formatDescriptionOut: &format) == noErr, let format else { return }
+        var timing = CMSampleTimingInfo(duration: .invalid, presentationTimeStamp: .zero, decodeTimeStamp: .invalid)
+        var sample: CMSampleBuffer?
+        guard CMSampleBufferCreateReadyWithImageBuffer(allocator: kCFAllocatorDefault, imageBuffer: pixel, formatDescription: format, sampleTiming: &timing, sampleBufferOut: &sample) == noErr, let sample else { return }
         transitionID = UUID()
+        transitionPixel = pixel
+        transitionFadeRunning = false
+        transitionProbeScheduled = false
+        CATransaction.begin(); CATransaction.setDisableActions(true)
         transitionStill.removeAllAnimations()
-        transitionStill.frame = displayLayer.frame
+        transitionStill.flushAndRemoveImage()
+        transitionStill.anchorPoint = .zero
+        transitionStill.position = .zero
+        transitionStill.bounds = displayLayer.bounds
+        transitionStill.contentsScale = displayLayer.contentsScale
+        transitionStill.videoGravity = .resizeAspectFill
         Self.setDisplayImmediately(sample)
         transitionStill.sampleBufferRenderer.enqueue(sample)
-        hasTransitionFrame = true
-        transitionStill.videoGravity = .resizeAspectFill
         transitionStill.opacity = 1
-        CATransaction.commit()
+        hasTransitionFrame = true
+        CATransaction.commit(); CATransaction.flush()
     }
+
     private func finishTransition() {
-        guard hasTransitionFrame else { return }
-        let token = transitionID
-        let duration = MacKitRouting.load().duration
-        CATransaction.begin(); CATransaction.setDisableActions(true)
-        transitionStill.opacity = 0
-        let fade = CABasicAnimation(keyPath: "opacity")
-        fade.fromValue = 1; fade.toValue = 0; fade.duration = duration
-        transitionStill.add(fade, forKey: "mackit-crossfade")
-        CATransaction.commit()
-        queue.asyncAfter(deadline: .now() + duration) { [weak self] in
-            guard let self, self.transitionID == token else { return }
-            self.transitionStill.flushAndRemoveImage()
-            self.hasTransitionFrame = false
-            self.transitionStill.removeAllAnimations()
+        guard hasTransitionFrame, !transitionFadeRunning, !transitionProbeScheduled else { return }
+        transitionProbeScheduled = true
+        waitForTransitionFrame(token: transitionID, attempts: 120)
+    }
+
+    private func waitForTransitionFrame(token: UUID, attempts: Int) {
+        guard isRunning, transitionID == token, hasTransitionFrame else { return }
+        if let shown = renderer.displayedPixelBuffer(), shown !== transitionPixel {
+            transitionProbeScheduled = false
+            transitionFadeRunning = true
+            let duration = max(0, MacKitRouting.load().duration)
+            CATransaction.begin(); CATransaction.setDisableActions(true)
+            transitionStill.opacity = 0
+            let fade = CABasicAnimation(keyPath: "opacity")
+            fade.fromValue = 1; fade.toValue = 0; fade.duration = duration
+            transitionStill.add(fade, forKey: "mackit-crossfade")
+            CATransaction.commit(); CATransaction.flush()
+            queue.asyncAfter(deadline: .now() + duration) { [weak self] in
+                guard let self, self.transitionID == token else { return }
+                self.transitionStill.flushAndRemoveImage()
+                self.transitionPixel = nil
+                self.hasTransitionFrame = false
+                self.transitionFadeRunning = false
+                self.transitionProbeScheduled = false
+                self.transitionStill.removeAllAnimations()
+            }
+        } else if attempts > 0 {
+            queue.asyncAfter(deadline: .now() + 1.0 / 60.0) { [weak self] in self?.waitForTransitionFrame(token: token, attempts: attempts - 1) }
+        } else {
+            transitionProbeScheduled = false
+            // Failed decode: retain the last good frame instead of fading to black.
+            extensionLog("[Transition] Awaiting a new decoded frame; retained the previous image")
         }
     }
 
@@ -126,7 +158,9 @@ final class VideoRenderer: @unchecked Sendable {
 
         let displayLayer = AVSampleBufferDisplayLayer()
         displayLayer.videoGravity = .resizeAspectFill
-        displayLayer.frame = rootLayer.bounds
+        displayLayer.anchorPoint = .zero
+        displayLayer.position = .zero
+        displayLayer.bounds = rootLayer.bounds
         displayLayer.contentsScale = rootLayer.contentsScale
         // Opaque: the per-surface context fix (each Space/lock surface owns its own
         // CAContext) is what stops the black, not this layer's opacity. Leaving the
@@ -298,14 +332,19 @@ final class VideoRenderer: @unchecked Sendable {
     /// resolution. The layer fills the root with `resizeAspectFill`, so re-framing it
     /// to the full bounds is all that's needed. Synchronous, inside an action-free
     /// flushed transaction, like the acquire path's own layer mutations.
+
     func resize(to destSize: CGSize, scale: CGFloat) {
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        displayLayer.frame = CGRect(origin: .zero, size: destSize)
-        displayLayer.contentsScale = scale
-        CATransaction.commit()
-        CATransaction.flush()
-        traceLog("  [resize #\(debugID)] → \(destSize) @\(scale)x")
+        queue.async { [weak self] in
+            guard let self, self.isRunning else { return }
+            CATransaction.begin(); CATransaction.setDisableActions(true)
+            for layer in [self.displayLayer, self.transitionStill] {
+                layer.anchorPoint = .zero
+                layer.position = .zero
+                layer.bounds = CGRect(origin: .zero, size: destSize)
+                layer.contentsScale = scale
+            }
+            CATransaction.commit(); CATransaction.flush()
+        }
     }
 
     /// Replace the loop-boundary variant selector.
@@ -405,11 +444,18 @@ final class VideoRenderer: @unchecked Sendable {
         queue.sync {
             extensionLog("  [stop #\(debugID)] stopping renderer for \(asset.url.lastPathComponent)")
             isRunning = false
+            feedEpoch &+= 1
+            feedDelayScheduled = false
             cancelRamp()
             cancelDeepPauseTimer()
             renderer.stopRequestingMediaData()
             currentReader?.cancelReading()
             nextReader?.cancelReading()
+            currentReader = nil; currentOutput = nil; nextReader = nil; nextOutput = nil
+            if !flushInFlight { renderer.flush(removingDisplayedImage: true) }
+            transitionPixel = nil
+            transitionProbeScheduled = false
+            transitionFadeRunning = false
         }
         transitionStill.flushAndRemoveImage()
         hasTransitionFrame = false
@@ -447,6 +493,7 @@ final class VideoRenderer: @unchecked Sendable {
         isPaused = true
         cancelRamp()
         CMTimebaseSetRate(timebase, rate: 0.0)
+        renderer.stopRequestingMediaData()
         scheduleDeepPause()
     }
 
@@ -459,6 +506,7 @@ final class VideoRenderer: @unchecked Sendable {
             wakeFromDeepPause()
         } else {
             CMTimebaseSetRate(timebase, rate: 1.0)
+            feedFromCurrentReader()
         }
     }
 
@@ -502,7 +550,7 @@ final class VideoRenderer: @unchecked Sendable {
         guard !isPaused else { return }
         isPaused = true
         cancelDeepPauseTimer()
-        ramp(to: 0.0, over: Self.rampDownDuration) { [self] in scheduleDeepPause() }
+        ramp(to: 0.0, over: Self.rampDownDuration) { [self] in renderer.stopRequestingMediaData(); scheduleDeepPause() }
     }
 
     /// Gradually raise the timebase rate to 1.0 from wherever it is now, so reversing
@@ -517,6 +565,7 @@ final class VideoRenderer: @unchecked Sendable {
             wakeFromDeepPause()
             return
         }
+        feedFromCurrentReader()
         ramp(to: 1.0, over: Self.rampUpDuration)
     }
 
@@ -578,7 +627,7 @@ final class VideoRenderer: @unchecked Sendable {
     // decoder. Tearing them down frees memory and lets the system fully idle.
     // On resume we recreate the pipeline from scratch via `recreatePlayback()`.
 
-    private static let deepPauseDelay: TimeInterval = 30
+    private static let deepPauseDelay: TimeInterval = 5
 
     private func scheduleDeepPause() {
         cancelDeepPauseTimer()
@@ -619,6 +668,8 @@ final class VideoRenderer: @unchecked Sendable {
     ///   (possibly corrupt) displayed frame.
     /// Caller restores the timebase rate.
     private func recreatePlayback(seamlessResume: Bool = false) {
+        feedEpoch &+= 1
+        feedDelayScheduled = false
         traceLog("  [recreatePlayback #\(debugID)] seamless=\(seamlessResume) asset=\(asset.url.lastPathComponent)")
         renderer.stopRequestingMediaData()
         currentReader?.cancelReading()
@@ -683,6 +734,8 @@ final class VideoRenderer: @unchecked Sendable {
     /// resume at rate 1. `removingDisplayedImage:false` holds the last frame (no
     /// black) until that first frame lands. Must run on `queue`.
     private func restartWithCurrentAsset() {
+        feedEpoch &+= 1
+        feedDelayScheduled = false
         // Serialize the decoder reset: if a flush is already in flight, just mark that
         // a restart is wanted. When that flush completes it will restart to whatever
         // `asset` is by then (the latest pick) — so rapid switching coalesces to one
@@ -722,7 +775,7 @@ final class VideoRenderer: @unchecked Sendable {
                     restartWithCurrentAsset()
                     return
                 }
-                guard isRunning else { return }
+                guard isRunning else { renderer.flush(removingDisplayedImage: true); return }
                 guard let reader = try? AVAssetReader(asset: asset) else {
                     extensionLog("  [restart #\(debugID)] FAILED to create AVAssetReader for \(asset.url.lastPathComponent)")
                     currentReader = nil
@@ -810,6 +863,8 @@ final class VideoRenderer: @unchecked Sendable {
     /// Swap to the preloaded next reader at a loop boundary.
     /// Uses timing offset for gapless continuation — no flush, no timebase reset.
     private func swapToNextReader() {
+        feedEpoch &+= 1
+        feedDelayScheduled = false
         renderer.stopRequestingMediaData()
 
         // Advance offset so the next loop's DTS/PTS continue the timeline.
@@ -846,7 +901,22 @@ final class VideoRenderer: @unchecked Sendable {
 
     // MARK: - Playback Loop
 
+    private func scheduleBoundedFeed() {
+        guard isRunning, !feedDelayScheduled else { return }
+        feedDelayScheduled = true
+        let token = feedEpoch
+        queue.asyncAfter(deadline: .now() + 0.015) { [weak self] in
+            guard let self, self.isRunning, self.feedEpoch == token else { return }
+            self.feedDelayScheduled = false
+            self.feedFromCurrentReader()
+        }
+    }
+
     private func feedFromCurrentReader() {
+        guard isRunning, !flushInFlight, !isPaused || CMTimebaseGetRate(timebase) > 0 else { return }
+        feedEpoch &+= 1
+        feedDelayScheduled = false
+        finishTransition()
         renderer.requestMediaDataWhenReady(on: queue) { [weak self] in
             guard let self, isRunning else {
                 self?.renderer.stopRequestingMediaData()
@@ -872,6 +942,13 @@ final class VideoRenderer: @unchecked Sendable {
 
             var enqueuedThisTick = 0
             while renderer.isReadyForMoreMediaData {
+                let clock = CMTimebaseGetTime(timebase)
+                let lead = CMTimeSubtract(lastEnqueuedEnd, clock).seconds
+                if enqueuedThisTick >= 6 || (lead.isFinite && lead > 0.20) {
+                    renderer.stopRequestingMediaData()
+                    scheduleBoundedFeed()
+                    return
+                }
                 if let sample = currentOutput?.copyNextSampleBuffer() {
                     let adjusted = offsetTimingForLoop(sample)
                     enqueuedThisTick += 1

@@ -1,101 +1,124 @@
 #!/bin/zsh
-# Generate a standard Xcode project using zsh and macOS system utilities.
+# Regenerate the single MacKit application target with the integrated notch runtime.
 set -eu
-case "${1:-}" in
-  -h|--help|help)
-    cat <<'HELP'
-Usage: scripts/generate_project.sh [--help]
-Generate MacKit.xcodeproj from Swift sources, Config and app resources.
-Uses zsh and macOS system utilities; no Python or third-party dependencies.
-Overwrites project.pbxproj and the shared MacKit scheme.
-HELP
-    exit 0 ;;
-  "") ;;
-  *) print -u2 "Unknown argument: $1"; exit 2 ;;
-esac
-(( $# == 0 )) || { print -u2 'Too many arguments'; exit 2; }
 cd "${0:A:h:h}"
-setopt nullglob
-sources=(MacKit/**/*.swift Packages/MacKitCore/Sources/MacKitCore/*.swift)
-resources=(MacKit/*.xcassets MacKit/Resources/*)
-configs=(Config/*)
-configs=(${configs:#Config/Local.xcconfig})
-files=("${sources[@]}" "${resources[@]}" "${configs[@]}")
-files=("${(@ou)files}")
-(( ${#sources} > 0 )) || { print -u2 'No Swift sources found'; exit 1; }
-# Stable IDs keep generated diffs small.
-id() { local digest; digest=$(print -rn -- "$1" | shasum -a 1); print -rn -- "${(U)digest[1,24]}"; }
-quote() { local value=$1; value=${value//\\/\\\\}; value=${value//\"/\\\"}; print -rn -- "\"$value\""; }
-project_id=$(id project)
-target_id=$(id target:MacKit)
-product_id=$(id product:MacKit)
-shared_id=$(id file:Config/Shared.xcconfig)
-mkdir -p MacKit.xcodeproj/xcshareddata/xcschemes
-work=$(mktemp -d "${TMPDIR:-/tmp}/mackit-project.XXXXXX")
-trap 'rm -rf -- "$work"' EXIT
-{
-  print -r -- '// !$*UTF8*$!'
-  print -r -- '{ archiveVersion = 1; classes = {}; objectVersion = 56; objects = {'
-  for file in "${files[@]}"; do
-    case "$file" in
-      *.swift) kind=sourcecode.swift ;;
-      *.xcassets) kind=folder.assetcatalog ;;
-      *.wav) kind=audio.wav ;;
-      *.xcconfig) kind=text.xcconfig ;;
-      *.plist) kind=text.plist.xml ;;
-      *) kind=file ;;
-    esac
-    print -r -- "$(id file:$file) = {isa = PBXFileReference; lastKnownFileType = $kind; path = $(quote "$file"); sourceTree = SOURCE_ROOT;};"
-  done
-  print -r -- "$product_id = {isa = PBXFileReference; explicitFileType = wrapper.application; path = MacKit.app; sourceTree = BUILT_PRODUCTS_DIR;};"
-  print -r -- "$(id products) = {isa = PBXGroup; name = Products; children = ($product_id,); sourceTree = \"<group>\";};"
-  print -rn -- "$(id mainGroup) = {isa = PBXGroup; children = ("
-  for file in "${files[@]}"; do print -rn -- "$(id file:$file),"; done
-  print -r -- "$(id products),); sourceTree = \"<group>\";};"
-  for scope in project MacKit; do
-    for configuration in Debug Release; do
-      if [[ "$configuration" == Debug ]]; then
-        extra='SWIFT_OPTIMIZATION_LEVEL = "-Onone"; DEBUG_INFORMATION_FORMAT = dwarf; ONLY_ACTIVE_ARCH = YES; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;'
-      else
-        extra='SWIFT_OPTIMIZATION_LEVEL = "-O"; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";'
-      fi
-      if [[ "$scope" == project ]]; then
-        settings='CLANG_ENABLE_MODULES = YES; SDKROOT = macosx;'
-      else
-        settings='PRODUCT_NAME = MacKit; PRODUCT_BUNDLE_IDENTIFIER = com.mackit.app; INFOPLIST_FILE = "Config/MacKit-Info.plist"; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks"; ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;'
-      fi
-      print -r -- "$(id $scope$configuration) = {isa = XCBuildConfiguration; baseConfigurationReference = $shared_id; buildSettings = {$settings $extra}; name = $configuration;};"
-    done
-    print -r -- "$(id ${scope}configs) = {isa = XCConfigurationList; buildConfigurations = ($(id ${scope}Debug),$(id ${scope}Release),); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};"
-  done
-  for file in "${sources[@]}"; do
-    print -r -- "$(id MacKit:$file) = {isa = PBXBuildFile; fileRef = $(id file:$file);};"
-  done
-  print -rn -- "$(id MacKitsources) = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = ("
-  for file in "${sources[@]}"; do print -rn -- "$(id MacKit:$file),"; done
-  print -r -- '); runOnlyForDeploymentPostprocessing = 0;};'
-  print -r -- "$(id MacKitframeworks) = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;};"
-  for file in "${resources[@]}"; do
-    print -r -- "$(id resource:$file) = {isa = PBXBuildFile; fileRef = $(id file:$file);};"
-  done
-  print -rn -- "$(id appResources) = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = ("
-  for file in "${resources[@]}"; do print -rn -- "$(id resource:$file),"; done
-  print -r -- '); runOnlyForDeploymentPostprocessing = 0;};'
-  print -r -- "$target_id = {isa = PBXNativeTarget; buildConfigurationList = $(id MacKitconfigs); buildPhases = ($(id MacKitsources),$(id MacKitframeworks),$(id appResources),); buildRules = (); dependencies = (); name = MacKit; productName = MacKit; productReference = $product_id; productType = \"com.apple.product-type.application\";};"
-  print -r -- "$project_id = {isa = PBXProject; attributes = {LastSwiftUpdateCheck = 2700; LastUpgradeCheck = 2700;}; buildConfigurationList = $(id projectconfigs); compatibilityVersion = \"Xcode 14.0\"; developmentRegion = zh-Hans; hasScannedForEncodings = 0; knownRegions = (en,\"zh-Hans\",Base); mainGroup = $(id mainGroup); productRefGroup = $(id products); projectDirPath = \"\"; projectRoot = \"\"; targets = ($target_id,);};"
-  print -r -- "}; rootObject = $project_id; }"
-} > "$work/project.pbxproj"
-ref="<BuildableReference BuildableIdentifier=\"primary\" BlueprintIdentifier=\"$target_id\" BuildableName=\"MacKit.app\" BlueprintName=\"MacKit\" ReferencedContainer=\"container:MacKit.xcodeproj\"/>"
-cat > "$work/MacKit.xcscheme" <<SCHEME
-<?xml version="1.0" encoding="UTF-8"?>
+case "${1:-}" in
+  -h|--help|help) print 'Usage: scripts/generate_project.sh (requires Python 3 and Xcode)'; exit 0;;
+  '') ;;
+  *) print -u2 "Unknown argument: $1"; exit 2;;
+esac
+python3 - <<'MACKIT_PROJECT_GENERATOR'
+"""Generate one app, one lifecycle, and one settings window from both source trees.
+
+Keep upstream's package graph and synchronized groups, while adding MacKit's
+sources explicitly. No helper Atoll application is launched or embedded.
+"""
+from pathlib import Path
+import hashlib
+import json
+import plistlib
+import subprocess
+
+root = Path.cwd()
+upstream = root / 'MacKit/Features/NotchRuntime'
+project = json.loads(subprocess.check_output([
+    'plutil', '-convert', 'json', '-o', '-',
+    str(root / 'Config/RuntimeProject.pbxproj')]))
+objects = project['objects']
+app_id = 'F54406E62CD4987A00C7AFD9'
+app = objects[app_id]
+project_object = objects[project['rootObject']]
+project_object['targets'] = [app_id]
+project_object['developmentRegion'] = 'zh-Hans'
+project_object['packageReferences'] = [k for k in project_object['packageReferences'] if objects[k].get('repositoryURL') != 'https://github.com/open-meteo/open-meteo']
+project_object['knownRegions'] = ['en', 'zh-Hans', 'Base']
+project_object['attributes'].pop('TargetAttributes', None)
+app['name'] = app['productName'] = 'MacKit'
+objects[app['productReference']]['path'] = 'MacKit.app'
+for obj in objects.values():
+    if 'children' in obj:
+        obj['children'] = [v for v in obj['children'] if v in objects]
+    if obj.get('isa') == 'PBXFileSystemSynchronizedRootGroup' or (
+        obj.get('isa') == 'PBXGroup' and obj.get('path') in ['mediaremote-adapter', 'LottieAnimations']
+    ) or (obj.get('isa') == 'PBXFileReference' and obj.get('path') == 'Frameworks/MediaRemoteAdapter.framework'):
+        obj['path'] = 'MacKit/Features/NotchRuntime/' + obj['path']
+        obj['sourceTree'] = 'SOURCE_ROOT'
+# These two host-owned asset sets must never collide with MacKit's app icon/accent.
+exceptions = objects['7EA69B212F5B100000EB2D16']['membershipExceptions']
+exceptions.extend(['Assets.xcassets/AppIcon.appiconset', 'Assets.xcassets/AccentColor.colorset'])
+# Compile a generated resource catalog containing upstream images only.
+# Asset-catalog nested exclusions aren't respected by actool, so stage a catalog.
+import shutil
+staged = root / 'build/NotchAssets/Notch.xcassets'
+if staged.exists(): shutil.rmtree(staged)
+shutil.copytree(upstream/'Resources/Assets.xcassets', staged)
+for name in ['AppIcon.appiconset', 'AccentColor.colorset']:
+    shutil.rmtree(staged/name, ignore_errors=True)
+exceptions.extend(['Assets.xcassets'])
+# All settings are owned by the same app; preserve Swift 5 semantics upstream.
+for obj in objects.values():
+    if obj.get('isa') == 'XCBuildConfiguration':
+        s = obj['buildSettings']
+        if 'PRODUCT_NAME' in s:
+            s.clear()
+            s.update({
+                'PRODUCT_NAME': 'MacKit', 'PRODUCT_MODULE_NAME': 'MacKit',
+                'PRODUCT_BUNDLE_IDENTIFIER': 'com.mackit.app',
+                'INFOPLIST_FILE': 'Config/MacKit-Info.plist',
+                'GENERATE_INFOPLIST_FILE': 'NO',
+                'CODE_SIGN_ENTITLEMENTS': 'Config/MacKit.entitlements',
+                'CODE_SIGN_STYLE': 'Automatic',
+                'ENABLE_APP_SANDBOX': 'NO', 'ENABLE_HARDENED_RUNTIME': 'YES',
+                'SWIFT_VERSION': '5.0', 'SWIFT_STRICT_CONCURRENCY': 'minimal',
+                'MACOSX_DEPLOYMENT_TARGET': '14.6',
+                'FRAMEWORK_SEARCH_PATHS': ['$(inherited)', '$(PROJECT_DIR)/MacKit/Features/NotchRuntime/Frameworks'],
+                'SYSTEM_FRAMEWORK_SEARCH_PATHS': ['$(SDKROOT)/System/Library/Frameworks', '$(SDKROOT)/System/Library/PrivateFrameworks'],
+                'LD_RUNPATH_SEARCH_PATHS': ['$(inherited)', '@executable_path/../Frameworks'],
+                'ASSETCATALOG_COMPILER_APPICON_NAME': 'AppIcon',
+                'ENABLE_USER_SCRIPT_SANDBOXING': 'NO',
+                'SWIFT_EMIT_LOC_STRINGS': 'YES',
+            })
+        else:
+            s.update({'MACOSX_DEPLOYMENT_TARGET': '14.6', 'SWIFT_VERSION': '5.0',
+                      'SWIFT_STRICT_CONCURRENCY': 'minimal'})
+        obj['baseConfigurationReference'] = hashlib.sha1(b'config:shared').hexdigest()[:24].upper()
+
+def add(name, value):
+    key = hashlib.sha1(name.encode()).hexdigest()[:24].upper()
+    objects[key] = value
+    return key
+config = add('config:shared', {'isa':'PBXFileReference', 'lastKnownFileType':'text.xcconfig',
+                            'path':'Config/Shared.xcconfig', 'sourceTree':'SOURCE_ROOT'})
+children = [config]
+sources = sorted(p for p in (root/'MacKit').rglob('*.swift') if upstream not in p.parents) + sorted((root/'Packages/MacKitCore/Sources/MacKitCore').glob('*.swift'))
+resources = list((root/'MacKit').glob('*.xcassets')) + list((root/'MacKit/Resources').iterdir()) + [staged]
+for path in sources + resources:
+    relative = str(path.relative_to(root))
+    kind = 'sourcecode.swift' if path in sources else ('folder.assetcatalog' if path.suffix == '.xcassets' else 'file')
+    ref = add('host:'+relative, {'isa':'PBXFileReference', 'lastKnownFileType':kind, 'path':relative, 'sourceTree':'SOURCE_ROOT'})
+    children.append(ref)
+    entry = add('hostbuild:'+relative, {'isa':'PBXBuildFile','fileRef':ref})
+    phase = 'F54406E32CD4987A00C7AFD9' if path in sources else 'F54406E52CD4987A00C7AFD9'
+    objects[phase]['files'].append(entry)
+host = add('hostgroup', {'isa':'PBXGroup','name':'MacKit','children':children,'sourceTree':'<group>'})
+objects[project_object['mainGroup']]['children'].insert(0, host)
+output = root/'MacKit.xcodeproj'
+output.mkdir(exist_ok=True)
+(output/'project.pbxproj').write_bytes(plistlib.dumps(project, fmt=plistlib.FMT_XML, sort_keys=False))
+shared = output/'xcshareddata/xcschemes'
+shared.mkdir(parents=True, exist_ok=True)
+ref=f'<BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{app_id}" BuildableName="MacKit.app" BlueprintName="MacKit" ReferencedContainer="container:MacKit.xcodeproj"/>'
+(shared/'MacKit.xcscheme').write_text(f'''<?xml version="1.0" encoding="UTF-8"?>
 <Scheme LastUpgradeVersion="2700" version="1.3">
-<BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES"><BuildActionEntries><BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES">$ref</BuildActionEntry></BuildActionEntries></BuildAction>
-<LaunchAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" launchStyle="0" useCustomWorkingDirectory="NO" ignoresPersistentStateOnLaunch="NO" debugDocumentVersioning="YES" allowLocationSimulation="YES"><BuildableProductRunnable runnableDebuggingMode="0">$ref</BuildableProductRunnable></LaunchAction>
-<ProfileAction buildConfiguration="Release" shouldUseLaunchSchemeArgsEnv="YES" useCustomWorkingDirectory="NO" debugDocumentVersioning="YES"><BuildableProductRunnable runnableDebuggingMode="0">$ref</BuildableProductRunnable></ProfileAction>
+<BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES"><BuildActionEntries><BuildActionEntry buildForTesting="NO" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES">{ref}</BuildActionEntry></BuildActionEntries></BuildAction>
+<LaunchAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" launchStyle="0" useCustomWorkingDirectory="NO"><BuildableProductRunnable runnableDebuggingMode="0">{ref}</BuildableProductRunnable></LaunchAction>
+<ProfileAction buildConfiguration="Release" shouldUseLaunchSchemeArgsEnv="YES" useCustomWorkingDirectory="NO"><BuildableProductRunnable runnableDebuggingMode="0">{ref}</BuildableProductRunnable></ProfileAction>
 <AnalyzeAction buildConfiguration="Debug"/><ArchiveAction buildConfiguration="Release" revealArchiveInOrganizer="YES"/>
-</Scheme>
-SCHEME
-plutil -lint "$work/project.pbxproj" >/dev/null
-mv "$work/project.pbxproj" MacKit.xcodeproj/project.pbxproj
-mv "$work/MacKit.xcscheme" MacKit.xcodeproj/xcshareddata/xcschemes/MacKit.xcscheme
-print "Generated MacKit.xcodeproj: ${#sources} sources, ${#resources} resources"
+</Scheme>''')
+workspace = output/'project.xcworkspace/xcshareddata/swiftpm'
+workspace.mkdir(parents=True, exist_ok=True)
+pins = root/'Config/RuntimePackages.resolved'
+shutil.copy2(pins, workspace/'Package.resolved')
+print('Generated MacKit.xcodeproj from application sources and pinned dependencies.')
+
+MACKIT_PROJECT_GENERATOR

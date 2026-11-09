@@ -6,6 +6,7 @@ import ServiceManagement
 final class AppModel {
     let permissions = PermissionService()
     let shortcuts = ShortcutSettings()
+    var atollSection: SettingsTab = .general
     var sidebarVisible = true
     var page: AppPage? = .cleaning {
         didSet { if let page { history.visit(page) } }
@@ -45,6 +46,7 @@ final class AppModel {
 
     init() {
         cleaning.onActivity = { [weak finderCut, weak windowSwitcher, weak dockEnhancement] active in
+            AtollIntegration.shared.setCleaning(active)
             finderCut?.setSuspended(active)
             windowSwitcher?.setSuspended(active)
             dockEnhancement?.setSuspended(active)

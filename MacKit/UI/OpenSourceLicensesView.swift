@@ -19,9 +19,22 @@ struct OpenSourceLicensesView: View {
                     section("Vorssaint · GPL-3.0-or-later", file: "Vorssaint-GPL-3.0", ext: "txt", subdirectory: "Licenses")
                     Divider()
                     section("Phosphene · MIT License", file: "Phosphene-LICENSE", ext: "txt", subdirectory: "Licenses")
+                    ForEach(additionalLicenses, id: \.path) { url in
+                        Divider()
+                        section(url.deletingPathExtension().lastPathComponent,
+                                file: url.deletingPathExtension().lastPathComponent,
+                                ext: url.pathExtension, subdirectory: "Licenses")
+                    }
                 }.frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled)
             }
         }.padding(24).frame(width: 620, height: 520)
+    }
+    private var additionalLicenses: [URL] {
+        guard let directory = Bundle.main.resourceURL?.appendingPathComponent("Licenses"),
+              let files = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) else { return [] }
+        let shown = Set(["MacKit-LICENSE.txt", "Vorssaint-GPL-3.0.txt", "Phosphene-LICENSE.txt"])
+        return files.filter { $0.pathExtension == "txt" && !shown.contains($0.lastPathComponent) }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
     private func section(_ title: String, file: String, ext: String, subdirectory: String?) -> some View {
         VStack(alignment: .leading, spacing: 10) {

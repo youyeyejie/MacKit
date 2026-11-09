@@ -14,7 +14,11 @@ nonisolated struct DisplayGeometry: Equatable {
         let pixelsWide = CGDisplayPixelsWide(displayID)
         guard bounds.width > 0, bounds.height > 0, pixelsWide > 0 else { return nil }
         size = bounds.size
-        scale = CGFloat(pixelsWide) / bounds.width
+        if let mode = CGDisplayCopyDisplayMode(displayID), mode.width > 0 {
+            scale = CGFloat(mode.pixelWidth) / CGFloat(mode.width)
+        } else {
+            scale = CGFloat(pixelsWide) / bounds.width
+        }
     }
 }
 
@@ -23,7 +27,9 @@ nonisolated struct DisplayGeometry: Equatable {
 func layOutSurface(_ surface: HostedSurface, destSize: CGSize, scaleFactor: CGFloat) {
     CATransaction.begin()
     CATransaction.setDisableActions(true)
-    surface.rootLayer.frame = CGRect(origin: .zero, size: destSize)
+    surface.rootLayer.anchorPoint = .zero
+    surface.rootLayer.position = .zero
+    surface.rootLayer.bounds = CGRect(origin: .zero, size: destSize)
     surface.rootLayer.contentsScale = scaleFactor
     CATransaction.commit()
     CATransaction.flush()
@@ -39,6 +45,11 @@ func layOutSurface(_ surface: HostedSurface, destSize: CGSize, scaleFactor: CGFl
 @discardableResult
 func reconcileSurfaceGeometry(for key: SurfaceKey, because reason: String) -> Bool {
     let registry = SurfaceRegistry.shared
+    // The acquire destination is authoritative. Screen saver / lock hosts can use
+    // a pixel-sized coordinate system even when the desktop uses logical points.
+    if reason == "acquire" || reason == "re-acquire" { return false }
+    let state = PlaybackStore.snapshot
+    if state.screenLocked || state.surfaces[key]?.mode == .idle || state.surfaces[key]?.mode == .locked { return false }
     guard let surface = registry.surface(for: key), !surface.isPreview,
           let displayID = surface.displayID,
           let display = DisplayGeometry(displayID: displayID)

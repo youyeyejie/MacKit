@@ -53,6 +53,10 @@ func loadCachedSnapshotImage(forChoice videoID: String?) -> CGImage? {
 /// `replacing` writes a fresh still even when one of this size exists: the video
 /// behind it changed.
 func writeBMPSnapshot(videoURL: URL, videoID: String? = nil, displayPixelWidth: Int, displayPixelHeight: Int, replacing: Bool = false) async {
+    await BMPWriteGate.shared.enter()
+    defer { Task { await BMPWriteGate.shared.leave() } }
+    guard !Task.isCancelled else { return }
+
     guard let cacheDir = SurfaceRegistry.shared.cacheDirectoryURL else {
         traceLog("  [BMPCache] No cacheDirectoryURL, skipping")
         return
@@ -95,6 +99,8 @@ func writeBMPSnapshot(videoURL: URL, videoID: String? = nil, displayPixelWidth: 
     let asset = AVURLAsset(url: videoURL)
     let generator = AVAssetImageGenerator(asset: asset)
     generator.appliesPreferredTrackTransform = true
+    let posterEdge = CGFloat(min(2560, max(1, max(displayPixelWidth, displayPixelHeight))))
+    generator.maximumSize = CGSize(width: posterEdge, height: posterEdge)
 
     let cgImage: CGImage
     do {
@@ -223,3 +229,19 @@ private func bmpWriteLE16(_ data: inout Data, offset: Int, value: UInt16) {
     data[offset + 1] = UInt8((value >> 8) & 0xFF)
 }
 
+
+// A multi-display acquire can ask for several large posters simultaneously.
+// Decode and bitmap conversion are serialized to bound temporary peak memory.
+private actor BMPWriteGate {
+    static let shared = BMPWriteGate()
+    private var occupied = false
+    private var waiting: [CheckedContinuation<Void, Never>] = []
+    func enter() async {
+        if occupied { await withCheckedContinuation { waiting.append($0) } }
+        else { occupied = true }
+    }
+    func leave() {
+        if waiting.isEmpty { occupied = false }
+        else { waiting.removeFirst().resume() }
+    }
+}

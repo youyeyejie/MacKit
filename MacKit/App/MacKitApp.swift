@@ -29,6 +29,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
             self?.model.windowSwitcher.setSuspended(recording)
             self?.model.dockEnhancement.setSuspended(recording)
         }
+        AtollIntegration.shared.openSettings = { [weak self] in
+            self?.model.page = .atoll
+            self?.showWindow()
+        }
+        AtollIntegration.shared.start(notification)
         NSApp.applicationIconImage = AppBrand.icon
         applyAppearance()
         hotkeys = GlobalHotKeys(show: { [weak self] in self?.showWindow() }, clean: { [weak self] in
@@ -53,6 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
+        AtollIntegration.shared.delegate?.application(application, open: urls.filter(\.isFileURL))
         for url in urls {
             guard let command = AppCommand(url: url) else { continue }
             receivedCommand = true
@@ -107,6 +113,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
 
 
     func applicationDidBecomeActive(_ notification: Notification) {
+        AtollIntegration.shared.delegate?.applicationDidBecomeActive(notification)
         model.permissions.refresh(); model.refreshLogin(); model.finderCut.sync()
         model.windowSwitcher.sync(); model.dockEnhancement.sync()
     }
@@ -164,6 +171,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSM
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationWillTerminate(_ notification: Notification) {
+        AtollIntegration.shared.stop(notification)
         model.wallpaper.stop()
         model.cleaning.onActivity = nil
         model.cleaning.stop(); model.finderCut.stop()
