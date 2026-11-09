@@ -27,7 +27,6 @@ struct GeneralSettings: View {
 
     @Default(.minimumHoverDuration) var minimumHoverDuration
 
-
     @Default(.showOnAllDisplays) var showOnAllDisplays
     @Default(.automaticallySwitchDisplay) var automaticallySwitchDisplay
 
@@ -36,10 +35,8 @@ struct GeneralSettings: View {
     @Default(.externalDisplayStyle) var externalDisplayStyle
     @Default(.hideNonNotchUntilHover) var hideNonNotchUntilHover
 
-
     var body: some View {
         Group {
-
 
             UnifiedSettingsSection {
                 Toggle("启用灵动刘海", isOn: Binding(get: { featureEnabled }, set: { value in
@@ -105,9 +102,7 @@ struct GeneralSettings: View {
             }
             NotchBehaviour()
 
-
         }
-
 
     }
 
@@ -245,7 +240,6 @@ private struct ExternalDisplayIntegrationsSection: View {
     @Default(.brightnessFineStepPercent) var brightnessFineStepPercent
     @ObservedObject private var betterDisplayManager = BetterDisplayManager.shared
     @ObservedObject private var lunarManager = LunarManager.shared
-
 
     private var providerStatusText: String {
         switch thirdPartyDDCProvider {
@@ -397,7 +391,6 @@ struct CalendarSettings: View {
     @Default(.showCalendar) private var enabled
     @Default(.reminderLeadTime) private var lead
     @Default(.reminderSneakPeekDuration) private var reminderDuration
-    @Default(.lockScreenReminderChipStyle) private var reminderChipStyle
     @Default(.reminderPresentationStyle) private var reminderStyle
     @ObservedObject private var calendar = CalendarManager.shared
     var body: some View {
@@ -449,14 +442,9 @@ struct Shelf: View {
         fullDiskAccessPermission.isAuthorized || hasDocumentsAndDownloadsAccess
     }
 
-    private var selectedProvider: QuickShareProvider? {
-        quickShareService.availableProviders.first(where: { $0.id == quickShareProvider })
-    }
-
     init() {
         QuickShareService.shared.ensureDiscovered()
     }
-
 
     var body: some View {
         Group {

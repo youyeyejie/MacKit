@@ -1,51 +1,55 @@
 # Third-Party Notices
 
-## Vorssaint
+MacKit includes adapted third-party code and bundled dependencies. Original copyright notices and license texts are retained in source headers and [LICENSES](LICENSES/). MacKit modifications are Copyright (c) 2026 youyeyejie.
 
-- Source: https://github.com/vorssaint/vorssaint-utils
-- License: GNU GPL version 3 or later (GPL-3.0-or-later); full text: [LICENSES/Vorssaint-GPL-3.0.txt](LICENSES/Vorssaint-GPL-3.0.txt).
-- Copyright: Copyright (C) 2026 Vorssaint.
-- Usage: Window-switching and Dock behavior were implemented after consulting upstream source. To avoid treating potentially substantive adaptations as merely independent design references, the current combined distribution is released under GPL-3.0-or-later.
-- Scope: Window-switching and Dock-related files in `MacKit/Features/WindowTools/` (excluding the independently attributed `MissionControlService.swift`), `DockClickPolicy.swift`, and `DockGeometry.swift`, including click commitment/replay, intent handling, window previews and hover behavior. These files differ from upstream and are not verbatim upstream releases.
-- Modifications (2026-11-04): Integration with MacKit's architecture, native own-window operations, shared window enumeration and snapshots, custom card/UI layout, local preferences, system-app quit protection and lifecycle handling. License/provenance annotations were added on this date.
+## Adapted projects
 
-## Phosphene
+### Atoll / boring.notch
 
-- Source: https://github.com/kageroumado/phosphene
-- License: MIT License
-- Copyright: Copyright (c) 2026 kageroumado
-- Usage: Parts of the native macOS wallpaper extension in `Extensions/Wallpaper/` are adapted from Phosphene, including the private WallpaperExtensionKit protocol bridge, video rendering, snapshots, settings-provider models and playback lifecycle.
-- Modifications: Integrated with MacKit's local-video management UI and build/signing workflow; added lock-screen video routing, transition handling and configurable occlusion detection. Removed Wallpaper Engine integration, optimization-file selection, diagnostic probes, legacy single-video migration and automatic WallpaperAgent restart recovery.
+- **Source:** https://github.com/Ebullioscopic/Atoll
+- **License:** GPL-3.0-or-later; [full text](LICENSES/Atoll-GPL-3.0.txt).
+- **Copyright:** Copyright (C) 2024–2026 Atoll Contributors. Includes code originating from boring.notch; original headers and notices are retained.
+- **Scope:** `MacKit/Features/NotchRuntime/`, host integration in `MacKit/Features/Atoll/`, and associated settings, resources and project-generation code. Includes notch UI, media/lyrics, calendar, file tray, terminal, system indicators and lock-screen components.
+- **Changes:** Integrated into one application lifecycle; replaced standalone settings with MacKit's grouped root/child pages; adapted multi-display behavior, media/lyrics, activity presentation and lock-screen layout. Removed unused upstream features, standalone app/update paths and obsolete settings views.
 
-The complete original copyright and license notice is preserved, unmodified, in [LICENSES/Phosphene-LICENSE.txt](LICENSES/Phosphene-LICENSE.txt). Adapted source files retain attribution comments. This notice does not claim that the adapted extension is wholly original MacKit code.
+### Vorssaint
 
-MacKit does not include Phosphene's Wallpaper Engine renderer, Steam integration, online catalog, telemetry or updater. User-imported wallpaper media are not supplied by MacKit and are not covered by this source-code license.
+- **Source:** https://github.com/vorssaint/vorssaint-utils
+- **License:** GPL-3.0-or-later; [full text](LICENSES/Vorssaint-GPL-3.0.txt).
+- **Copyright:** Copyright (C) 2026 Vorssaint.
+- **Scope:** Window-switching and Dock-related files in `MacKit/Features/WindowTools/`, plus `DockClickPolicy.swift` and `DockGeometry.swift`. Excludes `MissionControlService.swift`, attributed below.
+- **Changes:** Adapted input handling, hover/click behavior, window enumeration, thumbnails and preview controls to MacKit; added native own-window actions, preferences, lifecycle management and system-app quit protection.
 
-Distributed app bundles include this notice as `Contents/Resources/THIRD_PARTY_NOTICES.md`, the original license as `Contents/Resources/Licenses/Phosphene-LICENSE.txt`, and MacKit's own license as `Contents/Resources/Licenses/MacKit-LICENSE.txt`. All are accessible from the app's About page.
+### Phosphene
 
-## Atoll / boring.notch
+- **Source:** https://github.com/kageroumado/phosphene
+- **License:** MIT; [full copyright and permission notice](LICENSES/Phosphene-LICENSE.txt).
+- **Copyright:** Copyright (c) 2026 kageroumado.
+- **Scope:** Native wallpaper extension in `Extensions/Wallpaper/`, including the WallpaperExtensionKit bridge, rendering, snapshots, settings and playback lifecycle.
+- **Changes:** Added local-video management, lock-screen video routing, transitions, occlusion detection and MacKit's build/signing integration. Wallpaper Engine rendering, Steam integration, online catalog, telemetry and updater are not included. User-imported videos are not part of this source-code license.
 
-- Source: https://github.com/Ebullioscopic/Atoll
-- License: GNU GPL version 3 or later (GPL-3.0-or-later); full text: [LICENSES/Atoll-GPL-3.0.txt](LICENSES/Atoll-GPL-3.0.txt).
-- Copyright: Copyright (C) 2024–2026 Atoll Contributors. Portions originate from boring.notch; original source headers and notices are retained.
-- Usage: MacKit includes adapted source for the notch UI and animations, system Now Playing/media/lyrics, calendar events, file tray, interactive terminal, activity/device/power/system-control indicators, and lock-screen media/weather/calendar/focus components. Required artwork, sounds, animations and the MediaRemoteAdapter bridge are also retained. This is a substantial code adaptation, not merely a design reference.
-- Scope: `MacKit/Features/NotchRuntime/`, with host integration in `MacKit/Features/Atoll/`, the main settings UI and project-generation/build scripts. Third-party dependencies are listed separately below; their copyright is not attributed to MacKit or collectively to Atoll.
-- Modifications (2026-11-08–2026-11-09): Integrated into one MacKit application lifecycle and settings window; removed notes, global gesture/shortcut configuration, download monitoring, color picking, screen assistant, clipboard history, statistics, extension/XPC interfaces, user timers and EventKit reminder tasks. Added unified System Settings-style root/child settings pages, persistent page scroll views, shared row/control styles, Chinese settings, fixed configurations, multi-display sizing and lyric placement, playback-driven lyrics and additional lookup, manual lyric reloading, file-tray keyboard handling, terminal settings, shared activity/preview presentation, and lock-screen layout adjustments. The standalone Atoll application, update feed, tests and development previews are not shipped. The runtime and resources were relocated into MacKit; the original standalone project was replaced by a trimmed build template.
+### CloseUp
 
-## CloseUp
+- **Source:** https://github.com/oomol-lab/CloseUp (reference revision `facdb5f23cebe02e3d68b164390c66f82c8c8ba5`).
+- **License:** GPL-3.0; [full text](LICENSES/CloseUp-GPL-3.0.txt).
+- **Scope:** `MacKit/Features/WindowTools/MissionControlService.swift`; adapted from `MissionControlSurface.swift`, `WindowInfo.swift`, `MissionControlEngine.swift` and `AXWindow.swift`.
+- **Changes:** Integrated Mission Control surface detection, CGWindowID hit testing and AX window lookup with MacKit's independent Cmd-Q/W toggle, background input filter, native actions and system-app protection. Includes accessory/own-app handling and action-time window revalidation. CloseUp overlays, updater and application shell are not included.
 
-- Source: https://github.com/oomol-lab/CloseUp
-- Reference revision: `facdb5f23cebe02e3d68b164390c66f82c8c8ba5`.
-- License: GPL-3.0; full text: [LICENSES/CloseUp-GPL-3.0.txt](LICENSES/CloseUp-GPL-3.0.txt).
-- Usage: Mission Control surface identification (Dock layer 18 / WindowManager layer 19), displayed CGWindowID hit testing and AXWindows/AXChildren matching in `MacKit/Features/WindowTools/MissionControlService.swift` are adapted from CloseUp's `MissionControlSurface.swift`, `WindowInfo.swift`, `MissionControlEngine.swift` and `AXWindow.swift`.
-- Modifications (2026-11-09): Integrated with MacKit's independent Cmd-Q/W toggle, background key filter, own-window AppKit actions and protected-system-app policy. No overlays, updater or CloseUp app shell are included. Removed the superseded MissionClose title-matching implementation and its unused test harness. Added normal/accessory-app handling, action-time AX window revalidation, native close/quit requests without toggling the overview, and own-window AppKit operations.
+## Bundled dependencies
 
-## MacKit distribution
+Dependency revisions are pinned in [Config/RuntimePackages.resolved](Config/RuntimePackages.resolved). Each component retains its original copyright and terms in the following bundled license:
 
-The current combined program is distributed under GPL-3.0-or-later. MacKit modifications are Copyright (c) 2026 youyeyejie. The root LICENSE contains GPLv3. The `or later` grant is stated here and in the applicable source notices. Phosphene portions retain the MIT copyright/permission notices above; the MIT license permits their inclusion in a GPL distribution.
+| Component | License / notice |
+| --- | --- |
+| Defaults | [MIT](LICENSES/Defaults-license.txt) |
+| Lottie | [Apache-2.0](LICENSES/lottie-spm-LICENSE.txt) |
+| SkyLightWindow | [MIT](LICENSES/SkyLightWindow-LICENSE.txt) |
+| Swift Collections | [Apache-2.0 with Swift Runtime Library Exception](LICENSES/swift-collections-LICENSE.txt) |
+| SwiftTerm | [MIT](LICENSES/SwiftTerm-LICENSE.txt) |
+| MediaRemoteAdapter | [BSD-3-Clause](LICENSES/MediaRemoteAdapter-BSD-3-Clause.txt) |
 
-Earlier MacKit material already released under MIT remains available under that grant; its original notice is retained in `LICENSES/MacKit-Original-MIT.txt`. This update does not revoke recipients' existing MIT permissions.
+## Distribution
 
-Release binaries must be accompanied by equivalent access to their corresponding complete source, including these notices, third-party source modifications and the build/signing scripts. A generic link to a changing main branch is not a substitute for an exact release source snapshot. Do not distribute private signing keys; they are not part of the source package.
+The combined MacKit program is distributed under GPL-3.0-or-later; see [LICENSE](LICENSE). Third-party portions retain their original terms and attribution. Earlier MacKit code released under MIT retains that grant; see [the original notice](LICENSES/MacKit-Original-MIT.txt). Source-code licenses do not grant trademark rights.
 
-Bundled license copies and a source-code link are exposed through About → Open Source Licenses. No statement here guarantees the absence of disputes or substitutes for review of actual release artifacts and source availability.
+Release distributions include this document and the license texts in `Contents/Resources/`, accessible from About → Open Source Licenses. Provide access to the corresponding complete source for the exact release, including modifications and build scripts. Local signing keys and certificates are not included.
