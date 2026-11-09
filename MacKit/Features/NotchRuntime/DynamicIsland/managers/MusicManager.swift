@@ -599,6 +599,7 @@ class MusicManager: ObservableObject {
     }
     
     public func destroy() {
+        sessionClearTask?.cancel()
         lyricsRetryTask?.cancel()
         debounceIdleTask?.cancel()
         lyricsFetchTask?.cancel()
@@ -635,6 +636,14 @@ class MusicManager: ObservableObject {
 
     @MainActor
     private func applyPlayState(_ state: Bool, animation: Animation?) {
+        if !state && isPlaying {
+            elapsedTime = estimatedPlaybackPosition()
+            timestampDate = Date()
+            playbackRate = 0
+        } else if state && !isPlaying {
+            timestampDate = Date()
+            if playbackRate <= 0 { playbackRate = 1 }
+        }
         if let animation {
             var transaction = Transaction()
             transaction.animation = animation
@@ -649,9 +658,65 @@ class MusicManager: ObservableObject {
     }
 
     // MARK: - Update Methods
+    private var sessionClearTask: Task<Void, Never>?
+
     @MainActor
-    private func updateFromPlaybackState(_ state: PlaybackState) {
+    private func updateFromPlaybackState(_ receivedState: PlaybackState) {
+        var state = receivedState
         // Check for playback state changes (playing/paused)
+        if state.bundleIdentifier.isEmpty && state.title.isEmpty && state.artist.isEmpty {
+            debounceIdleTask?.cancel()
+            debounceIdleTask = nil
+            lyricsFetchTask?.cancel()
+            lyricsFetchTask = nil
+            lyricsFetchKey = nil
+            lyricsRetryTask?.cancel()
+            lyricsRetryTask = nil
+            stopLyricSync()
+            activeLyricsKey = nil
+            guard sessionClearTask == nil else { return }
+            let frozenPosition = estimatedPlaybackPosition()
+            elapsedTime = frozenPosition
+            playbackRate = 0
+            timestampDate = Date()
+            withAnimation(.smooth(duration: 0.3)) {
+                isPlaying = false
+                isPlayerIdle = true
+            }
+            // Keep the outgoing frame/lyric alive until the close animation ends.
+            sessionClearTask = Task { @MainActor [weak self] in
+                do { try await Task.sleep(for: .milliseconds(350)) } catch { return }
+                guard let self, !Task.isCancelled else { return }
+                withAnimation(.smooth(duration: 0.2)) {
+                    self.lyricsReadyForCurrentTrack = false
+                    self.currentLyrics = ""
+                    self.syncedLyrics = []
+                    self.songTitle = ""
+                    self.artistName = ""
+                    self.album = ""
+                    self.bundleIdentifier = nil
+                    self.elapsedTime = 0
+                    self.songDuration = 0
+                    self.lastArtworkTitle = ""
+                    self.lastArtworkArtist = ""
+                    self.lastArtworkBundleIdentifier = nil
+                }
+                self.sessionClearTask = nil
+            }
+            return
+        }
+        sessionClearTask?.cancel()
+        sessionClearTask = nil
+        if self.isPlaying && !state.isPlaying {
+            state.currentTime = max(state.currentTime, estimatedPlaybackPosition())
+            state.lastUpdated = Date()
+        }
+        // Apply the clock atomically before views observe the playing-state flip.
+        if state.isPlaying != self.isPlaying {
+            elapsedTime = state.currentTime
+            playbackRate = state.playbackRate
+            timestampDate = state.lastUpdated
+        }
         let eventIsPlaying = state.isPlaying
         let expectedState = pendingOptimisticPlayState
         pendingOptimisticPlayState = nil
@@ -1131,6 +1196,7 @@ class MusicManager: ObservableObject {
     }
 
     func shutdown() {
+        sessionClearTask?.cancel()
         lyricsFetchTask?.cancel()
         lyricsRetryTask?.cancel()
         stopLyricSync()

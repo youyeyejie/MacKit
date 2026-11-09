@@ -59,6 +59,7 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
     private var refreshingSnapshot = false
     private var startingStream = false
     private var stopped = false
+    private var terminatedSources: Set<String> = []
     private var lastReceivedAt = Date.distantPast
 
     // MARK: - Initialization
@@ -182,6 +183,23 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
 
     @MainActor private func installRecoveryObservers() {
         guard refreshTask == nil else { return }
+        let workspace = NSWorkspace.shared.notificationCenter
+        sessionObservers.append(workspace.addObserver(forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main) { [weak self] note in
+            guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                  let id = app.bundleIdentifier else { return }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.terminatedSources.insert(id)
+                guard self.playbackState.bundleIdentifier == id else { return }
+                self.playbackState = PlaybackState(bundleIdentifier: "", title: "", artist: "", album: "")
+                self.lastReceivedAt = Date()
+            }
+        })
+        sessionObservers.append(workspace.addObserver(forName: NSWorkspace.didLaunchApplicationNotification, object: nil, queue: .main) { [weak self] note in
+            guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                  let id = app.bundleIdentifier else { return }
+            Task { @MainActor [weak self] in self?.terminatedSources.remove(id) }
+        })
         for name in [NSWorkspace.didWakeNotification, NSWorkspace.sessionDidBecomeActiveNotification] {
             let token = NSWorkspace.shared.notificationCenter.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 Task { @MainActor [weak self] in
@@ -248,6 +266,9 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
         let payload = update.payload
         let diff = update.diff ?? false
         let source = payload.parentApplicationBundleIdentifier ?? payload.bundleIdentifier
+        if let source, terminatedSources.contains(source) { return }
+        // Late diffs without an owner must not resurrect a terminated session.
+        if (source ?? "").isEmpty && playbackState.bundleIdentifier.isEmpty { return }
         let changedSource = source != nil && source != playbackState.bundleIdentifier
         // Full snapshots can omit metadata during play/pause transitions too.
         // Preserve omitted fields for the same source instead of briefly publishing

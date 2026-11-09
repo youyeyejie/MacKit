@@ -26,7 +26,9 @@ struct TimedLyricLine: View {
             Text(text).font(.system(size: NSFont.preferredFont(forTextStyle: .body).pointSize * textScale)).foregroundStyle(foreground)
                 .lineLimit(1).fixedSize(horizontal: true, vertical: false)
                 .offset(x: -max(0, measuredWidth - width) * fraction)
+                .animation(nil, value: fraction)
                 .frame(width: max(0, width), alignment: measuredWidth > width ? .leading : .center).clipped()
+                .animation(nil, value: text)
         }.frame(height: NSFont.preferredFont(forTextStyle: .body).pointSize * 1.4 * textScale)
     }
 
