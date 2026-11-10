@@ -163,7 +163,7 @@ struct MainView: View {
             }
         }.padding(.top, 40)
             .modifier(SidebarGlassSurface())
-            .padding(8)
+            .padding(AppStyle.sidebarInset)
     }
 
     private func navigationRow(_ item: AppPage) -> some View {
@@ -250,7 +250,7 @@ struct MainView: View {
                 .background(SettingsPalette.group, in: RoundedRectangle(cornerRadius: 12))
             SettingsRows(title: "软件信息") {
                     SettingsRow(title: "软件版本") {
-                        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.11.1"
+                        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.11.2"
                         Link("v" + version, destination: URL(string: "https://github.com/youyeyejie/MacKit/releases/tag/v" + version)!)
                     }
                     Divider()

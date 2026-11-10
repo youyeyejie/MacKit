@@ -33,7 +33,6 @@ struct LockScreenWeatherWidget: View {
 	@Default(.lockScreenShowCalendarEvent) private var lockScreenShowCalendarEvent
 	@Default(.lockScreenShowCalendarEventEntireDuration) private var lockScreenShowCalendarEventEntireDuration
 	@Default(.lockScreenShowCalendarTimeRemaining) private var lockScreenShowCalendarTimeRemaining
-	@Default(.lockScreenShowCalendarStartTimeAfterBegins) private var lockScreenShowCalendarStartTimeAfterBegins
 	@Default(.lockScreenCalendarEventLookaheadWindow) private var lockScreenCalendarEventLookaheadWindow
 	@Default(.lockScreenWeatherWidgetRowOrder) private var lockScreenWeatherWidgetRowOrder
 	@Default(.lockScreenCalendarSelectionMode) private var lockScreenCalendarSelectionMode
@@ -739,12 +738,12 @@ struct LockScreenWeatherWidget: View {
 		let timeString = event.start.formatted(date: .omitted, time: .shortened)
 
 		if event.start <= now && event.end >= now {
-			let leading = lockScreenShowCalendarStartTimeAfterBegins ? "\(timeString) • " : ""
+			let leading = "\(timeString) • "
 			let suffix: String
 			if lockScreenShowCalendarTimeRemaining {
 				let secondsLeft = event.end.timeIntervalSince(now)
 				let minutesLeft = max(0, Int(ceil(secondsLeft / 60.0)))
-                suffix = " • \(String(format: String(localized: "%@ left"), countdownText(fromMinutes: minutesLeft)))"
+                suffix = " • \(countdownText(fromMinutes: minutesLeft)) left"
             } else {
 				suffix = ""
 			}
@@ -757,7 +756,7 @@ struct LockScreenWeatherWidget: View {
 
 		let secondsUntilStart = event.start.timeIntervalSince(now)
 		let totalMinutes = max(0, Int(ceil(secondsUntilStart / 60.0)))
-        return "\(timeString) • \(event.title) • \(String(format: String(localized: "in %@"), (countdownText(fromMinutes: totalMinutes))))"
+        return "\(timeString) • \(event.title) • in \(countdownText(fromMinutes: totalMinutes))"
 	}
 
 	private func countdownText(fromMinutes minutes: Int) -> String {
@@ -765,9 +764,9 @@ struct LockScreenWeatherWidget: View {
 			return "\(minutes)m"
 		}
 
-        let hours = String(format: String(localized: "%lldh"), minutes / 60)
+        let hours = "\(minutes / 60)h"
 		let mins = minutes % 60
-        let minStr = String(format: String(localized: "%lldm"), minutes % 60)
+        let minStr = "\(minutes % 60)m"
 		if mins == 0 {
 			return "\(hours)"
 		}

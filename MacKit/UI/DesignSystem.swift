@@ -5,7 +5,7 @@ import SwiftUI
 enum SettingsPalette {
     static let canvas = adaptive(light: 0xF5F5F5, dark: 0x202124)
     static let group = adaptive(light: 0xFFFFFF, dark: 0x27282D)
-    static let sidebar = adaptive(light: 0xE8E8EC, dark: 0x29292D)
+    static let sidebar = adaptive(light: 0xFAFAFA, dark: 0x292A2E)
     static let separator = adaptive(light: 0xE1E1E3, dark: 0x37383D)
     private static func adaptive(light: Int, dark: Int) -> Color {
         Color(nsColor: NSColor(name: nil) { appearance in
@@ -20,6 +20,8 @@ enum SettingsPalette {
 /// Shared typography and spacing for every main-panel page.
 enum AppStyle {
     static let windowRadius: CGFloat = 20
+    static let sidebarInset: CGFloat = 8
+    static var sidebarRadius: CGFloat { windowRadius - sidebarInset }
     static let sliderWidth: CGFloat = 170
     // Four ideographs plus native popup-button arrows and horizontal insets.
     static let pickerMinimumWidth: CGFloat = ceil(("四个汉字" as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 13)]).width) + 32
@@ -181,17 +183,13 @@ private struct SidebarBackdrop: NSViewRepresentable {
 }
 
 struct SidebarGlassSurface: ViewModifier {
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @ViewBuilder func body(content: Content) -> some View {
-        if reduceTransparency {
-            content.background(SettingsPalette.sidebar, in: RoundedRectangle(cornerRadius: AppStyle.windowRadius))
-        } else if #available(macOS 26.0, *) {
-            content
-                .background(SidebarBackdrop().clipShape(RoundedRectangle(cornerRadius: AppStyle.windowRadius)))
-                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: AppStyle.windowRadius))
-        } else {
-            content.background(SidebarBackdrop().clipShape(RoundedRectangle(cornerRadius: AppStyle.windowRadius)))
-        }
+    func body(content: Content) -> some View {
+        content
+            .background(SettingsPalette.sidebar, in: RoundedRectangle(cornerRadius: AppStyle.sidebarRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: AppStyle.sidebarRadius, style: .continuous)
+                    .strokeBorder(.white.opacity(0.3), lineWidth: 0.5)
+            }
     }
 }
 

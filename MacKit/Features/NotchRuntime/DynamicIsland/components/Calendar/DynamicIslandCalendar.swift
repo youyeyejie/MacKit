@@ -175,9 +175,10 @@ struct WheelPicker: View {
 
     private func dateToString(for date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "E"
-        return formatter.string(from: date)
+        formatter.dateFormat = "EEE"
+        return formatter.string(from: date).replacingOccurrences(of: "星期", with: "周")
     }
+
 }
 
 struct CalendarView: View {
@@ -189,36 +190,62 @@ struct CalendarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(alignment: .top, spacing: 8) {
-                VStack(alignment: .leading) {
-                    Text(selectedDate.formatted(.dateTime.month(.abbreviated)))
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
-                    Text(selectedDate.formatted(.dateTime.year()))
-                        .font(.title3)
-                        .fontWeight(.light)
-                        .foregroundColor(Color(white: 0.65))
+            ZStack(alignment: .topLeading) {
+                HStack(spacing: 6) {
+                    Text(selectedDate.formatted(.dateTime.year().month().day()))
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .layoutPriority(1)
+                    Text(selectedDate.formatted(.dateTime.weekday(.abbreviated))
+                        .replacingOccurrences(of: "星期", with: "周"))
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color(white: 0.65))
+                    Spacer(minLength: 0)
                 }
+                .frame(height: 26)
+                .opacity(timelineVisible ? 0 : 1)
+                .offset(y: timelineVisible ? -8 : 0)
+                .allowsHitTesting(false)
 
-                ZStack(alignment: .top) {
-                    WheelPicker(selectedDate: $selectedDate, config: Config())
-                    HStack(alignment: .top) {
-                        LinearGradient(
-                            colors: [Color.black, .clear], startPoint: .leading, endPoint: .trailing
-                        )
-                        .frame(width: 20)
-                        Spacer()
-                        LinearGradient(
-                            colors: [.clear, Color.black], startPoint: .leading, endPoint: .trailing
-                        )
-                        .frame(width: 20)
+                HStack(alignment: .top, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(selectedDate.formatted(.dateTime.month(.abbreviated)))
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(.white)
+                        Text(selectedDate.formatted(.dateTime.year()))
+                            .font(.title3.weight(.light))
+                            .foregroundStyle(Color(white: 0.65))
                     }
-                }
-            }
-            .frame(height: timelineVisible ? 64 : 10, alignment: .top)
-            .opacity(timelineVisible ? 1 : 0).clipped()
+                    .padding(.top, 4)
 
+                    GeometryReader { geometry in
+                        ZStack {
+                            WheelPicker(selectedDate: $selectedDate, config: Config())
+                                .frame(width: geometry.size.width, height: 58)
+                                .mask(alignment: .center) {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .frame(width: timelineVisible ? geometry.size.width : 40, height: 58)
+                                }
+                            HStack {
+                                LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing).frame(width: 20)
+                                Spacer()
+                                LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing).frame(width: 20)
+                            }.allowsHitTesting(false)
+                        }
+                        .offset(x: timelineVisible ? 0 : -(geometry.size.width - 40) / 2)
+                    }
+                    .frame(height: 58)
+                }
+                .frame(height: 64, alignment: .top)
+                .opacity(timelineVisible ? 1 : 0)
+                .offset(y: timelineVisible ? 0 : -12)
+                .allowsHitTesting(timelineVisible)
+            }
+            .frame(height: timelineVisible ? 64 : 26, alignment: .top)
+            .clipped()
+            .contentShape(Rectangle())
+            .padding(.bottom, 4)
 
             let filteredEvents = EventListView.filteredEvents(
                 events: calendarManager.events,
@@ -226,7 +253,7 @@ struct CalendarView: View {
             )
             if filteredEvents.isEmpty {
                 EmptyEventsView(selectedDate: selectedDate)
-                Spacer(minLength: 0)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else {
                 EventListView(events: calendarManager.events)
             }
@@ -242,10 +269,10 @@ struct CalendarView: View {
         .onContinuousHover { phase in
             let visible: Bool
             switch phase {
-            case .active(let point): visible = point.y < (timelineVisible ? 64 : 24)
+            case .active(let point): visible = point.y < (timelineVisible ? 72 : 30)
             case .ended: visible = false
             }
-            if timelineVisible != visible { withAnimation(.smooth(duration: 0.25)) { timelineVisible = visible } }
+            if timelineVisible != visible { withAnimation(.smooth(duration: 0.35)) { timelineVisible = visible } }
         }
         .onChange(of: vm.notchState) { _, _ in
             Task {

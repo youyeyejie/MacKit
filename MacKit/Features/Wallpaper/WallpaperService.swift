@@ -105,7 +105,7 @@ final class WallpaperService {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = "删除“\(video.name)”？"
-        alert.informativeText = "只将 MacKit 导入的副本移到废纸篓，原文件不变。正在使用此视频时，建议先在系统墙纸中切换到其他素材。"
+        alert.informativeText = "是否确认将 MacKit 导入的副本移到废纸？"
         alert.addButton(withTitle: "取消")
         alert.addButton(withTitle: "删除副本").hasDestructiveAction = true
         guard alert.runModal() == .alertSecondButtonReturn else { return }

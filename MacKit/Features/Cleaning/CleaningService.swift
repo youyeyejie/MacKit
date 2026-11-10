@@ -77,6 +77,7 @@ final class CleaningService: FeatureModule {
         let primary = NSScreen.screens.first(where: isBuiltin) ?? NSScreen.main
         for screen in NSScreen.screens {
             let full = screen == primary
+            if !full && AtollIntegration.shared.showsCleaningIndicator(on: screen) { continue }
             let frame = full ? screen.frame : NSRect(x: screen.frame.midX - 200, y: screen.frame.maxY - 210, width: 400, height: 192)
             let panel = NSPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
             panel.level = .screenSaver

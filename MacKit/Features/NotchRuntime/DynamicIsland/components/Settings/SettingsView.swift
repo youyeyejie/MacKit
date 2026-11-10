@@ -72,6 +72,8 @@ struct GeneralSettings: View {
                 Text("通用")
             }
 
+            NotchBehaviour()
+
             UnifiedSettingsSection("外观") {
                 let minimum = builtinClosedMinimumWidth()
                 CompactSettingsSlider(value: Binding(get: { max(minimum, builtinWidth) }, set: { builtinWidth = $0 }), in: minimum...max(400, minimum + 200), step: 4, valueText: "\(Int(max(minimum, builtinWidth))) pt") {
@@ -100,8 +102,6 @@ struct GeneralSettings: View {
                 NotificationCenter.default.post(name: Notification.Name.notchHeightChanged, object: nil)
             }
             }
-            NotchBehaviour()
-
         }
 
     }
@@ -115,7 +115,6 @@ struct GeneralSettings: View {
             Defaults.Toggle(key: .openNotchOnHover) {
                 Text("悬停时展开刘海")
             }
-            Toggle("记住上次标签页", isOn: $coordinator.openLastTabByDefault)
             if openNotchOnHover {
                 CompactSettingsSlider(value: $minimumHoverDuration, in: 0...1, step: 0.1,
                                       valueText: String(format: "%.1f 秒", minimumHoverDuration)) { Text("悬停延迟") }
@@ -123,6 +122,7 @@ struct GeneralSettings: View {
                     NotificationCenter.default.post(name: Notification.Name.notchHeightChanged, object: nil)
                 }
             }
+            Toggle("记住上次标签页", isOn: $coordinator.openLastTabByDefault)
             Defaults.Toggle(key: .hideNonNotchUntilHover) {
                 SettingsDescription(title: "在非刘海显示器上悬停时显示", subtitle: "启用后，外接显示器上的刘海会隐藏，指针悬停时显示。")
             }
@@ -135,14 +135,14 @@ struct GeneralSettings: View {
 struct Charge: View {
     var body: some View {
         Group {
-            UnifiedSettingsSection("电池提示") {
-                Defaults.Toggle(key: .showPowerStatusNotifications) { Text("显示电源状态提示") }
+            UnifiedSettingsSection("电池") {
+                Defaults.Toggle(key: .showPowerStatusNotifications) { Text("启用电源状态提示") }
                     .onReceive(Defaults.publisher(.showPowerStatusNotifications, options: [])) { change in if change.newValue { DynamicIslandViewCoordinator.shared.previewSetting("正在充电", symbol: "battery.100percent.bolt", circular: false) } }
-                Defaults.Toggle(key: .showChargingBatteryHUD) { Text("充电提示") }
+                Defaults.Toggle(key: .showChargingBatteryHUD) { Text("启用充电提示") }
                     .onReceive(Defaults.publisher(.showChargingBatteryHUD, options: [])) { change in if change.newValue { DynamicIslandViewCoordinator.shared.previewSetting("正在充电", symbol: "battery.100percent.bolt", circular: false) } }
-                Defaults.Toggle(key: .showLowBatteryHUD) { Text("低电量提示") }
+                Defaults.Toggle(key: .showLowBatteryHUD) { Text("启用低电量提示") }
                     .onReceive(Defaults.publisher(.showLowBatteryHUD, options: [])) { change in if change.newValue { DynamicIslandViewCoordinator.shared.previewSetting("电量不足 20%", symbol: "battery.25percent", circular: false) } }
-                Defaults.Toggle(key: .showFullBatteryHUD) { Text("充满电提示") }
+                Defaults.Toggle(key: .showFullBatteryHUD) { Text("启用充满电提示") }
                     .onReceive(Defaults.publisher(.showFullBatteryHUD, options: [])) { change in if change.newValue { DynamicIslandViewCoordinator.shared.previewSetting("已充满", symbol: "battery.100percent", circular: false) } }
             }
         }
@@ -163,28 +163,27 @@ private struct HUDAndOSDSettingsView: View {
                 SettingsRow(title: "启用系统控制") {
                     Toggle("启用系统控制", isOn: Binding(get: { enabled }, set: setEnabled)).labelsHidden().toggleStyle(.switch).controlSize(.small)
                 }
-                Divider(); option("音量提示", key: .enableVolumeHUD)
-                Divider(); option("亮度提示", key: .enableBrightnessHUD)
-                Divider(); option("键盘背光提示", key: .enableKeyboardBacklightHUD)
+                Divider(); option("启用音量提示", key: .enableVolumeHUD)
+                Divider(); option("启用亮度提示", key: .enableBrightnessHUD)
+                Divider(); option("启用键盘背光提示", key: .enableKeyboardBacklightHUD)
             }
-            SettingsRows(title: "提示样式") {
+            SettingsRows(title: "外观") {
                 SettingsRow(title: "样式") {
                     Picker("样式", selection: Binding(get: { style }, set: setStyle)) {
-                        Text("刘海").tag("notch"); Text("垂直条").tag("vertical")
+                        Text("刘海").tag("notch"); Text("侧边").tag("vertical")
                     }.frame(minWidth: AppStyle.pickerMinimumWidth).labelsHidden().pickerStyle(.menu)
                 }
                 if style == "vertical" {
-                    Divider(); option("显示数值", key: .verticalHUDShowValue)
-                    Divider(); option("鼠标交互", key: .verticalHUDInteractive)
-                    Divider(); option("使用强调色", key: .verticalHUDUseAccentColor)
+                    Divider(); option("启用鼠标交互", key: .verticalHUDInteractive)
+                    Divider(); option("显示百分比", key: .verticalHUDShowValue)
+                    Divider(); option("指示器使用强调色", key: .verticalHUDUseAccentColor)
                 } else {
                     Divider()
                     SettingsRow(title: "提示布局") {
-                        Picker("提示布局", selection: $inlineLayout) { Text("内嵌").tag(true); Text("展开").tag(false) }.frame(minWidth: AppStyle.pickerMinimumWidth)
+                        Picker("提示布局", selection: $inlineLayout) { Text("内嵌").tag(true); Text("横幅").tag(false) }.frame(minWidth: AppStyle.pickerMinimumWidth)
                             .labelsHidden().pickerStyle(.menu)
                             .onChange(of: inlineLayout) { _, _ in DynamicIslandViewCoordinator.shared.previewSetting("音量", symbol: "speaker.wave.2.fill", type: .volume) }
                     }
-                    Divider(); option("音量颜色提示", key: .useColorCodedVolumeDisplay)
                     Divider()
                     SettingsRow(title: "进度条样式") {
                         Picker("进度条样式", selection: $progressStyle) {
@@ -194,6 +193,7 @@ private struct HUDAndOSDSettingsView: View {
                         }.frame(minWidth: AppStyle.pickerMinimumWidth).labelsHidden().pickerStyle(.menu)
                     }
                     Divider(); option("显示百分比", key: .showProgressPercentages)
+                    Divider(); option("启用音量颜色提示", key: .useColorCodedVolumeDisplay)
                     Divider(); option("指示器使用强调色", key: .systemEventIndicatorUseAccent)
                 }
             }
@@ -354,8 +354,8 @@ private struct DevicesSettingsView: View {
     @Default(.useCircularBluetoothBatteryIndicator) private var circular
     var body: some View {
         Group {
-            UnifiedSettingsSection("蓝牙音频设备") {
-                Defaults.Toggle(key: .showBluetoothDeviceConnections) { Text("显示蓝牙设备连接提示") }
+            UnifiedSettingsSection("蓝牙设备") {
+                Defaults.Toggle(key: .showBluetoothDeviceConnections) { Text("启用蓝牙设备连接提示") }
                     .onReceive(Defaults.publisher(.showBluetoothDeviceConnections, options: [])) { change in if change.newValue { DynamicIslandViewCoordinator.shared.previewSetting("蓝牙耳机", symbol: "headphones", circular: Defaults[.useCircularBluetoothBatteryIndicator]) } }
                 SettingsRow(title: "电量指示器") { Picker("电量指示器", selection: $circular) {
                     Text("内嵌").tag(false)
@@ -376,12 +376,16 @@ struct Media: View {
             UnifiedSettingsSection("媒体控制") {
                 Defaults.Toggle(key: .showStandardMediaControls) { Text("启用媒体控制") }
                 Defaults.Toggle(key: .autoHideInactiveNotchMediaPlayer) { Text("自动隐藏未播放媒体的面板") }
-                CompactSettingsSlider(value: Binding(get: { Self.hideDelays.firstIndex(of: pausedMediaHideDelay).map(Double.init) ?? 2 }, set: { pausedMediaHideDelay = Self.hideDelays[Int($0.rounded())] }), in: 0...8, step: 1, valueText: pausedMediaHideDelay < 0 ? "一直保留" : "\(Int(pausedMediaHideDelay)) 秒", uniform: false) {
-                    Text("暂停时收回")
+                CompactSettingsSlider(value: Binding(get: { Self.hideDelays.firstIndex(of: pausedMediaHideDelay).map(Double.init) ?? 2 }, set: { pausedMediaHideDelay = Self.hideDelays[Int($0.rounded())] }), in: 0...8, step: 1, valueText: pausedMediaHideDelay < 0 ? "不收回" : "\(Int(pausedMediaHideDelay)) 秒", uniform: false) {
+                    Text("暂停时收回媒体面板")
                 }
-                Defaults.Toggle(key: .hideLyricsWhenPaused) { Text("暂停时收回歌词") }
+                Defaults.Toggle(key: .hideLyricsWhenPaused) {
+                        SettingsDescription(title: "暂停时收回歌词横幅", subtitle: "设置暂停时不收回媒体面板时，开启此选项可收回歌词横幅。")
+                    }
                     .disabled(pausedMediaHideDelay >= 0)
-                Defaults.Toggle(key: .showLyricsBelowBuiltinNotch) { Text("在常驻灵动岛显示歌词") }
+                Defaults.Toggle(key: .showLyricsBelowBuiltinNotch) {
+                        SettingsDescription(title: "在常驻灵动岛显示歌词", subtitle: "开启后若在外接显示器上使用灵动岛，则在外接显示器上显示歌词；否则在内建显示器上显示歌词横幅。")
+                    }
             }
         }
     }
@@ -395,7 +399,10 @@ struct CalendarSettings: View {
     @ObservedObject private var calendar = CalendarManager.shared
     var body: some View {
         Group {
-            UnifiedSettingsSection("日历") { Toggle("启用日历", isOn: $enabled) }
+            UnifiedSettingsSection("日历与提醒") {
+                Toggle("启用日历", isOn: $enabled)
+                Defaults.Toggle(key: .enableReminderLiveActivity) { Text("启用日程提醒") }
+            }
             if enabled {
                 UnifiedSettingsSection("日历列表") {
                     ForEach(calendar.allCalendars, id: \.id) { item in
@@ -410,13 +417,12 @@ struct CalendarSettings: View {
                         }
                     }
                 }
-                UnifiedSettingsSection("提醒实时活动") {
-                    CompactSettingsSlider(value: $reminderDuration, in: 3...20, step: 1, valueText: "\(Int(reminderDuration)) 秒") { Text("提醒展示时长") }
-                    Defaults.Toggle(key: .enableReminderLiveActivity) { Text("启用提醒实时活动") }
+                UnifiedSettingsSection("提醒") {
                     SettingsRow(title: "倒计时样式") { Picker("倒计时样式", selection: $reminderStyle) {
                         ForEach(ReminderPresentationStyle.allCases) { style in Text(style.displayName).tag(style) }
                     }.frame(minWidth: AppStyle.pickerMinimumWidth).labelsHidden().frame(maxWidth: 200, alignment: .trailing) }
-                    CompactSettingsSlider(value: Binding(get: { Double(lead) }, set: { lead = Int($0) }), in: 1...60, step: 1, valueText: "\(lead) 分钟") { Text("提前提醒") }
+                    CompactSettingsSlider(value: $reminderDuration, in: 3...20, step: 1, valueText: "\(Int(reminderDuration)) 秒") { Text("提醒持续时长") }
+                    CompactSettingsSlider(value: Binding(get: { Double(lead) }, set: { lead = Int($0) }), in: 1...60, step: 1, valueText: "\(lead) 分钟") { Text("提醒提前时长") }
                 }
 
             }
@@ -548,6 +554,7 @@ struct LiveActivitiesSettings: View {
                     .onReceive(Defaults.publisher(.showRecordingIndicator, options: [])) { change in if change.newValue { DynamicIslandViewCoordinator.shared.previewSetting("屏幕录制", symbol: "record.circle.fill", circular: false) } }
                 Defaults.Toggle(key: .showDoNotDisturbIndicator) { Text("启用专注模式指示器") }
                     .onReceive(Defaults.publisher(.showDoNotDisturbIndicator, options: [])) { change in if change.newValue { DynamicIslandViewCoordinator.shared.previewSetting("专注模式", symbol: "moon.fill", circular: false) } }
+                Defaults.Toggle(key: .enableCleaningIndicator) { Text("启用清洁模式指示器") }
             }
         }
     }
@@ -556,7 +563,6 @@ struct LiveActivitiesSettings: View {
 struct LockScreenSettings: View {
     var destination: AppPage = .lockScreen
     var navigate: (AppPage) -> Void = { _ in }
-    @Default(.lockScreenReminderChipStyle) private var reminderChipStyle
     @Default(.lockScreenWeatherWidgetStyle) private var weatherStyle
     @Default(.lockScreenWeatherTemperatureUnit) private var unit
     @Default(.lockScreenWeatherProviderSource) private var provider
@@ -588,35 +594,35 @@ struct LockScreenSettings: View {
     private var general: some View {
         UnifiedSettingsSection("通用") {
                 Defaults.Toggle(key: .enableLockScreenLiveActivity) { Text("启用锁屏组件") }
+                Defaults.Toggle(key: .enableLockSounds) { Text("启用锁定与解锁音效") }
+                Defaults.Toggle(key: .lockScreenWeatherUsesGaugeTint) { Text("使用主题色") }
                 SettingsRow(title: "组件样式") {
                     Picker("组件样式", selection: $weatherStyle) {
                         ForEach(LockScreenWeatherWidgetStyle.allCases) { style in Text(style.localizedName).tag(style) }
                     }.frame(minWidth: AppStyle.pickerMinimumWidth).labelsHidden().frame(maxWidth: 200, alignment: .trailing)
                 }
-                Defaults.Toggle(key: .enableLockSounds) { Text("锁定与解锁音效") }
             }
     }
     private var mediaPanel: some View {
         UnifiedSettingsSection("媒体") {
-                Defaults.Toggle(key: .enableLockScreenMediaWidget) { Text("显示媒体面板") }
+                Defaults.Toggle(key: .enableLockScreenMediaWidget) { Text("启用媒体面板") }
                 Defaults.Toggle(key: .lockScreenShowAppIcon) { Text("显示应用图标") }
                 Defaults.Toggle(key: .lockScreenPanelShowsBorder) { Text("显示面板边框") }
             }
     }
     private var weather: some View {
         UnifiedSettingsSection("天气") {
-                Defaults.Toggle(key: .enableLockScreenWeatherWidget) { Text("显示天气") }
+                Defaults.Toggle(key: .enableLockScreenWeatherWidget) { Text("启用天气面板") }
                 SettingsRow(title: "温度单位") { Picker("温度单位", selection: $unit) { ForEach(LockScreenWeatherTemperatureUnit.allCases) { unit in Text(unit.symbol).tag(unit) } }.frame(minWidth: AppStyle.pickerMinimumWidth).labelsHidden().frame(maxWidth: 200, alignment: .trailing) }
                 SettingsRow(title: "服务提供方") { Picker("服务提供方", selection: $provider) { ForEach(LockScreenWeatherProviderSource.allCases) { provider in Text(provider.displayName).tag(provider) } }.frame(minWidth: AppStyle.pickerMinimumWidth).labelsHidden().frame(maxWidth: 200, alignment: .trailing) }
-                Defaults.Toggle(key: .lockScreenWeatherShowsLocation) { Text("显示位置") }
+                Defaults.Toggle(key: .lockScreenWeatherShowsLocation) { SettingsDescription(title: "显示位置", subtitle: "显示天气对应的城市名称；仅内嵌样式且已取得城市名称时可见。") }
                 Defaults.Toggle(key: .lockScreenWeatherShowsSunrise) { Text("显示日出和日落") }
                 Defaults.Toggle(key: .lockScreenWeatherShowsAQI) { Text("显示空气质量") }
-                Defaults.Toggle(key: .lockScreenWeatherUsesGaugeTint) { Text("天气仪表使用主题色") }
             }
     }
     private var battery: some View {
         UnifiedSettingsSection("电池") {
-                Defaults.Toggle(key: .lockScreenBatteryShowsBatteryGauge) { Text("显示电池状态") }
+                Defaults.Toggle(key: .lockScreenBatteryShowsBatteryGauge) { Text("启用电池面板") }
                 Defaults.Toggle(key: .lockScreenBatteryShowsCharging) { Text("显示充电状态") }
                 Defaults.Toggle(key: .lockScreenBatteryShowsChargingPercentage) { Text("显示充电百分比") }
                 Defaults.Toggle(key: .lockScreenBatteryShowsBluetooth) { Text("显示蓝牙设备电量") }
@@ -624,16 +630,11 @@ struct LockScreenSettings: View {
     }
     private var schedule: some View {
         UnifiedSettingsSection("日程") {
-                Defaults.Toggle(key: .enableLockScreenReminderWidget) { Text("显示日程到时提醒") }
-                Defaults.Toggle(key: .lockScreenShowCalendarEvent) { Text("显示日历事件") }
+                Defaults.Toggle(key: .lockScreenShowCalendarEvent) { Text("启用日程面板") }
                 Defaults.Toggle(key: .lockScreenShowCalendarCountdown) { Text("显示事件倒计时") }
-                Defaults.Toggle(key: .lockScreenShowCalendarTimeRemaining) { Text("显示剩余时间") }
-                Defaults.Toggle(key: .lockScreenShowCalendarStartTimeAfterBegins) { Text("开始后显示起始时间") }
-                Defaults.Toggle(key: .lockScreenShowCalendarEventEntireDuration) { Text("事件持续期间一直显示") }
-                SettingsRow(title: "提醒配色") { Picker("提醒配色", selection: $reminderChipStyle) {
-                    Text("事件颜色").tag(LockScreenReminderChipStyle.eventColor)
-                    Text("白色").tag(LockScreenReminderChipStyle.monochrome)
-                }.frame(minWidth: AppStyle.pickerMinimumWidth).labelsHidden().frame(maxWidth: 200, alignment: .trailing) }
+                Defaults.Toggle(key: .lockScreenShowCalendarTimeRemaining) { Text("显示事件结束倒计时") }
+                Defaults.Toggle(key: .lockScreenShowCalendarEventEntireDuration) { Text("事件期间持续显示") }
+
             }
     }
     private var focusSettings: some View {
@@ -658,9 +659,12 @@ private struct LockScreenPositioningControls: View {
                                 .onChange(of: geometry.size.width) { _, width in previewWidth = width }
                         }
                     }
-                    .overlay(alignment: .topTrailing) {
+                    .overlay(alignment: .topLeading) {
                         Button("复位", action: LockScreenLayoutActions.reset)
                             .buttonStyle(.bordered).controlSize(.small)
+                            .padding(3)
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 7))
+                            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(.primary.opacity(0.1), lineWidth: 0.5))
                             .padding(10)
                     }
                 instructions
@@ -748,15 +752,15 @@ struct TerminalSettings: View {
         Group {
             UnifiedSettingsSection("终端") {
                 Defaults.Toggle(key: .enableTerminalFeature) { Text("启用终端") }
+                Defaults.Toggle(key: .terminalStickyMode) { Text("鼠标移开时保持终端打开") }
                 SettingsRow(title: "命令解释器") {
                     TextField("", text: $shell, prompt: Text("/bin/zsh"))
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 170)
                 }
-                Defaults.Toggle(key: .terminalStickyMode) { Text("鼠标移开时保持终端打开") }
                 SettingsRow(title: "重启终端") { Button("重启") { TerminalManager.shared.restartShell() } }
             }
-            UnifiedSettingsSection("终端字体") {
+            UnifiedSettingsSection("外观") {
                 SettingsRow(title: "字体") { Picker("字体", selection: $font) {
                     ForEach(Array(Set(NSFontManager.shared.availableFontFamilies.filter { family in
                         guard let candidate = NSFont(name: family, size: 13) else { return false }

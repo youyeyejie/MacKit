@@ -1014,6 +1014,9 @@ struct ContentView: View {
 
     private var statusItems: [PersistentActivityItem] {
         var values: [PersistentActivityItem] = []
+        if coordinator.cleaningActive && Defaults[.enableCleaningIndicator] {
+            values.append(.init(id: "cleaning", symbol: "sparkles", color: .cyan))
+        }
         if let preview = coordinator.settingsPreview, let type = preview.type,
            [.privacy, .capsLock, .recording, .doNotDisturb].contains(type) {
             let tint: Color = type == .recording ? .red : (type == .privacy ? (preview.symbol == "mic.fill" ? .orange : .green) : .accentColor)

@@ -255,6 +255,7 @@ enum ColorExtractionMode: String, CaseIterable, Identifiable, Defaults.Serializa
 }
 
 extension Defaults.Keys {
+    static let enableCleaningIndicator = Key<Bool>("enableCleaningIndicator", default: true)
     static let notchEnabled = Key<Bool>("mackit.notchEnabled", default: true)
     static let lockScreenLiveActivityVerticalOffset = Key<Double>("lockScreenLiveActivityVerticalOffset", default: 0)
 
@@ -333,7 +334,6 @@ extension Defaults.Keys {
     static let enableLockScreenMediaWidget = Key<Bool>("enableLockScreenMediaWidget", default: true)
     static let enableLockScreenWeatherWidget = Key<Bool>("enableLockScreenWeatherWidget", default: true)
     static let enableLockScreenFocusWidget = Key<Bool>("enableLockScreenFocusWidget", default: true)
-    static let enableLockScreenReminderWidget = Key<Bool>("enableLockScreenReminderWidget", default: true)
 
     static let lockScreenWeatherRefreshInterval = Key<TimeInterval>("lockScreenWeatherRefreshInterval", default: 30 * 60)
     static let lockScreenWeatherShowsLocation = Key<Bool>("lockScreenWeatherShowsLocation", default: true)

@@ -359,7 +359,7 @@ final class WindowSwitcherService: FeatureModule {
         alert.alertStyle = .warning
         alert.messageText = "要退出所有应用吗？"
         let names = targets.compactMap(\.localizedName).sorted().joined(separator: "、")
-        alert.informativeText = "将请求退出：\(names)。\n未保存的内容仍由各应用提示处理，Finder 和系统组件会保留。"
+        alert.informativeText = "将请求退出：\(names)。"
         alert.addButton(withTitle: "取消").keyEquivalent = "\r"
         let quit = alert.addButton(withTitle: "退出所有应用")
         quit.keyEquivalent = ""

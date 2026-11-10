@@ -6,10 +6,8 @@ import CoreGraphics
 struct LockScreenLayoutEditor: View {
     @Default(.lockScreenWeatherVerticalOffset) private var weatherOffset
     @Default(.lockScreenMusicVerticalOffset) private var musicOffset
-    @Default(.lockScreenReminderWidgetVerticalOffset) private var reminderOffset
     @Default(.lockScreenLiveActivityVerticalOffset) private var activityOffset
     @ObservedObject private var weather = LockScreenWeatherManager.shared
-    @ObservedObject private var reminder = LockScreenReminderWidgetManager.shared
     @StateObject private var animator = LockScreenPanelAnimator()
     @State private var sizes: [String: CGSize] = [:]
     @State private var activeDrag: String?
@@ -39,13 +37,7 @@ struct LockScreenLayoutEditor: View {
                             LockScreenWeatherWidget(snapshot: snapshot).fixedSize()
                         }.position(x: area.width / 2, y: area.height - (rect.midY - screen.frame.minY))
                     }
-                    if Defaults[.enableLockScreenReminderWidget] {
-                        let snapshot = reminder.snapshot ?? LockScreenReminderWidgetSnapshot(title: "提醒事项", eventTimeText: "10:00", relativeDescription: "即将开始", accent: .init(nsColor: .systemOrange), chipStyle: .eventColor, isCritical: false, iconName: "checklist")
-                        let rect = LockScreenReminderWidgetPanelManager.shared.previewFrame(size: sizes["reminder"] ?? CGSize(width: 320, height: 50), on: screen)
-                        widget("reminder", offset: $reminderOffset, scale: scale) {
-                            LockScreenReminderWidget(snapshot: snapshot).fixedSize()
-                        }.position(x: area.width / 2, y: area.height - (rect.midY - screen.frame.minY))
-                    }
+
                 }
                 .frame(width: area.width, height: area.height)
                 .scaleEffect(scale, anchor: .topLeading)
@@ -74,7 +66,6 @@ struct LockScreenLayoutEditor: View {
         switch id {
         case "music": LockScreenPanelManager.shared.applyOffsetAdjustment(animated: false)
         case "weather": LockScreenWeatherPanelManager.shared.refreshPositionForOffsets(animated: false)
-        case "reminder": LockScreenReminderWidgetPanelManager.shared.refreshPosition(animated: false)
         default: LockScreenLiveActivityWindowManager.shared.refreshPositionForOffsets()
         }
     }
@@ -97,11 +88,9 @@ struct LockScreenLayoutEditor: View {
     static func reset() {
         Defaults[.lockScreenWeatherVerticalOffset] = 0
         Defaults[.lockScreenMusicVerticalOffset] = 0
-        Defaults[.lockScreenReminderWidgetVerticalOffset] = 0
         Defaults[.lockScreenLiveActivityVerticalOffset] = 0
         LockScreenPanelManager.shared.applyOffsetAdjustment(animated: false)
         LockScreenWeatherPanelManager.shared.refreshPositionForOffsets(animated: false)
-        LockScreenReminderWidgetPanelManager.shared.refreshPosition(animated: false)
         LockScreenLiveActivityWindowManager.shared.refreshPositionForOffsets()
     }
 }

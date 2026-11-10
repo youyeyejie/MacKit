@@ -71,6 +71,7 @@ struct SettingsActivityPreview {
 }
 
 class DynamicIslandViewCoordinator: ObservableObject {
+    @Published var cleaningActive = false
     @Published var settingsPreview: SettingsActivityPreview?
     private var settingsPreviewTask: Task<Void, Never>?
 

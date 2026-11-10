@@ -21,7 +21,7 @@ struct WindowSwitcherView: View {
                 }
             }
             SettingsRows(title: "调度中心增强") {
-                SettingsRow(title: "启用调度中心增强", subtitle: "在调度中心中，⌘ Q 退出鼠标悬停窗口所属的应用，⌘ W 关闭该窗口。") {
+                SettingsRow(title: "启用调度中心增强", subtitle: "在调度中心中，⌘ W 关闭鼠标悬停窗口，⌘ Q 退出窗口所属应用。") {
                     Toggle("启用调度中心增强", isOn: Binding(get: { missionControl.enabled }, set: missionControl.setEnabled))
                         .labelsHidden().toggleStyle(.switch).controlSize(.small)
                 }
