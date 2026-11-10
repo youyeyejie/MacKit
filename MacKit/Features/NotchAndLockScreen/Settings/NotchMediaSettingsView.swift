@@ -13,6 +13,9 @@ struct NotchMediaSettingsView: View {
             UnifiedSettingsSection("媒体控制") {
                 Defaults.Toggle(key: .showStandardMediaControls) { Text("启用媒体控制") }
                 Defaults.Toggle(key: .autoHideInactiveNotchMediaPlayer) { Text("自动隐藏未播放媒体的面板") }
+                Defaults.Toggle(key: .showLyricsBelowBuiltinNotch) {
+                    SettingsDescription(title: "在常驻灵动岛显示歌词", subtitle: "开启后若在外接显示器上使用灵动岛，则在外接显示器上显示歌词；否则在内建显示器上显示歌词横幅。")
+                }
                 CompactSettingsSlider(
                     value: Binding(
                         get: { Self.hideDelays.firstIndex(of: pausedMediaHideDelay).map(Double.init) ?? 2 },
@@ -25,9 +28,7 @@ struct NotchMediaSettingsView: View {
                     SettingsDescription(title: "暂停时收回歌词横幅", subtitle: "设置暂停时不收回媒体面板时，开启此选项可收回歌词横幅。")
                 }
                 .disabled(pausedMediaHideDelay >= 0)
-                Defaults.Toggle(key: .showLyricsBelowBuiltinNotch) {
-                    SettingsDescription(title: "在常驻灵动岛显示歌词", subtitle: "开启后若在外接显示器上使用灵动岛，则在外接显示器上显示歌词；否则在内建显示器上显示歌词横幅。")
-                }
+
             }
         }
     }

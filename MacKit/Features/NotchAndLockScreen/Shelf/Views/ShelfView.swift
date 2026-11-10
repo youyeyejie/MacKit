@@ -72,11 +72,18 @@ struct ShelfView: View {
         .quickLookPresenter(using: quickLookService)
         .onAppear {
             deleteMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-                guard event.keyCode == 51,
-                    event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
-                    NSApp.keyWindow is DynamicIslandWindow,
-                    !selection.selectedIDs.isEmpty
+                guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+                    let window = NSApp.keyWindow as? DynamicIslandWindow,
+                    event.window == window,
+                    !(window.firstResponder is NSTextView),
+                    vm.notchState == .open,
+                    DynamicIslandViewCoordinator.shared.currentView == .shelf
                 else { return event }
+                if event.keyCode == 0 {
+                    selection.selectAll(in: tvm.items)
+                    return nil
+                }
+                guard event.keyCode == 51, !selection.selectedIDs.isEmpty else { return event }
                 for item in selection.selectedItems(in: tvm.items) { ShelfActionService.remove(item) }
                 selection.clear()
                 return nil

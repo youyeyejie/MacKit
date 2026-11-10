@@ -43,14 +43,64 @@ struct ShelfInlineLiveActivity: View {
                 .fill(Color.black)
                 .frame(width: vm.closedNotchSize.width)
 
-            // RIGHT of notch — file count in white
-            Text("\(shelfState.items.count)")
-                .font(.system(.callout, design: .rounded, weight: .bold))
-                .foregroundStyle(.white)
-                .contentTransition(.numericText(countsDown: false))
-                .animation(.smooth(duration: 0.3), value: shelfState.items.count)
+            ShelfDocumentBadge(count: shelfState.items.count)
                 .frame(width: sideWidth, alignment: .trailing)
         }
         .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
+    }
+}
+
+/// A compact document outline with the file count printed inside its body.
+struct ShelfDocumentBadge: View {
+    let count: Int
+    var height: CGFloat = 18
+    static func width(for count: Int) -> CGFloat {
+        max(15, CGFloat(String(count).count) * 6 + 6)
+    }
+    var body: some View {
+        ZStack {
+            ShelfCountDocumentShape()
+                .stroke(.white, lineWidth: 1.2)
+            Text("\(count)")
+                .font(.system(size: height * (count < 100 ? 0.5 : 0.44), weight: .bold, design: .rounded))
+                .monospacedDigit().foregroundStyle(.white)
+                .lineLimit(1).minimumScaleFactor(0.7)
+                .padding(.horizontal, 2).offset(y: 1)
+                .contentTransition(.numericText())
+        }
+        .frame(width: height * 0.83, height: height)
+        .animation(.smooth(duration: 0.25), value: count)
+        .accessibilityLabel("文件托盘，\(count) 个文件")
+    }
+}
+
+private struct ShelfCountDocumentShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let inset = rect.insetBy(dx: 0.8, dy: 0.8)
+        let cut = min(inset.width, inset.height) * 0.24
+        let vertices = [CGPoint(x: inset.minX, y: inset.minY),
+                        CGPoint(x: inset.maxX - cut, y: inset.minY),
+                        CGPoint(x: inset.maxX, y: inset.minY + cut),
+                        CGPoint(x: inset.maxX, y: inset.maxY),
+                        CGPoint(x: inset.minX, y: inset.maxY)]
+        let radius = min(inset.width, inset.height) * 0.1
+        var path = Path()
+        for index in vertices.indices {
+            let previous = vertices[(index + vertices.count - 1) % vertices.count]
+            let corner = vertices[index]
+            let next = vertices[(index + 1) % vertices.count]
+            func insetPoint(toward point: CGPoint) -> CGPoint {
+                let length = hypot(point.x - corner.x, point.y - corner.y)
+                let ratio = min(radius, length / 3) / max(length, 0.01)
+                return CGPoint(x: corner.x + (point.x - corner.x) * ratio,
+                               y: corner.y + (point.y - corner.y) * ratio)
+            }
+            let start = insetPoint(toward: previous)
+            let end = insetPoint(toward: next)
+            if index == 0 { path.move(to: start) } else { path.addLine(to: start) }
+            path.addQuadCurve(to: end, control: corner)
+        }
+        path.closeSubpath()
+        return path
     }
 }

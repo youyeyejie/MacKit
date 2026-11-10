@@ -79,6 +79,11 @@ final class ShelfSelectionModel: ObservableObject {
         selectedIDs = Set(rangeIDs)
     }
 
+    func selectAll(in items: [ShelfItem]) {
+        selectedIDs = Set(items.map(\.id))
+        lastAnchorID = items.first?.id
+    }
+
     func clear() {
         selectedIDs.removeAll()
         lastAnchorID = nil

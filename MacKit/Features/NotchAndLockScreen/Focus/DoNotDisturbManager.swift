@@ -106,6 +106,9 @@ final class DoNotDisturbManager: ObservableObject {
 
         isMonitoring = true
         applyMonitoringModeChange(Defaults[.focusMonitoringMode])
+        // Distributed notifications only report future changes. Seed existing
+        // state even in notification-only mode, then continue observing changes.
+        if Defaults[.focusMonitoringMode] != .useDevTools { checkInitialFocusStateViaLog() }
     }
 
     func stopMonitoring() {
@@ -573,9 +576,10 @@ extension DoNotDisturbManager {
                 task.standardError = Pipe()
 
                 guard (try? task.run()) != nil else { return }
-                task.waitUntilExit()
-
+                // Drain before waiting: a large log result can fill the pipe and
+                // otherwise deadlock initial-state discovery at launch.
                 let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+                task.waitUntilExit()
                 let lines = output.components(separatedBy: "\n").filter {
                     $0.contains("semanticModeIdentifier") && !$0.hasPrefix("Filtering")
                 }
@@ -600,7 +604,7 @@ extension DoNotDisturbManager {
         lastAssertionsModificationDate = nil
 
         let timer = DispatchSource.makeTimerSource(queue: pollingQueue)
-        timer.schedule(deadline: .now() + .seconds(1), repeating: .seconds(2), leeway: .milliseconds(250))
+        timer.schedule(deadline: .now(), repeating: .seconds(2), leeway: .milliseconds(250))
         timer.setEventHandler { [weak self] in
             self?.pollAssertionsState()
         }

@@ -83,6 +83,8 @@ class CalendarManager: ObservableObject {
 
         Task {
             await reloadCalendarLists()
+            await maybeRefreshEventsAfterReload()
+            if Defaults[.showCalendar] { startLockScreenRefreshLoop() }
         }
     }
 

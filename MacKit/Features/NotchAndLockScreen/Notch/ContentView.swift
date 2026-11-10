@@ -731,13 +731,13 @@ struct ContentView: View {
                             LockScreenLiveActivity()
                                 .id("lock-screen-live-activity")
                                 .transition(closedLiveActivitySwapTransition)
-                        } else if !coordinator.expandingView.show && vm.notchState == .closed && !shelfState.isEmpty
+                        } else if !coordinator.expandingView.show && vm.notchState == .closed && Defaults[.dynamicShelf] && !shelfState.isEmpty
                             && !vm.hideOnClosed && !lockScreenManager.isLocked && !enableMinimalisticUI
                         {
                             ShelfInlineLiveActivity()
                                 .transition(.opacity.animation(.smooth(duration: 0.25)))
                         } else if vm.notchState == .open {
-                            DynamicIslandHeader()
+                            DynamicIslandHeader(indicators: mediaIndicatorItems)
                                 .frame(
                                     height: (NotchConfiguration.enableMinimalisticUI && isDynamicIslandMode)
                                         ? nil : max(24, vm.effectiveClosedNotchHeight))
@@ -790,20 +790,23 @@ struct ContentView: View {
                                     GeometryReader { geo in
                                         let chipColor = Color(nsColor: reminder.event.calendar.color)
                                             .ensureMinimumBrightness(factor: 0.7)
+                                        let title = reminder.event.title.isEmpty ? "Upcoming Reminder" : reminder.event.title
                                         HStack(spacing: 6) {
                                             RoundedRectangle(cornerRadius: 2)
                                                 .fill(chipColor)
                                                 .frame(width: 8, height: 12)
-                                            MarqueeText(
-                                                .constant(
-                                                    reminderSneakPeekText(
-                                                        for: reminder, now: reminderManager.currentDate)),
-                                                textColor: reminderColor(
-                                                    for: reminder, now: reminderManager.currentDate),
-                                                minDuration: 1,
-                                                frameWidth: max(0, geo.size.width - 14)
-                                            )
+                                            Text(title)
+                                                .lineLimit(1)
+                                                .truncationMode(.tail)
+                                                .layoutPriority(0)
+                                            Text("• " + reminderSneakPeekTiming(for: reminder, now: reminderManager.currentDate))
+                                                .lineLimit(1)
+                                                .fixedSize(horizontal: true, vertical: false)
+                                                .layoutPriority(1)
                                         }
+                                        .font(.system(size: 13))
+                                        .foregroundStyle(reminderColor(for: reminder, now: reminderManager.currentDate))
+                                        .frame(maxWidth: geo.size.width, alignment: .center)
                                     }
                                     .padding(.bottom, 10)
                                 }
@@ -819,7 +822,7 @@ struct ContentView: View {
                 }
                 .zIndex(2)
             } else {
-                DynamicIslandHeader().frame(height: max(24, vm.effectiveClosedNotchHeight))
+                DynamicIslandHeader(indicators: mediaIndicatorItems).frame(height: max(24, vm.effectiveClosedNotchHeight))
             }
             if builtinLyricShelfVisible {
                 let lyricWidth = max(180, vm.closedNotchSize.width + 2 * max(0, vm.effectiveClosedNotchHeight - 12))
@@ -866,27 +869,16 @@ struct ContentView: View {
         return Color(nsColor: reminder.event.calendar.color).ensureMinimumBrightness(factor: 0.7)
     }
 
-    private func reminderSneakPeekText(for entry: ReminderLiveActivityManager.ReminderEntry, now: Date) -> String {
-        let title = entry.event.title.isEmpty ? "Upcoming Reminder" : entry.event.title
+    private func reminderSneakPeekTiming(for entry: ReminderLiveActivityManager.ReminderEntry, now: Date) -> String {
         let remaining = max(entry.event.start.timeIntervalSince(now), 0)
         let window = TimeInterval(Defaults[.reminderSneakPeekDuration])
-
-        if window > 0 && remaining <= window {
-            return "\(title) • \(String(format: String(localized: "now")))"
-        }
-
+        let time = reminderTimeFormatter.string(from: entry.event.start)
+        if remaining <= 0 || (window > 0 && remaining <= window) { return "now • \(time)" }
         let minutes = Int(ceil(remaining / 60))
-        let timeString = reminderTimeFormatter.string(from: entry.event.start)
-
-        if minutes <= 0 {
-            return "\(title) • \(String(format: String(localized: "now"))) • \(timeString)"
-        } else if minutes == 1 {
-            return
-                "\(title) • \(String(format: String(localized: "in %@"), String(localized: "1 min"))) • \(timeString)"
-        } else {
-            return
-                "\(title) • \(String(format: String(localized: "in %lld"), (minutes))) \(String(format: String(localized: "min plural"))) • \(timeString)"
-        }
+        let duration = minutes >= 60
+            ? "\(minutes / 60)h" + (minutes % 60 == 0 ? "" : " \(minutes % 60)m")
+            : "\(minutes)m"
+        return "in \(duration) • \(time)"
     }
 
     private let reminderTimeFormatter: DateFormatter = {
@@ -923,7 +915,7 @@ struct ContentView: View {
         let inlineSneakPeekActive =
             (coordinator.expandingView.show && (coordinator.expandingView.type == .music)
                 && NotchConfiguration.enableSneakPeek && Defaults[.sneakPeekStyles] == .inline)
-        let leftWingWidth = closedActivityLeftWidth
+        let leftWingWidth = reminderActivityWingWidth
         let rightWingWidth = leftWingWidth
         let effectiveCenterWidth = inlineSneakPeekActive ? 380 : centerBaseWidth
         let notchWidth = leftWingWidth + effectiveCenterWidth + rightWingWidth
@@ -933,27 +925,20 @@ struct ContentView: View {
         let badgeOffset = badgeOverlayOffset(for: secondary, badgeSize: badgeDisplaySize)
 
         HStack(spacing: 0) {
-            HStack(alignment: .center, spacing: 6) {
+            ClosedNotchWingLayout(cellSize: closedActivityCellSize) {
                 ForEach(mediaIndicatorItems) { item in
                     Image(systemName: item.symbol)
                         .renderingMode(.template)
                         .resizable().scaledToFit()
-                        .frame(
-                            width: item.id == "calendar" ? wingBaseWidth : min(20, wingBaseWidth * 0.78),
-                            height: item.id == "calendar" ? notchContentHeight : min(20, notchContentHeight * 0.78)
-                        )
-                        .scaleEffect(0.8)
+                        .frame(width: item.id == "calendar" ? closedActivityCellSize * 0.84 : closedActivityGlyphSize,
+                               height: item.id == "calendar" ? closedActivityCellSize * 0.84 : closedActivityGlyphSize)
                         .foregroundStyle(item.color)
-                        .frame(
-                            width: !closedMediaVisible && mediaIndicatorItems.count == 1 && item.id == "calendar"
-                                ? closedActivityLeftWidth : wingBaseWidth, height: notchContentHeight
-                        )
                         .transition(.opacity)
                 }
                 if closedMediaVisible {
                     Image(nsImage: musicManager.albumArt)
                         .resizable().aspectRatio(contentMode: .fit)
-                        .frame(width: wingBaseWidth, height: notchContentHeight)
+                        .frame(width: closedActivityCellSize, height: closedActivityCellSize)
                         .clipShape(RoundedRectangle(cornerRadius: MusicPlayerImageSizes.cornerRadiusInset.closed))
                         .matchedGeometryEffect(
                             id: "albumArt", in: albumArtNamespace, properties: .frame, anchor: .topLeading,
@@ -1017,18 +1002,12 @@ struct ContentView: View {
                     .clipped()
                 )
 
-            let waveWidth: CGFloat = closedMediaVisible ? max(0, CGFloat(Defaults[.visualizerBarCount]) * 4 - 2) : 0
-            let countdownWidth = closedCountdownWidth
-            let elementCount = (closedMediaVisible ? 1 : 0) + (countdownWidth > 0 ? 1 : 0)
-            // Account for visible bars, ring stroke and the shell's outer padding.
-            let gap = max(
-                0, (rightWingWidth + notchHorizontalPadding - waveWidth - countdownWidth) / CGFloat(elementCount + 1))
-            let innerShift = min(8, gap * 0.35)
-            ZStack(alignment: .leading) {
+            ClosedNotchWingLayout(cellSize: closedActivityCellSize) {
                 if closedMediaVisible {
                     spectrumView(forceSpectrum: true)
                         .frame(width: 50, height: notchContentHeight)
-                        .frame(width: waveWidth, height: notchContentHeight).clipped()
+                        .scaleEffect(1.0)
+                        .frame(width: closedActivityCellSize, height: closedActivityCellSize).clipped()
                         .blur(radius: isHoveringClosedMusicWaveformControl ? 2 : 0)
                         .overlay {
                             if shouldShowClosedMusicWaveformPlayPauseOverlay(for: secondary)
@@ -1046,12 +1025,18 @@ struct ContentView: View {
                                     hovering && shouldShowClosedMusicWaveformPlayPauseOverlay(for: secondary)
                             }
                         }
-                        .offset(x: max(0, gap - innerShift))
                 }
-                if let secondary, case .reminder = secondary {
-                    musicRightWing(for: secondary, notchHeight: notchContentHeight, trailingWidth: rightWingWidth)
-                        .frame(width: countdownWidth, height: notchContentHeight)
-                        .offset(x: max(0, (closedMediaVisible ? gap * 2 + waveWidth : gap) - innerShift))
+                if closedShelfCountVisible {
+                    ShelfDocumentBadge(count: shelfState.items.count, height: closedActivityGlyphSize)
+                }
+                if let secondary, case .reminder(let entry) = secondary {
+                    MusicReminderSupplementView(
+                        entry: entry, now: reminderManager.currentDate,
+                        style: reminderPresentationStyle,
+                        accent: reminderColor(for: entry, now: reminderManager.currentDate),
+                        notchHeight: closedActivityCellSize
+                    )
+                    .frame(width: closedActivityCellSize, height: closedActivityCellSize)
                 }
             }
             .frame(width: rightWingWidth, height: notchContentHeight, alignment: .leading)
@@ -1062,6 +1047,7 @@ struct ContentView: View {
         .frame(width: notchWidth, height: notchContentHeight)
         .frame(height: vm.effectiveClosedNotchHeight + (isHovering ? 8 : 0), alignment: .center)
         .animation(.smooth(duration: 0.25), value: secondary?.id)
+        .animation(.smooth(duration: 0.25), value: shelfState.items.count)
         .animation(.smooth(duration: 0.3), value: mediaIndicatorItems.map(\.id))
     }
 
@@ -1072,6 +1058,9 @@ struct ContentView: View {
                 .init(
                     id: "calendar", symbol: "calendar.badge.clock",
                     color: reminderColor(for: entry, now: reminderManager.currentDate)))
+        }
+        if Defaults[.dynamicShelf], !shelfState.isEmpty, !lockScreenManager.isLocked {
+            items.append(.init(id: "shelf", symbol: "tray.fill", color: .white))
         }
         return items
     }
@@ -1091,11 +1080,22 @@ struct ContentView: View {
         !musicManager.isPlayerIdle && coordinator.musicLiveActivityEnabled && closedMusicContentEnabled
     }
 
+    private var closedActivityCellSize: CGFloat { max(18, vm.effectiveClosedNotchHeight - 12) }
+    private var closedActivityGlyphSize: CGFloat { closedActivityCellSize * 0.68 }
+    private var closedActivitySlotGap: CGFloat { max(6, closedActivityCellSize * 0.22) }
+    private func closedWingWidth(for count: Int) -> CGFloat {
+        CGFloat(max(1, count)) * closedActivityCellSize + CGFloat(max(1, count) + 1) * closedActivitySlotGap
+    }
+    private var closedActivityLeftCount: Int { mediaIndicatorItems.count + (closedMediaVisible ? 1 : 0) }
+    private var closedShelfCountVisible: Bool {
+        Defaults[.dynamicShelf] && !shelfState.isEmpty && !lockScreenManager.isLocked && !enableMinimalisticUI
+    }
+    private var closedActivityRightCount: Int {
+        let reminder = enableReminderLiveActivity && reminderManager.isActive && reminderManager.activeReminder != nil
+        return (closedMediaVisible ? 1 : 0) + (reminder ? 1 : 0) + (closedShelfCountVisible ? 1 : 0)
+    }
     private var closedActivityLeftWidth: CGFloat {
-        let size = max(0, vm.effectiveClosedNotchHeight - 12)
-        let count = mediaIndicatorItems.count + (closedMediaVisible ? 1 : 0)
-        if !closedMediaVisible, count == 1, mediaIndicatorItems.first?.id == "calendar" { return max(24, size * 0.9) }
-        return max(size, CGFloat(count) * size + CGFloat(max(0, count - 1)) * 6)
+        closedWingWidth(for: closedActivityLeftCount)
     }
     private var closedCountdownWidth: CGFloat {
         guard enableReminderLiveActivity, let entry = reminderManager.activeReminder, reminderManager.isActive else {
@@ -1113,10 +1113,10 @@ struct ContentView: View {
         }
     }
     private var closedActivityRightContentWidth: CGFloat {
-        (closedMediaVisible ? 50 : 0) + closedCountdownWidth + (closedMediaVisible && closedCountdownWidth > 0 ? 10 : 0)
+        closedWingWidth(for: closedActivityRightCount)
     }
     private var reminderActivityWingWidth: CGFloat {
-        closedActivityLeftWidth
+        max(closedActivityLeftWidth, closedActivityRightContentWidth)
     }
     private var closedActivityHorizontalOffset: CGFloat {
         guard vm.notchState == .closed, !lockScreenManager.isLocked,
@@ -1175,7 +1175,7 @@ struct ContentView: View {
         }
 
         // Shelf: show file count as lowest-priority secondary
-        if !shelfState.isEmpty && !lockScreenManager.isLocked && !enableMinimalisticUI {
+        if Defaults[.dynamicShelf] && !shelfState.isEmpty && !lockScreenManager.isLocked && !enableMinimalisticUI {
             return .shelf(count: shelfState.items.count)
         }
 
@@ -1324,13 +1324,7 @@ struct ContentView: View {
         case .recording:
             spectrumView(forceSpectrum: true, trailingInset: 6)
         case .shelf(let count):
-            // File count badge: bold white number, like a minimal pill
-            Text("\(count)")
-                .font(.system(.callout, design: .rounded, weight: .bold))
-                .foregroundStyle(.white)
-                .contentTransition(.numericText(countsDown: false))
-                .animation(.smooth(duration: 0.3), value: count)
-                .frame(alignment: .center)
+            ShelfDocumentBadge(count: count)
         case .none:
             spectrumView(
                 forceSpectrum: false,
@@ -1802,7 +1796,7 @@ private struct MusicReminderSupplementView: View {
                 .rotationEffect(.degrees(-90))
                 .animation(.smooth(duration: 0.25), value: progressValue)
         }
-        .frame(width: ringDiameter, height: ringDiameter)
+        .frame(width: min(ringDiameter, max(4, notchHeight - 6)), height: min(ringDiameter, max(4, notchHeight - 6)))
         .padding(1.5)
         .frame(height: notchHeight, alignment: .center)
     }
@@ -1925,5 +1919,22 @@ struct FullScreenDropDelegate: DropDelegate {
         isTargeted = false
         onDrop()
         return true
+    }
+}
+
+/// Every element has the same square slot. Free width is shared equally by the
+/// two outer gaps and all inner gaps, independently on each side of the notch.
+private struct ClosedNotchWingLayout: Layout {
+    let cellSize: CGFloat
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        CGSize(width: proposal.width ?? CGFloat(subviews.count) * cellSize, height: cellSize)
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let gap = max(0, (bounds.width - CGFloat(subviews.count) * cellSize) / CGFloat(subviews.count + 1))
+        for (index, view) in subviews.enumerated() {
+            view.place(at: CGPoint(x: bounds.minX + gap + CGFloat(index) * (cellSize + gap) + cellSize / 2,
+                                   y: bounds.midY), anchor: .center,
+                       proposal: ProposedViewSize(width: cellSize, height: cellSize))
+        }
     }
 }

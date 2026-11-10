@@ -22,6 +22,7 @@ import Defaults
 import SwiftUI
 
 struct DynamicIslandHeader: View {
+    var indicators: [PersistentActivityItem] = []
     @EnvironmentObject var vm: DynamicIslandViewModel
     @ObservedObject var batteryModel = BatteryStatusViewModel.shared
     @ObservedObject var coordinator = DynamicIslandViewCoordinator.shared
@@ -67,37 +68,21 @@ struct DynamicIslandHeader: View {
             HStack(spacing: 4) {
                 if vm.notchState == .open && !enableMinimalisticUI {
 
-                    // ColorPicker button
-
-                    Button(action: {
-                        SettingsWindowController.shared.showWindow()
-                    }) {
-                        Capsule()
-                            .fill(.black)
+                    ForEach(indicators.filter { $0.id != "shelf" }) { item in
+                        Image(systemName: item.symbol)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(item.color)
+                            .frame(width: 26, height: 30)
+                            .transition(.opacity.combined(with: .scale(scale: 0.85)))
+                    }
+                    Button { SettingsWindowController.shared.showWindow() } label: {
+                        Image(systemName: "gear")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(.white)
                             .frame(width: 30, height: 30)
-                            .overlay {
-                                Image(systemName: "gear")
-                                    .foregroundColor(.white)
-                                    .padding()
-                                    .imageScale(.medium)
-                            }
-                    }
-                    .buttonStyle(PlainButtonStyle())
+                            .contentShape(Rectangle())
+                    }.buttonStyle(.plain).help("设置")
 
-                    // Screen Recording Indicator
-                    if Defaults.Keys.enableScreenRecordingDetection && Defaults[.showRecordingIndicator] {
-                        RecordingIndicator()
-                            .frame(width: 30, height: 30)  // Same size as other header elements
-                    }
-
-                    if Defaults.Keys.enableDoNotDisturbDetection
-                        && Defaults[.showDoNotDisturbIndicator]
-                        && doNotDisturbManager.isDoNotDisturbActive
-                    {
-                        FocusIndicator()
-                            .frame(width: 30, height: 30)
-                            .transition(.opacity)
-                    }
                 }
 
             }
