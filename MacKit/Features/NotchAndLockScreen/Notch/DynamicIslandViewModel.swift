@@ -138,7 +138,7 @@ class DynamicIslandViewModel: NSObject, ObservableObject {
                     delegate.ensureWindowSize(
                         addShadowPadding(to: updatedTarget, isMinimalistic: NotchConfiguration.enableMinimalisticUI),
                         animated: true,
-                        force: false
+                        force: false, screenName: self.screen
                     )
                 }
             }
@@ -164,7 +164,7 @@ class DynamicIslandViewModel: NSObject, ObservableObject {
                     delegate.ensureWindowSize(
                         addShadowPadding(to: updatedTarget, isMinimalistic: NotchConfiguration.enableMinimalisticUI),
                         animated: true,
-                        force: false
+                        force: false, screenName: self.screen
                     )
                 }
             }
@@ -187,7 +187,7 @@ class DynamicIslandViewModel: NSObject, ObservableObject {
                     delegate.ensureWindowSize(
                         addShadowPadding(to: updatedTarget, isMinimalistic: false),
                         animated: true,
-                        force: false
+                        force: false, screenName: self.screen
                     )
                 }
             }
@@ -222,7 +222,7 @@ class DynamicIslandViewModel: NSObject, ObservableObject {
             delegate.ensureWindowSize(
                 addShadowPadding(to: targetSize, isMinimalistic: NotchConfiguration.enableMinimalisticUI),
                 animated: false,
-                force: true
+                force: true, screenName: self.screen
             )
         }
 

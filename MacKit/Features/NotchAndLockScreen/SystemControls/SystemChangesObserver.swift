@@ -50,6 +50,8 @@ final class SystemChangesObserver: MediaKeyInterceptorDelegate {
         Float(Defaults[.brightnessFineStepPercent]) / 100.0
     }
 
+    private var lastObservedVolume: Float?
+    private var lastObservedMute: Bool?
     private var volumeEnabled = false
     private var brightnessEnabled = false
     private var keyboardBacklightEnabled = false
@@ -63,18 +65,27 @@ final class SystemChangesObserver: MediaKeyInterceptorDelegate {
         self.brightnessEnabled = brightnessEnabled
         self.keyboardBacklightEnabled = keyboardBacklightEnabled
 
+        // Seed before installing callbacks. The controller queues its initial
+        // snapshot asynchronously; receiving that snapshot is not a user change.
+        lastObservedVolume = volumeController.currentVolume
+        lastObservedMute = volumeController.isMuted
         volumeController.onVolumeChange = { [weak self] volume, muted in
-            guard let self, self.volumeEnabled else { return }
-            let value = muted ? 0 : volume
             Task { @MainActor in
-                self.sendVolumeNotification(value: value, isMuted: muted)
+                guard let self else { return }
+                let changed = self.lastObservedMute != muted
+                    || abs((self.lastObservedVolume ?? volume) - volume) > 0.0001
+                self.lastObservedVolume = volume
+                self.lastObservedMute = muted
+                guard changed, self.volumeEnabled else { return }
+                self.sendVolumeNotification(value: muted ? 0 : volume, isMuted: muted)
             }
         }
         volumeController.onRouteChange = { [weak self] in
             guard let self, self.volumeEnabled else { return }
-            let muted = self.volumeController.isMuted
             Task { @MainActor in
-                self.sendVolumeNotification(value: muted ? 0 : self.volumeController.currentVolume, isMuted: muted)
+                // A route update is a new baseline, not a volume adjustment.
+                self.lastObservedVolume = self.volumeController.currentVolume
+                self.lastObservedMute = self.volumeController.isMuted
             }
         }
         volumeController.start()

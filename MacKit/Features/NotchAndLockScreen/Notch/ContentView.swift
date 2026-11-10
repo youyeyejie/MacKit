@@ -133,6 +133,7 @@ struct ContentView: View {
     }
 
     @State private var hoverTask: Task<Void, Never>?
+    @State private var pendingHoverState: Bool?
     @State private var isHovering: Bool = false
     @State private var lastHapticTime: Date = Date()
     @State private var hoverClickMonitor: Any?
@@ -324,7 +325,7 @@ struct ContentView: View {
     /// This is only needed when the notch is fully hidden off-screen and
     /// regular `.onHover` hit-testing may not trigger reliably.
     private var shouldUseHiddenEdgeHoverPolling: Bool {
-        shouldHideUntilHover && !lockScreenManager.isLocked
+        hideNonNotchUntilHover && isNonNotchScreen && !lockScreenManager.isLocked
     }
 
     /// Whether the LocalSend live activity should be shown
@@ -411,7 +412,7 @@ struct ContentView: View {
             .frame(alignment: .top)
             .padding(.horizontal, notchHorizontalPadding)
             .padding(.horizontal, vm.notchState == .open ? 12 : 0)
-            .padding(.bottom, vm.notchState == .open ? (coordinator.currentView == .terminal ? 4 : 12) : 0)
+            .padding(.bottom, vm.notchState == .open ? (isIslandMode || coordinator.currentView == .terminal ? 4 : 12) : 0)
             .background(.black)
             .clipShape(resolvedClipShape)
             .compositingGroup()
@@ -458,10 +459,12 @@ struct ContentView: View {
                 view
                     .contentShape(resolvedClipShape)
                     .onHover { hovering in
-                        handleHover(hovering)
+                        // The revealed panel moves away from the screen edge;
+                        // only the stable global detector owns hover in this mode.
+                        if !shouldUseHiddenEdgeHoverPolling { handleHover(hovering) }
                     }
                     .onTapGesture {
-                        if handleClosedMusicWaveformTapIfNeeded() {
+                        if !shouldUseHiddenEdgeHoverPolling && handleClosedMusicWaveformTapIfNeeded() {
                             return
                         }
                         if vm.notchState == .closed && Defaults[.enableHaptics] {
@@ -479,7 +482,7 @@ struct ContentView: View {
             .overlay(alignment: .bottom) {
                 if interactionsEnabled && vm.notchState == .open {
                     Color.clear.frame(height: 20).offset(y: 20).contentShape(Rectangle())
-                        .onHover { handleHover($0) }
+                        .onHover { if !shouldUseHiddenEdgeHoverPolling { handleHover($0) } }
                 }
             }
             .padding(.bottom, notchBottomPadding)
@@ -499,6 +502,7 @@ struct ContentView: View {
                 }
             })
             .onChange(of: vm.notchState) { _, newState in
+                pendingHoverState = nil
                 // Update smart monitoring based on notch state
 
                 // Reset hover state when notch state changes
@@ -585,8 +589,8 @@ struct ContentView: View {
         .frame(
             maxWidth: (dynamicNotchSize.width + (vm.notchState == .open ? 24 : 0)
                 + (isDynamicIslandMode ? dynamicIslandShadowInset * 2 : 0)).rounded(),
-            maxHeight: (dynamicNotchSize.height + (vm.notchState == .open ? 12 : 0)
-                + (isDynamicIslandMode ? dynamicIslandTopOffset + dynamicIslandShadowInset * 2 : currentShadowPadding))
+            maxHeight: (dynamicNotchSize.height + (vm.notchState == .open ? (isDynamicIslandMode ? 4 : 12) : 0)
+                + (isDynamicIslandMode ? dynamicIslandTopOffset + dynamicIslandShadowInset : currentShadowPadding))
                 .rounded(),
             alignment: .top
         )
@@ -1071,7 +1075,7 @@ struct ContentView: View {
                 delegate.windows.first(where: { $0.key.localizedName == currentScreenName })?.value ?? delegate.window
             let required = addShadowPadding(to: dynamicNotchSize, isMinimalistic: false)
             if let window, window.frame.width < required.width {
-                delegate.ensureWindowSize(required, animated: false, force: true)
+                delegate.ensureWindowSize(required, animated: false, force: true, screenName: vm.screen)
             }
         }
     }
@@ -1481,13 +1485,27 @@ struct ContentView: View {
             height: activationHeight
         )
 
-        return activationRect.contains(location)
+        // CGRect.contains excludes maxY: at the physical screen edge the
+        // cursor can be exactly maxY. Include that edge with a small tolerance.
+        return location.x >= activationRect.minX && location.x <= activationRect.maxX
+            && location.y >= activationRect.minY && location.y <= screen.frame.maxY + 1
+    }
+
+    /// The top-edge activation strip remains valid while the island moves down
+    /// during reveal. Native shape tracking alone would report a false exit.
+    private func hiddenHoverRegionContainsMouse() -> Bool {
+        let point = NSEvent.mouseLocation
+        let window = AtollAppDelegate.shared?.windows.first(where: { $0.key.localizedName == currentScreenName })?.value
+            ?? AtollAppDelegate.shared?.window
+        let inVisibleRegion = (window as? DynamicIslandWindow)?.containsInteractionPoint(point, exitPadding: isHovering ? 8 : 0) ?? false
+        return hiddenHoverActivationContainsMouse(point) || inVisibleRegion
     }
 
     /// Cancels every long-lived task / event monitor this view owns. Called from
     /// `.onDisappear` and from `vm.onViewTeardown` on window close. Idempotent.
     private func performViewTeardown() {
         hoverTask?.cancel()
+        pendingHoverState = nil
         stopHoverClickMonitor()
         removeStickyTerminalClickMonitor()
         stopHiddenEdgeHoverPolling()
@@ -1500,8 +1518,8 @@ struct ContentView: View {
         hiddenEdgeHoverPollingTask = Task { @MainActor in
             while !Task.isCancelled {
                 if self.shouldUseHiddenEdgeHoverPolling {
-                    let hovering = self.hiddenHoverActivationContainsMouse()
-                    if hovering != self.isHovering {
+                    let hovering = self.hiddenHoverRegionContainsMouse()
+                    if hovering != self.isHovering || self.pendingHoverState != hovering {
                         self.handleHover(hovering)
                     }
                 }
@@ -1519,7 +1537,7 @@ struct ContentView: View {
     }
 
     private func startHoverClickMonitor() {
-        guard Defaults[.openNotchOnHover] else { return }
+        guard Defaults[.openNotchOnHover] || shouldUseHiddenEdgeHoverPolling else { return }
         guard hoverClickMonitor == nil else { return }
 
         let handleClick: @Sendable () -> Void = { [weak vm, weak lockScreenManager] in
@@ -1528,8 +1546,17 @@ struct ContentView: View {
                 guard !lockScreenManager.isLocked else { return }
                 guard vm.notchState == .closed else { return }
                 guard !self.coordinator.isHoverOpenSuppressed else { return }
-                guard self.isHovering else { return }
-                guard !self.handleClosedMusicWaveformTapIfNeeded() else { return }
+                if self.shouldUseHiddenEdgeHoverPolling {
+                    guard self.hiddenHoverRegionContainsMouse() else { return }
+                    // Here click means expand the revealed island, even when
+                    // hover-to-open is off; it must not toggle media playback.
+                    self.pendingHoverState = nil
+                    self.hoverTask?.cancel()
+                    self.isHovering = true
+                } else {
+                    guard self.isHovering else { return }
+                    guard !self.handleClosedMusicWaveformTapIfNeeded() else { return }
+                }
                 if Defaults[.enableHaptics] {
                     self.triggerHapticIfAllowed()
                 }
@@ -1607,7 +1634,12 @@ struct ContentView: View {
     // MARK: - Hover Management
 
     /// Handle hover state changes with debouncing
-    private func handleHover(_ hovering: Bool) {
+    private func handleHover(_ nativeHovering: Bool) {
+        let hovering = shouldUseHiddenEdgeHoverPolling ? hiddenHoverRegionContainsMouse() : nativeHovering
+        // Polling and native tracking can report the same leave repeatedly.
+        // Do not restart its debounce on every sample or it will never finish.
+        if pendingHoverState == hovering { return }
+        pendingHoverState = hovering
         hoverTask?.cancel()
 
         if hovering {
@@ -1656,6 +1688,11 @@ struct ContentView: View {
                 guard !Task.isCancelled else { return }
 
                 await MainActor.run {
+                    if self.shouldUseHiddenEdgeHoverPolling && self.hiddenHoverRegionContainsMouse() {
+                        self.pendingHoverState = nil
+                        self.handleHover(true)
+                        return
+                    }
                     withAnimation(.smooth(duration: 0.2)) {
                         self.isHovering = false
                     }

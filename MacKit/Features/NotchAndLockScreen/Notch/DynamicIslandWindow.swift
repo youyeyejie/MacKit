@@ -33,6 +33,12 @@ class DynamicIslandWindow: NSPanel {
         updatePointerRouting()
     }
 
+    func containsInteractionPoint(_ point: NSPoint, exitPadding: CGFloat = 0) -> Bool {
+        guard isVisible, alphaValue >= 0.01 else { return false }
+        return interactionFrame.insetBy(dx: -exitPadding, dy: -exitPadding)
+            .contains(convertPoint(fromScreen: point))
+    }
+
     private func updatePointerRouting() {
         let local = convertPoint(fromScreen: NSEvent.mouseLocation)
         ignoresMouseEvents = !isVisible || alphaValue < 0.01 || !interactionFrame.contains(local)
@@ -94,6 +100,16 @@ class DynamicIslandWindow: NSPanel {
         hasShadow = false
 
         ScreenCaptureVisibilityManager.shared.register(self, scope: .entireInterface)
+    }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
+        if event.type == .keyDown, modifiers == .command,
+           event.keyCode == 12, isKeyWindow {
+            NSApp.terminate(nil)
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
     }
 
     override var canBecomeKey: Bool {

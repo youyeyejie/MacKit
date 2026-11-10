@@ -341,12 +341,20 @@ class AtollAppDelegate: NSObject, NSApplicationDelegate {
             return baseSize
         }
         var adjusted = baseSize
-        adjusted.width += dynamicIslandShadowInset * 2
-        adjusted.height += dynamicIslandTopOffset
+        // Match the content shell: one bottom shadow clearance (not two),
+        // plus a compact four-point content inset. Base size already has shadow padding.
+        adjusted.width += dynamicIslandShadowInset * 2 + 24
+        adjusted.height += dynamicIslandTopOffset + dynamicIslandShadowInset + 4
         return adjusted
     }
 
-    func ensureWindowSize(_ size: CGSize, animated: Bool, force: Bool = false) {
+    func ensureWindowSize(_ size: CGSize, animated: Bool, force: Bool = false, screenName: String? = nil) {
+        if Defaults[.showOnAllDisplays], let screenName,
+           let screen = windows.keys.first(where: { $0.localizedName == screenName }),
+           let window = windows[screen] {
+            resizeWindow(window, on: screen, to: adjustedSizeForScreen(size, screen: screen), animated: animated)
+            return
+        }
         resizeWindows(to: size, animated: animated, force: force)
     }
 
@@ -355,7 +363,15 @@ class AtollAppDelegate: NSObject, NSApplicationDelegate {
 
         if Defaults[.showOnAllDisplays] {
             for (screen, window) in windows {
-                let screenSize = adjustedSizeForScreen(size, screen: screen)
+                var required = size
+                // A global/closed-screen update cannot shrink another screen's
+                // open panel. Every display owns its own view-model state.
+                if viewModels[screen]?.notchState == .open {
+                    let open = addShadowPadding(to: NotchOpenLayout.size(for: coordinator.currentView, screenName: screen.localizedName), isMinimalistic: false)
+                    required.width = max(required.width, open.width)
+                    required.height = max(required.height, open.height)
+                }
+                let screenSize = adjustedSizeForScreen(required, screen: screen)
                 if force || window.frame.size != screenSize {
                     resizeWindow(window, on: screen, to: screenSize, animated: animated)
                 }
