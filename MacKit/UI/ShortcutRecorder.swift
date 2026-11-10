@@ -21,24 +21,35 @@ struct ShortcutRecorder: View {
             Button {
                 finish()
                 error = save(nil)
-            } label: { Image(systemName: "xmark.circle.fill") }
-                .buttonStyle(.plain).foregroundStyle(.secondary).frame(width: 20, height: 24)
-                .help("清空快捷键").accessibilityLabel("清空快捷键")
-                .disabled(shortcut == nil && !recording)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+            }
+            .buttonStyle(.plain).foregroundStyle(.secondary).frame(width: 20, height: 24)
+            .help("清空快捷键").accessibilityLabel("清空快捷键")
+            .disabled(shortcut == nil && !recording)
         }
         .padding(.vertical, 8)
         .popover(isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
             Text(error ?? "").font(.callout).padding(12)
         }
         .onDisappear { finish() }
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in finish() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in finish()
+        }
     }
     private func start() {
-        error = nil; recording = true; recordingChanged(true)
+        error = nil
+        recording = true
+        recordingChanged(true)
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             MainActor.assumeIsolated {
-                if event.keyCode == 53 { finish(); return }
-                guard let value = AppShortcut.from(event) else { error = "请包含 ⌘、⌃ 或 ⌥ 修饰键"; return }
+                if event.keyCode == 53 {
+                    finish()
+                    return
+                }
+                guard let value = AppShortcut.from(event) else {
+                    error = "请包含 ⌘、⌃ 或 ⌥ 修饰键"
+                    return
+                }
                 error = save(value)
                 finish()
             }
@@ -48,6 +59,8 @@ struct ShortcutRecorder: View {
     private func finish() {
         guard recording else { return }
         if let monitor { NSEvent.removeMonitor(monitor) }
-        monitor = nil; recording = false; recordingChanged(false)
+        monitor = nil
+        recording = false
+        recordingChanged(false)
     }
 }

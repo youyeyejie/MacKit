@@ -26,18 +26,25 @@ enum DockAX {
         return AXUIElementCopyAttributeValue(element, name as CFString, &result) == .success ? result : nil
     }
     static func string(_ element: AXUIElement, _ name: String) -> String? { value(element, name) as? String }
-    static func bool(_ element: AXUIElement, _ name: String) -> Bool { (value(element, name) as? NSNumber)?.boolValue ?? false }
+    static func bool(_ element: AXUIElement, _ name: String) -> Bool {
+        (value(element, name) as? NSNumber)?.boolValue ?? false
+    }
     static func element(_ source: AXUIElement, _ name: String) -> AXUIElement? {
         guard let result = value(source, name), CFGetTypeID(result) == AXUIElementGetTypeID() else { return nil }
         return (result as! AXUIElement)
     }
-    static func children(_ source: AXUIElement) -> [AXUIElement] { value(source, kAXChildrenAttribute) as? [AXUIElement] ?? [] }
+    static func children(_ source: AXUIElement) -> [AXUIElement] {
+        value(source, kAXChildrenAttribute) as? [AXUIElement] ?? []
+    }
     static func frame(_ element: AXUIElement) -> CGRect? {
         guard let p = value(element, kAXPositionAttribute), CFGetTypeID(p) == AXValueGetTypeID(),
-              let s = value(element, kAXSizeAttribute), CFGetTypeID(s) == AXValueGetTypeID() else { return nil }
+            let s = value(element, kAXSizeAttribute), CFGetTypeID(s) == AXValueGetTypeID()
+        else { return nil }
         var origin = CGPoint.zero
         var size = CGSize.zero
-        guard AXValueGetValue(p as! AXValue, .cgPoint, &origin), AXValueGetValue(s as! AXValue, .cgSize, &size) else { return nil }
+        guard AXValueGetValue(p as! AXValue, .cgPoint, &origin), AXValueGetValue(s as! AXValue, .cgSize, &size) else {
+            return nil
+        }
         return CGRect(origin: origin, size: size)
     }
 }
@@ -55,9 +62,10 @@ enum DockWindowAccess {
         NSApp.windows.filter {
             $0.level == .normal && $0.styleMask.contains(.titled) && ($0.isVisible || $0.isMiniaturized)
         }.map {
-            DockWindow(id: CGWindowID($0.windowNumber), pid: getpid(), title: $0.title,
-                       bounds: $0.frame, minimized: $0.isMiniaturized,
-                       fullscreen: $0.styleMask.contains(.fullScreen), element: nil)
+            DockWindow(
+                id: CGWindowID($0.windowNumber), pid: getpid(), title: $0.title,
+                bounds: $0.frame, minimized: $0.isMiniaturized,
+                fullscreen: $0.styleMask.contains(.fullScreen), element: nil)
         }
     }
 
@@ -71,12 +79,17 @@ enum DockWindowAccess {
         let app = AXUIElementCreateApplication(pid)
         AXUIElementSetMessagingTimeout(app, 0.15)
         let raw = CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], 0) as? [[String: Any]] ?? []
-        let surfaces = raw.filter { ($0[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value == pid && ($0[kCGWindowLayer as String] as? Int) == 0 }
+        let surfaces = raw.filter {
+            ($0[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value == pid
+                && ($0[kCGWindowLayer as String] as? Int) == 0
+        }
         let order = surfaces.compactMap { ($0[kCGWindowNumber as String] as? NSNumber)?.uint32Value }
         let axAnswer = DockAX.value(app, kAXWindowsAttribute) as? [AXUIElement]
         var elements = axAnswer ?? []
         for name in [kAXMainWindowAttribute, kAXFocusedWindowAttribute] {
-            if let window = DockAX.element(app, name), !elements.contains(where: { CFEqual($0, window) }) { elements.append(window) }
+            if let window = DockAX.element(app, name), !elements.contains(where: { CFEqual($0, window) }) {
+                elements.append(window)
+            }
         }
         var windows: [CGWindowID: DockWindow] = [:]
         let deadline = ProcessInfo.processInfo.systemUptime + 0.8
@@ -89,23 +102,34 @@ enum DockWindowAccess {
             let minimized = DockAX.bool(element, kAXMinimizedAttribute)
             let fullscreen = DockAX.bool(element, "AXFullScreen")
             let subrole = DockAX.string(element, kAXSubroleAttribute)
-            guard minimized || fullscreen || subrole == nil || subrole == kAXStandardWindowSubrole || subrole == kAXDialogSubrole else { continue }
+            guard
+                minimized || fullscreen || subrole == nil || subrole == kAXStandardWindowSubrole
+                    || subrole == kAXDialogSubrole
+            else { continue }
             guard let frame = DockAX.frame(element), frame.width >= 80, frame.height >= 50 else { continue }
-            windows[id] = DockWindow(id: id, pid: pid, title: DockAX.string(element, kAXTitleAttribute) ?? "",
-                                     bounds: frame, minimized: minimized, fullscreen: fullscreen, element: element)
+            windows[id] = DockWindow(
+                id: id, pid: pid, title: DockAX.string(element, kAXTitleAttribute) ?? "",
+                bounds: frame, minimized: minimized, fullscreen: fullscreen, element: element)
         }
         // AX can omit fullscreen windows on another Space. Merge those CG
         // surfaces instead of treating the AX array as the entire directory.
         for info in surfaces where axAnswer == nil {
             guard let id = (info[kCGWindowNumber as String] as? NSNumber)?.uint32Value, windows[id] == nil,
-                  let bounds = info[kCGWindowBounds as String] as? NSDictionary,
-                  let frame = CGRect(dictionaryRepresentation: bounds), frame.width >= 80, frame.height >= 50 else { continue }
+                let bounds = info[kCGWindowBounds as String] as? NSDictionary,
+                let frame = CGRect(dictionaryRepresentation: bounds), frame.width >= 80, frame.height >= 50
+            else { continue }
             let title = info[kCGWindowName as String] as? String ?? ""
-            guard WindowPresence.permitsSurface(axAnswered: axAnswer != nil, onScreen: (info[kCGWindowIsOnscreen as String] as? Bool) == true, hasTitle: !title.isEmpty) else { continue }
-            windows[id] = DockWindow(id: id, pid: pid, title: title, bounds: frame, minimized: false, fullscreen: false, element: nil)
+            guard
+                WindowPresence.permitsSurface(
+                    axAnswered: axAnswer != nil, onScreen: (info[kCGWindowIsOnscreen as String] as? Bool) == true,
+                    hasTitle: !title.isEmpty)
+            else { continue }
+            windows[id] = DockWindow(
+                id: id, pid: pid, title: title, bounds: frame, minimized: false, fullscreen: false, element: nil)
         }
         return windows.values.sorted {
-            let l = order.firstIndex(of: $0.id) ?? Int.max, r = order.firstIndex(of: $1.id) ?? Int.max
+            let l = order.firstIndex(of: $0.id) ?? Int.max
+            let r = order.firstIndex(of: $1.id) ?? Int.max
             return l == r ? $0.id < $1.id : l < r
         }
     }
@@ -124,7 +148,8 @@ enum DockWindowAccess {
             queue.async {
                 for window in windows {
                     guard let element = window.element, !window.fullscreen else { continue }
-                    _ = AXUIElementSetAttributeValue(element, kAXMinimizedAttribute as CFString, value ? kCFBooleanTrue : kCFBooleanFalse)
+                    _ = AXUIElementSetAttributeValue(
+                        element, kAXMinimizedAttribute as CFString, value ? kCFBooleanTrue : kCFBooleanFalse)
                 }
                 continuation.resume()
             }
@@ -179,16 +204,25 @@ enum DockWindowAccess {
             queue.async {
                 let app = AXUIElementCreateApplication(pid)
                 AXUIElementSetMessagingTimeout(app, 0.15)
-                guard let menu = DockAX.element(app, kAXMenuBarAttribute) else { continuation.resume(returning: false); return }
+                guard let menu = DockAX.element(app, kAXMenuBarAttribute) else {
+                    continuation.resume(returning: false)
+                    return
+                }
                 var budget = 400
                 let deadline = ProcessInfo.processInfo.systemUptime + 0.5
                 for heading in DockAX.children(menu).reversed() {
                     for submenu in DockAX.children(heading) {
                         for item in DockAX.children(submenu) {
                             budget -= 1
-                            guard budget >= 0, ProcessInfo.processInfo.systemUptime < deadline else { continuation.resume(returning: false); return }
-                            if DockAX.string(item, kAXIdentifierAttribute) == "miniaturizeAll:", DockAX.bool(item, kAXEnabledAttribute) {
-                                continuation.resume(returning: AXUIElementPerformAction(item, kAXPressAction as CFString) == .success)
+                            guard budget >= 0, ProcessInfo.processInfo.systemUptime < deadline else {
+                                continuation.resume(returning: false)
+                                return
+                            }
+                            if DockAX.string(item, kAXIdentifierAttribute) == "miniaturizeAll:",
+                                DockAX.bool(item, kAXEnabledAttribute)
+                            {
+                                continuation.resume(
+                                    returning: AXUIElementPerformAction(item, kAXPressAction as CFString) == .success)
                                 return
                             }
                         }

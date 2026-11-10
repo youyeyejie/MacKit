@@ -7,17 +7,18 @@ struct AppShortcut: Codable, Equatable {
     let modifiers: UInt32
     let key: String
     var label: String {
-        (modifiers & UInt32(controlKey) != 0 ? "⌃" : "") +
-        (modifiers & UInt32(optionKey) != 0 ? "⌥" : "") +
-        (modifiers & UInt32(shiftKey) != 0 ? "⇧" : "") +
-        (modifiers & UInt32(cmdKey) != 0 ? "⌘" : "") + key
+        (modifiers & UInt32(controlKey) != 0 ? "⌃" : "") + (modifiers & UInt32(optionKey) != 0 ? "⌥" : "")
+            + (modifiers & UInt32(shiftKey) != 0 ? "⇧" : "") + (modifiers & UInt32(cmdKey) != 0 ? "⌘" : "") + key
     }
-    static let showDefault = AppShortcut(keyCode: UInt32(kVK_ANSI_M), modifiers: UInt32(controlKey | optionKey | cmdKey), key: "M")
-    static let cleanDefault = AppShortcut(keyCode: UInt32(kVK_ANSI_K), modifiers: UInt32(controlKey | optionKey | cmdKey), key: "K")
+    static let showDefault = AppShortcut(
+        keyCode: UInt32(kVK_ANSI_M), modifiers: UInt32(controlKey | optionKey | cmdKey), key: "M")
+    static let cleanDefault = AppShortcut(
+        keyCode: UInt32(kVK_ANSI_K), modifiers: UInt32(controlKey | optionKey | cmdKey), key: "K")
     static func from(_ event: NSEvent) -> AppShortcut? {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         guard flags.contains(.command) || flags.contains(.control) || flags.contains(.option),
-              !event.isARepeat, let text = event.charactersIgnoringModifiers, !text.isEmpty else { return nil }
+            !event.isARepeat, let text = event.charactersIgnoringModifiers, !text.isEmpty
+        else { return nil }
         var mask: UInt32 = 0
         if flags.contains(.command) { mask |= UInt32(cmdKey) }
         if flags.contains(.control) { mask |= UInt32(controlKey) }
@@ -45,12 +46,15 @@ final class ShortcutSettings {
         do {
             // A stored JSON null means intentionally disabled, not an absent preference.
             guard let shortcut = try JSONDecoder().decode(AppShortcut?.self, from: data) else { return nil }
-            guard shortcut.keyCode < 128, shortcut.modifiers & UInt32(cmdKey | controlKey | optionKey) != 0 else { return defaultValue }
+            guard shortcut.keyCode < 128, shortcut.modifiers & UInt32(cmdKey | controlKey | optionKey) != 0 else {
+                return defaultValue
+            }
             return shortcut
         } catch { return defaultValue }
     }
     func save(show: AppShortcut?, clean: AppShortcut?) {
-        self.show = show; self.clean = clean
+        self.show = show
+        self.clean = clean
         defaults.set(try? JSONEncoder().encode(show), forKey: "shortcut.show")
         defaults.set(try? JSONEncoder().encode(clean), forKey: "shortcut.clean")
     }

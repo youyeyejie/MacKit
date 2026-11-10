@@ -117,8 +117,7 @@ build/DerivedData/Build/Products/Release/MacKit.app
 MacKit/
 ├── App/                         应用入口与全局状态
 ├── Features/
-│   ├── Atoll/                   刘海生命周期集成与日历权限状态
-│   ├── NotchRuntime/            整合后的刘海、媒体、终端和锁屏源码与资源
+│   ├── NotchAndLockScreen/     刘海、锁屏及共用媒体等业务代码
 │   ├── Cleaning/                清洁模式
 │   ├── FinderCut/               访达剪切
 │   ├── Wallpaper/               本地视频管理与设置

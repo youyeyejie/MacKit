@@ -21,10 +21,14 @@ final class AppModel {
     var recordingChanged: ((Bool) -> Void)?
 
     func setDock(_ value: Bool) {
-        showDock = value; UserDefaults.standard.set(value, forKey: "appearance.showDock"); appearanceChanged?()
+        showDock = value
+        UserDefaults.standard.set(value, forKey: "appearance.showDock")
+        appearanceChanged?()
     }
     func setMenuBar(_ value: Bool) {
-        showMenuBar = value; UserDefaults.standard.set(value, forKey: "appearance.showMenuBar"); appearanceChanged?()
+        showMenuBar = value
+        UserDefaults.standard.set(value, forKey: "appearance.showMenuBar")
+        appearanceChanged?()
     }
     func setShortcut(_ value: AppShortcut?, forCleaning: Bool) -> String? {
         let show = forCleaning ? shortcuts.show : value
@@ -44,8 +48,9 @@ final class AppModel {
     var message: String?
 
     init() {
-        cleaning.onActivity = { [weak finderCut, weak windowSwitcher, weak dockEnhancement, weak missionControl] active in
-            AtollIntegration.shared.setCleaning(active)
+        cleaning.onActivity = {
+            [weak finderCut, weak windowSwitcher, weak dockEnhancement, weak missionControl] active in
+            NotchIntegration.shared.setCleaning(active)
             finderCut?.setSuspended(active)
             windowSwitcher?.setSuspended(active)
             missionControl?.setSuspended(active)
@@ -60,8 +65,7 @@ final class AppModel {
 
     func setLogin(_ enabled: Bool) {
         do {
-            if enabled { try SMAppService.mainApp.register() }
-            else { try SMAppService.mainApp.unregister() }
+            if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
         } catch { message = "登录启动设置失败：\(error.localizedDescription)" }
         refreshLogin()
     }

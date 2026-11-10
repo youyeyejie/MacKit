@@ -23,22 +23,39 @@ final class MissionControlService {
         sync()
     }
 
-    func setSuspended(_ value: Bool) { suspended = value; sync() }
+    func setSuspended(_ value: Bool) {
+        suspended = value
+        sync()
+    }
 
     func sync() {
-        guard enabled, !suspended else { stop(); message = nil; return }
-        guard AXIsProcessTrusted() else { stop(); message = "需要辅助功能权限。"; return }
+        guard enabled, !suspended else {
+            stop()
+            message = nil
+            return
+        }
+        guard AXIsProcessTrusted() else {
+            stop()
+            message = "需要辅助功能权限。"
+            return
+        }
         guard worker == nil else { return }
         let filter = MissionControlKeyFilter()
         let mask = CGEventMask(1 << CGEventType.keyDown.rawValue) | CGEventMask(1 << CGEventType.keyUp.rawValue)
-        let worker = EventTapWorker(mask: mask, location: .cgSessionEventTap, failed: { [weak self] in
-            Task { @MainActor in
-                self?.stop()
-                try? await Task.sleep(for: .milliseconds(200))
-                self?.sync()
-            }
-        }, handler: { [filter] type, event in filter.handle(type, event) })
-        guard worker.start() else { filter.stop(); message = "无法建立调度中心快捷键监听，请检查辅助功能权限。"; return }
+        let worker = EventTapWorker(
+            mask: mask, location: .cgSessionEventTap,
+            failed: { [weak self] in
+                Task { @MainActor in
+                    self?.stop()
+                    try? await Task.sleep(for: .milliseconds(200))
+                    self?.sync()
+                }
+            }, handler: { [filter] type, event in filter.handle(type, event) })
+        guard worker.start() else {
+            filter.stop()
+            message = "无法建立调度中心快捷键监听，请检查辅助功能权限。"
+            return
+        }
         message = nil
         self.filter = filter
         self.worker = worker
@@ -53,7 +70,7 @@ final class MissionControlService {
 }
 
 private final class MissionControlKeyFilter: @unchecked Sendable {
-    private static let marker: Int64 = 0x4D4B4D4351
+    private static let marker: Int64 = 0x4D_4B4D_4351
     private let lock = NSLock()
     private var held: Set<Int64> = []
     private var active = true
@@ -64,7 +81,9 @@ private final class MissionControlKeyFilter: @unchecked Sendable {
     func stop() { lock.withLock { active = false } }
 
     func handle(_ type: CGEventType, _ event: CGEvent) -> Unmanaged<CGEvent>? {
-        guard event.getIntegerValueField(.eventSourceUserData) != Self.marker else { return Unmanaged.passUnretained(event) }
+        guard event.getIntegerValueField(.eventSourceUserData) != Self.marker else {
+            return Unmanaged.passUnretained(event)
+        }
         let key = event.getIntegerValueField(.keyboardEventKeycode)
         let modifiers = event.flags.intersection([.maskCommand, .maskShift, .maskControl, .maskAlternate])
         let capture = lock.withLock {
@@ -88,7 +107,9 @@ private final class MissionControlKeyFilter: @unchecked Sendable {
                             await MissionControlAction.perform(key: key, window: window)
                         }
                     }
-                } else { intercepted.remove(key) }
+                } else {
+                    intercepted.remove(key)
+                }
             }
             let consumed = intercepted.contains(key)
             if type == .keyUp { intercepted.remove(key) }
@@ -109,19 +130,27 @@ private final class MissionControlKeyFilter: @unchecked Sendable {
     static func perform(key: Int64, window: DockWindow) async {
         let token = key == 12 ? "quit:\(window.pid)" : "close:\(window.pid):\(window.id)"
         guard !inFlight.contains(token), MissionControlTarget.isPresented(),
-              let app = NSRunningApplication(processIdentifier: window.pid), !app.isTerminated else { return }
+            let app = NSRunningApplication(processIdentifier: window.pid), !app.isTerminated
+        else { return }
         if key == 12 {
-            guard window.pid == getpid() || AppQuitPolicy.allows(bundleID: app.bundleIdentifier, ownBundleID: Bundle.main.bundleIdentifier) else { return }
+            guard
+                window.pid == getpid()
+                    || AppQuitPolicy.allows(bundleID: app.bundleIdentifier, ownBundleID: Bundle.main.bundleIdentifier)
+            else { return }
         }
         inFlight.insert(token)
         defer { inFlight.remove(token) }
         if key == 12 {
-            if window.pid == getpid() { NSApp.terminate(nil); return }
+            if window.pid == getpid() {
+                NSApp.terminate(nil)
+                return
+            }
             _ = app.terminate()
         } else if window.pid == getpid() {
             // AppKit must close our own NSWindow on the main actor. Never send
             // synchronous AX IPC to this process from the main actor.
-            guard let target = NSApp.windows.first(where: { $0.windowNumber == Int(window.id) }), target.isVisible else { return }
+            guard let target = NSApp.windows.first(where: { $0.windowNumber == Int(window.id) }), target.isVisible
+            else { return }
             target.performClose(nil)
         } else {
             await MissionControlTarget.closeCurrentWindow(window)
@@ -139,13 +168,16 @@ private enum MissionControlTarget {
     struct Hit { let window: DockWindow? }
 
     static func isPresented() -> Bool {
-        let entries = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], 0) as? [[String: Any]] ?? []
+        let entries =
+            CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], 0) as? [[String: Any]] ?? []
         return isPresented(entries)
     }
 
     private static func isPresented(_ entries: [[String: Any]]) -> Bool {
-        let dock = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.dock").first?.processIdentifier
-        let manager = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.WindowManager").first?.processIdentifier
+        let dock = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.dock").first?
+            .processIdentifier
+        let manager = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.WindowManager").first?
+            .processIdentifier
         return entries.contains { entry in
             let pid = (entry[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value
             let layer = entry[kCGWindowLayer as String] as? Int
@@ -154,27 +186,33 @@ private enum MissionControlTarget {
     }
 
     static func resolve(at point: CGPoint) -> Hit? {
-        let entries = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], 0) as? [[String: Any]] ?? []
+        let entries =
+            CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], 0) as? [[String: Any]] ?? []
         guard isPresented(entries) else { return nil }
-        let dock = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.dock").first?.processIdentifier
-        let manager = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.WindowManager").first?.processIdentifier
+        let dock = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.dock").first?
+            .processIdentifier
+        let manager = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.WindowManager").first?
+            .processIdentifier
         let excluded = Set([dock, manager].compactMap { $0 })
         for entry in entries {
             guard (entry[kCGWindowLayer as String] as? Int) == 0,
-                  let pid = (entry[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value,
-                  !excluded.contains(pid),
-                  let app = NSRunningApplication(processIdentifier: pid), !app.isTerminated,
-                  app.activationPolicy != .prohibited || pid == getpid(),
-                  let id = (entry[kCGWindowNumber as String] as? NSNumber)?.uint32Value,
-                  let rawBounds = entry[kCGWindowBounds as String] as? NSDictionary,
-                  let bounds = CGRect(dictionaryRepresentation: rawBounds), bounds.width > 40, bounds.height > 40,
-                  bounds.contains(point) else { continue }
+                let pid = (entry[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value,
+                !excluded.contains(pid),
+                let app = NSRunningApplication(processIdentifier: pid), !app.isTerminated,
+                app.activationPolicy != .prohibited || pid == getpid(),
+                let id = (entry[kCGWindowNumber as String] as? NSNumber)?.uint32Value,
+                let rawBounds = entry[kCGWindowBounds as String] as? NSDictionary,
+                let bounds = CGRect(dictionaryRepresentation: rawBounds), bounds.width > 40, bounds.height > 40,
+                bounds.contains(point)
+            else { continue }
             let title = entry[kCGWindowName as String] as? String ?? ""
             let window = resolveAXWindow(pid: pid, id: id)
             // Quit only requires the exact CG owner. Close uses the exact matched
             // AX element (own windows use AppKit) and never guesses a different one.
-            return Hit(window: DockWindow(id: id, pid: pid, title: title, bounds: bounds,
-                                          minimized: false, fullscreen: false, element: window))
+            return Hit(
+                window: DockWindow(
+                    id: id, pid: pid, title: title, bounds: bounds,
+                    minimized: false, fullscreen: false, element: window))
         }
         return Hit(window: nil)
     }
@@ -186,8 +224,9 @@ private enum MissionControlTarget {
                 // Resolve again at action time; a thumbnail's saved AX reference
                 // can be retired while Mission Control re-tiles its windows.
                 guard isPresented(),
-                      let target = resolveAXWindow(pid: window.pid, id: window.id),
-                      let button = DockAX.element(target, kAXCloseButtonAttribute) else { return }
+                    let target = resolveAXWindow(pid: window.pid, id: window.id),
+                    let button = DockAX.element(target, kAXCloseButtonAttribute)
+                else { return }
                 AXUIElementSetMessagingTimeout(button, 0.5)
                 _ = AXUIElementPerformAction(button, kAXPressAction as CFString)
             }
@@ -205,7 +244,11 @@ private enum MissionControlTarget {
         // A failed IPC reply is retried once rather than silently treated as empty.
         if status == .cannotComplete {
             AXUIElementSetMessagingTimeout(app, 0.5)
-            if let windows = DockAX.value(app, kAXWindowsAttribute) as? [AXUIElement], let match = match(id, in: windows) { return match }
+            if let windows = DockAX.value(app, kAXWindowsAttribute) as? [AXUIElement],
+                let match = match(id, in: windows)
+            {
+                return match
+            }
         }
         let children = DockAX.children(app).filter { DockAX.string($0, kAXRoleAttribute) == kAXWindowRole }
         if let match = match(id, in: children) { return match }

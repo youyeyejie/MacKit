@@ -1,5 +1,5 @@
-import AppKit
 import AVFoundation
+import AppKit
 import Observation
 import UniformTypeIdentifiers
 
@@ -25,7 +25,8 @@ final class WallpaperService {
     private let thumbnails = NSCache<NSString, NSImage>()
     var supported: Bool { ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 26 }
     static var directory: URL {
-        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Containers/com.mackit.app.wallpaper.extension/Data/Documents", isDirectory: true)
+        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
+            "Library/Containers/com.mackit.app.wallpaper.extension/Data/Documents", isDirectory: true)
     }
     init() {
         reload()
@@ -34,19 +35,38 @@ final class WallpaperService {
             self.overviewActive = active
             self.saveOptions()
         }
-        if !videos.isEmpty { overview.start(); saveOptions() }
+        if !videos.isEmpty {
+            overview.start()
+            saveOptions()
+        }
     }
     func stop() {
         overview.stop()
-        if overviewActive { overviewActive = false; saveOptions() }
+        if overviewActive {
+            overviewActive = false
+            saveOptions()
+        }
     }
     func reload() {
         let root = Self.directory.appendingPathComponent("videos")
-        videos = ((try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? [])
-            .compactMap { try? JSONDecoder().decode(WallpaperVideo.self, from: Data(contentsOf: $0.appendingPathComponent("metadata.json"))) }
+        videos =
+            ((try? FileManager.default.contentsOfDirectory(
+                at: root, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? [])
+            .compactMap {
+                try? JSONDecoder().decode(
+                    WallpaperVideo.self, from: Data(contentsOf: $0.appendingPathComponent("metadata.json")))
+            }
             .sorted { $0.dateAdded > $1.dateAdded }
-        if let data = try? Data(contentsOf: Self.directory.appendingPathComponent("mackit-routing.json")), let value = try? JSONDecoder().decode(WallpaperRouting.self, from: data) { routing = value }
-        if let data = try? Data(contentsOf: Self.directory.appendingPathComponent("phosphene-prefs.json")), let value = try? JSONSerialization.jsonObject(with: data) as? [String: Any] { pauseWhenCovered = value["pauseWhenOccluded"] as? Bool ?? true }
+        if let data = try? Data(contentsOf: Self.directory.appendingPathComponent("mackit-routing.json")),
+            let value = try? JSONDecoder().decode(WallpaperRouting.self, from: data)
+        {
+            routing = value
+        }
+        if let data = try? Data(contentsOf: Self.directory.appendingPathComponent("phosphene-prefs.json")),
+            let value = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        {
+            pauseWhenCovered = value["pauseWhenOccluded"] as? Bool ?? true
+        }
     }
     func importVideos() {
         guard supported, !busy else { return }
@@ -62,23 +82,35 @@ final class WallpaperService {
             do {
                 for file in files {
                     let asset = AVURLAsset(url: file)
-                    guard let track = try await asset.loadTracks(withMediaType: .video).first else { throw CocoaError(.fileReadCorruptFile) }
+                    guard let track = try await asset.loadTracks(withMediaType: .video).first else {
+                        throw CocoaError(.fileReadCorruptFile)
+                    }
                     let duration = try await asset.load(.duration).seconds
                     let size = try await track.load(.naturalSize)
                     let fps = try await track.load(.nominalFrameRate)
                     guard duration.isFinite, duration > 0, fps.isFinite else { throw CocoaError(.fileReadCorruptFile) }
-                    let video = WallpaperVideo(id: UUID().uuidString, name: file.deletingPathExtension().lastPathComponent,
-                                               filename: file.lastPathComponent, duration: duration, fps: Double(fps), resolution: size, dateAdded: Date())
+                    let video = WallpaperVideo(
+                        id: UUID().uuidString, name: file.deletingPathExtension().lastPathComponent,
+                        filename: file.lastPathComponent, duration: duration, fps: Double(fps), resolution: size,
+                        dateAdded: Date())
                     // Validate/prepare first, then publish the complete directory atomically.
                     let destination = Self.directory.appendingPathComponent("videos/\(video.id)")
                     let staging = Self.directory.appendingPathComponent(".import-\(video.id)")
                     try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true)
                     do {
-                        try await Task.detached(priority: .utility) { try FileManager.default.copyItem(at: file, to: staging.appendingPathComponent(video.filename)) }.value
-                        try JSONEncoder().encode(video).write(to: staging.appendingPathComponent("metadata.json"), options: .atomic)
-                        try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+                        try await Task.detached(priority: .utility) {
+                            try FileManager.default.copyItem(
+                                at: file, to: staging.appendingPathComponent(video.filename))
+                        }.value
+                        try JSONEncoder().encode(video).write(
+                            to: staging.appendingPathComponent("metadata.json"), options: .atomic)
+                        try FileManager.default.createDirectory(
+                            at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
                         try FileManager.default.moveItem(at: staging, to: destination)
-                    } catch { try? FileManager.default.removeItem(at: staging); throw error }
+                    } catch {
+                        try? FileManager.default.removeItem(at: staging)
+                        throw error
+                    }
                 }
                 self.reload()
                 self.overview.start()
@@ -112,7 +144,9 @@ final class WallpaperService {
         do {
             let root = Self.directory.appendingPathComponent("videos").resolvingSymlinksInPath()
             let target = root.appendingPathComponent(video.id)
-            guard target.resolvingSymlinksInPath().deletingLastPathComponent() == root else { throw CocoaError(.fileWriteNoPermission) }
+            guard target.resolvingSymlinksInPath().deletingLastPathComponent() == root else {
+                throw CocoaError(.fileWriteNoPermission)
+            }
             try FileManager.default.trashItem(at: target, resultingItemURL: nil)
             thumbnails.removeObject(forKey: video.id as NSString)
             reload()
@@ -122,19 +156,29 @@ final class WallpaperService {
             message = "已移除导入副本，原文件未删除。"
         } catch { message = "删除失败：\(error.localizedDescription)" }
     }
-    func revealLibrary() { NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: Self.directory.appendingPathComponent("videos").path) }
+    func revealLibrary() {
+        NSWorkspace.shared.selectFile(
+            nil, inFileViewerRootedAtPath: Self.directory.appendingPathComponent("videos").path)
+    }
     func saveOptions() {
         do {
             try FileManager.default.createDirectory(at: Self.directory, withIntermediateDirectories: true)
-            try JSONEncoder().encode(routing).write(to: Self.directory.appendingPathComponent("mackit-routing.json"), options: .atomic)
-            let prefs: [String: Any] = ["pauseWhenOccluded": pauseWhenCovered, "screenSaverIsOurs": true, "missionControlActive": overviewActive]
-            try JSONSerialization.data(withJSONObject: prefs).write(to: Self.directory.appendingPathComponent("phosphene-prefs.json"), options: .atomic)
+            try JSONEncoder().encode(routing).write(
+                to: Self.directory.appendingPathComponent("mackit-routing.json"), options: .atomic)
+            let prefs: [String: Any] = [
+                "pauseWhenOccluded": pauseWhenCovered, "screenSaverIsOurs": true,
+                "missionControlActive": overviewActive,
+            ]
+            try JSONSerialization.data(withJSONObject: prefs).write(
+                to: Self.directory.appendingPathComponent("phosphene-prefs.json"), options: .atomic)
             Self.notify("prefsChanged")
             message = nil
         } catch { message = error.localizedDescription }
     }
     private static func notify(_ suffix: String) {
-        CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), CFNotificationName("com.mackit.app.wallpaper.\(suffix)" as CFString), nil, nil, true)
+        CFNotificationCenterPostNotification(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            CFNotificationName("com.mackit.app.wallpaper.\(suffix)" as CFString), nil, nil, true)
     }
     func openSettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.Wallpaper-Settings.extension") else { return }

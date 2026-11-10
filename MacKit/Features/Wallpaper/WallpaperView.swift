@@ -16,7 +16,10 @@ struct WallpaperView: View {
                     }
                 }
                 if !service.videos.isEmpty {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 110, maximum: 150), spacing: 12)], alignment: .leading, spacing: 12) {
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 110, maximum: 150), spacing: 12)], alignment: .leading,
+                        spacing: 12
+                    ) {
                         ForEach(service.videos) { video in
                             WallpaperLibraryCard(video: video, service: service)
                         }
@@ -26,31 +29,58 @@ struct WallpaperView: View {
             SettingsRows(title: "动态壁纸") {
                 SettingsRow(title: "选择壁纸") { Button("前往系统设置", action: service.openSettings) }
                 Divider()
-                CompactSettingsSlider(value: Binding(get: { service.routing.duration }, set: { service.routing.transitionSeconds = $0 }),
-                                      in: 0...2, step: 0.1, valueText: String(format: "%.1f 秒", service.routing.duration)) {
+                CompactSettingsSlider(
+                    value: Binding(get: { service.routing.duration }, set: { service.routing.transitionSeconds = $0 }),
+                    in: 0...2, step: 0.1, valueText: String(format: "%.1f 秒", service.routing.duration)
+                ) {
                     Text("壁纸过渡")
-                } onEditingChanged: { editing in if !editing { service.saveOptions() } }
-                Divider()
-                SettingsRow(title: "被遮挡时暂停") {
-                    Toggle("被遮挡时暂停", isOn: Binding(get: { service.pauseWhenCovered }, set: { service.pauseWhenCovered = $0; service.saveOptions() }))
-                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                } onEditingChanged: { editing in
+                    if !editing { service.saveOptions() }
                 }
                 Divider()
-                CompactSettingsSlider(value: Binding(get: { Double(service.routing.pollingStep) }, set: { service.routing.detectionSeconds = WallpaperRouting.detectionIntervals[Int($0.rounded())] }),
-                                      in: 0...Double(WallpaperRouting.detectionIntervals.count - 1), step: 1,
-                                      valueText: String(format: "%.1f 秒", service.routing.pollingInterval), uniform: false) {
+                SettingsRow(title: "被遮挡时暂停") {
+                    Toggle(
+                        "被遮挡时暂停",
+                        isOn: Binding(
+                            get: { service.pauseWhenCovered },
+                            set: {
+                                service.pauseWhenCovered = $0
+                                service.saveOptions()
+                            })
+                    )
+                    .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                }
+                Divider()
+                CompactSettingsSlider(
+                    value: Binding(
+                        get: { Double(service.routing.pollingStep) },
+                        set: {
+                            service.routing.detectionSeconds = WallpaperRouting.detectionIntervals[Int($0.rounded())]
+                        }),
+                    in: 0...Double(WallpaperRouting.detectionIntervals.count - 1), step: 1,
+                    valueText: String(format: "%.1f 秒", service.routing.pollingInterval), uniform: false
+                ) {
                     Text("遮挡检测频率")
-                } onEditingChanged: { editing in if !editing { service.saveOptions() } }
+                } onEditingChanged: { editing in
+                    if !editing { service.saveOptions() }
+                }
                 .disabled(!service.pauseWhenCovered)
             }
             SettingsRows(title: "动态锁屏") {
                 SettingsRow(title: "锁屏壁纸") {
-                    Picker("锁屏壁纸", selection: Binding(get: { service.routing.lockedVideoID ?? "" }, set: {
-                        service.routing.lockedVideoID = $0.isEmpty ? nil : $0; service.saveOptions()
-                    })) {
+                    Picker(
+                        "锁屏壁纸",
+                        selection: Binding(
+                            get: { service.routing.lockedVideoID ?? "" },
+                            set: {
+                                service.routing.lockedVideoID = $0.isEmpty ? nil : $0
+                                service.saveOptions()
+                            })
+                    ) {
                         Text("跟随系统选择").tag("")
                         ForEach(service.videos) { Text($0.name).tag($0.id) }
-                    }.frame(minWidth: AppStyle.pickerMinimumWidth).pickerStyle(.menu).labelsHidden().fixedSize().frame(width: 240, alignment: .trailing)
+                    }.frame(minWidth: AppStyle.pickerMinimumWidth).pickerStyle(.menu).labelsHidden().fixedSize().frame(
+                        width: 240, alignment: .trailing)
                 }
             }
             if !service.supported { Text("原生墙纸扩展需要 macOS 26 或更新版本。").foregroundStyle(.orange) }
@@ -66,17 +96,24 @@ private struct WallpaperLibraryCard: View {
         VStack(spacing: 6) {
             GeometryReader { geometry in
                 Group {
-                    if let thumbnail { Image(nsImage: thumbnail).resizable().scaledToFill() }
-                    else { Rectangle().fill(.quaternary).overlay(Image(systemName: "film").foregroundStyle(.secondary)) }
+                    if let thumbnail {
+                        Image(nsImage: thumbnail).resizable().scaledToFill()
+                    } else {
+                        Rectangle().fill(.quaternary).overlay(Image(systemName: "film").foregroundStyle(.secondary))
+                    }
                 }.frame(width: geometry.size.width, height: geometry.size.height).clipped()
             }.aspectRatio(16.0 / 10.0, contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
             HStack(spacing: 6) {
                 Text(video.name).font(.caption).lineLimit(1).truncationMode(.middle).help(video.name)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                Button(role: .destructive) { service.remove(video) } label: { Image(systemName: "trash").frame(width: 16, height: 16) }
-                    .buttonStyle(.plain).controlSize(.small)
-                    .help("删除导入副本").disabled(service.busy)
+                Button(role: .destructive) {
+                    service.remove(video)
+                } label: {
+                    Image(systemName: "trash").frame(width: 16, height: 16)
+                }
+                .buttonStyle(.plain).controlSize(.small)
+                .help("删除导入副本").disabled(service.busy)
             }
         }.frame(maxWidth: .infinity, alignment: .leading)
             .task(id: video.id) { thumbnail = await service.thumbnail(video) }

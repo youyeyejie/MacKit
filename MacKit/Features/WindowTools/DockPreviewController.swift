@@ -51,8 +51,12 @@ final class DockPreviewController {
     }
 
     func mouseDown(_ point: CGPoint) {
-        if covers(point) { cancelHide(); cancelHover() }
-        else { close() }
+        if covers(point) {
+            cancelHide()
+            cancelHover()
+        } else {
+            close()
+        }
     }
 
     private func route(_ axPoint: CGPoint) {
@@ -62,26 +66,37 @@ final class DockPreviewController {
         if visible, let panel, let session {
             if panel.frame.insetBy(dx: -6, dy: -6).contains(point) {
                 enteredPanel = true
-                cancelHover(); cancelHide()
+                cancelHover()
+                cancelHide()
                 return
             }
             if let hit = hitTest.hit(axPoint) {
                 if hit.app.processIdentifier != session.app.processIdentifier {
-                    cancelHide(); schedule(hit, delay: 100)
+                    cancelHide()
+                    schedule(hit, delay: 100)
                 } else if !enteredPanel {
-                    cancelHide(); cancelHover()
-                } else { scheduleHide() }
+                    cancelHide()
+                    cancelHover()
+                } else {
+                    scheduleHide()
+                }
                 return
             }
-            if !enteredPanel, DockGeometry.openingPath(point, icon: session.frame, panel: panel.frame, edge: session.edge) {
-                cancelHide(); cancelHover()
+            if !enteredPanel,
+                DockGeometry.openingPath(point, icon: session.frame, panel: panel.frame, edge: session.edge)
+            {
+                cancelHide()
+                cancelHover()
                 return
             }
             scheduleHide()
             return
         }
         if let pendingHit, pendingHit.frame.insetBy(dx: -6, dy: -6).contains(point) { return }
-        guard let hit = hitTest.hit(axPoint) else { cancelHover(); return }
+        guard let hit = hitTest.hit(axPoint) else {
+            cancelHover()
+            return
+        }
         schedule(hit, delay: 200)
     }
 
@@ -100,8 +115,12 @@ final class DockPreviewController {
             if remaining > 0 { try? await Task.sleep(for: .seconds(remaining)) }
             guard !Task.isCancelled, let self else { return }
             guard self.pendingHit?.app.processIdentifier == hit.app.processIdentifier,
-                  let current = self.hitTest.hit(DockHitTest.axPoint(NSEvent.mouseLocation), fresh: true),
-                  current.app.processIdentifier == hit.app.processIdentifier else { self.cancelHover(); return }
+                let current = self.hitTest.hit(DockHitTest.axPoint(NSEvent.mouseLocation), fresh: true),
+                current.app.processIdentifier == hit.app.processIdentifier
+            else {
+                self.cancelHover()
+                return
+            }
             self.pendingHit = nil
             self.hoverTask = nil
             self.open(current, windows: windows)
@@ -109,7 +128,10 @@ final class DockPreviewController {
     }
 
     private func open(_ hit: DockHit, windows: [DockWindow]) {
-        guard !windows.isEmpty else { close(); return }
+        guard !windows.isEmpty else {
+            close()
+            return
+        }
         cancelHide()
         captureTask?.cancel()
         sessionToken = UUID()
@@ -118,7 +140,8 @@ final class DockPreviewController {
         enteredPanel = false
         appName = hit.app.localizedName ?? "应用"
         self.windows = windows
-        images = Dictionary(uniqueKeysWithValues: windows.compactMap { window in thumbnails.cached(window).map { (window.id, $0) } })
+        images = Dictionary(
+            uniqueKeysWithValues: windows.compactMap { window in thumbnails.cached(window).map { (window.id, $0) } })
         showPanel(hit: hit)
         visible = true
         refreshTask?.cancel()
@@ -131,27 +154,39 @@ final class DockPreviewController {
                 let ids = Set(live.map(\.id))
                 self.windows = live
                 self.images = self.images.filter { ids.contains($0.key) }
-                if self.windows.isEmpty { self.close(); return }
+                if self.windows.isEmpty {
+                    self.close()
+                    return
+                }
             }
         }
         captureTask = Task { @MainActor [weak self] in
             guard let self else { return }
             await self.thumbnails.refresh(windows) { [weak self] id, image in
-                guard let self, self.visible, self.sessionToken == token, self.windows.contains(where: { $0.id == id }) else { return }
+                guard let self, self.visible, self.sessionToken == token, self.windows.contains(where: { $0.id == id })
+                else { return }
                 self.images[id] = image
             }
         }
     }
 
     private func showPanel(hit: DockHit) {
-        let screen = NSScreen.screens.first { $0.frame.contains(CGPoint(x: hit.frame.midX, y: hit.frame.midY)) } ?? NSScreen.main
+        let screen =
+            NSScreen.screens.first { $0.frame.contains(CGPoint(x: hit.frame.midX, y: hit.frame.midY)) } ?? NSScreen.main
         let available = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1000, height: 700)
         let vertical = hit.edge != .bottom
         columns = vertical ? 1 : max(1, min(4, Int((available.width - 36) / 210)))
-        let size = vertical ? CGSize(width: 228, height: min(CGFloat(windows.count) * 172 + 12, available.height - 16))
-            : CGSize(width: min(CGFloat(min(windows.count, columns)) * 210 + 20, available.width - 16), height: min(CGFloat((windows.count + columns - 1) / columns) * 172 + 12, available.height - 16))
+        let size =
+            vertical
+            ? CGSize(width: 228, height: min(CGFloat(windows.count) * 172 + 12, available.height - 16))
+            : CGSize(
+                width: min(CGFloat(min(windows.count, columns)) * 210 + 20, available.width - 16),
+                height: min(CGFloat((windows.count + columns - 1) / columns) * 172 + 12, available.height - 16))
         let frame = DockGeometry.panel(anchor: hit.frame, size: size, screen: available, edge: hit.edge)
-        let panel = self.panel ?? NSPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        let panel =
+            self.panel
+            ?? NSPanel(
+                contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.level = .popUpMenu
         panel.isOpaque = false
         panel.backgroundColor = .clear
@@ -175,10 +210,16 @@ final class DockPreviewController {
             if let panel = self.panel, panel.frame.insetBy(dx: -6, dy: -6).contains(point) { return }
             if let session = self.session {
                 if let hit = self.hitTest.hit(DockHitTest.axPoint(point), fresh: true) {
-                    if hit.app.processIdentifier != session.app.processIdentifier { self.schedule(hit, delay: 100); return }
+                    if hit.app.processIdentifier != session.app.processIdentifier {
+                        self.schedule(hit, delay: 100)
+                        return
+                    }
                     if !self.enteredPanel { return }
                 } else if !self.enteredPanel, let panel = self.panel,
-                          DockGeometry.openingPath(point, icon: session.frame, panel: panel.frame, edge: session.edge) { return }
+                    DockGeometry.openingPath(point, icon: session.frame, panel: panel.frame, edge: session.edge)
+                {
+                    return
+                }
             }
             self.close()
         }
@@ -186,7 +227,9 @@ final class DockPreviewController {
 
     func quit(_ window: DockWindow) {
         guard let app = NSRunningApplication(processIdentifier: window.pid),
-              (window.pid == getpid() || AppQuitPolicy.allows(bundleID: app.bundleIdentifier, ownBundleID: Bundle.main.bundleIdentifier)) else { return }
+            window.pid == getpid()
+                || AppQuitPolicy.allows(bundleID: app.bundleIdentifier, ownBundleID: Bundle.main.bundleIdentifier)
+        else { return }
         app.terminate()
     }
     func closeWindow(_ window: DockWindow) { Task { await DockWindowAccess.close(window) } }
@@ -217,20 +260,34 @@ final class DockPreviewController {
 
     func close(clearCache: Bool = false) {
         sessionToken = UUID()
-        refreshTask?.cancel(); refreshTask = nil
-        cancelHover(); cancelHide()
-        moveTask?.cancel(); moveTask = nil; trailingPoint = nil
-        captureTask?.cancel(); captureTask = nil
+        refreshTask?.cancel()
+        refreshTask = nil
+        cancelHover()
+        cancelHide()
+        moveTask?.cancel()
+        moveTask = nil
+        trailingPoint = nil
+        captureTask?.cancel()
+        captureTask = nil
         panel?.orderOut(nil)
         panel?.contentView = nil
         panel = nil
         session = nil
-        windows = []; images = [:]; enteredPanel = false
+        windows = []
+        images = [:]
+        enteredPanel = false
         visible = false
         if clearCache { thumbnails.clear() }
     }
-    private func cancelHover() { hoverTask?.cancel(); hoverTask = nil; pendingHit = nil }
-    private func cancelHide() { hideTask?.cancel(); hideTask = nil }
+    private func cancelHover() {
+        hoverTask?.cancel()
+        hoverTask = nil
+        pendingHit = nil
+    }
+    private func cancelHide() {
+        hideTask?.cancel()
+        hideTask = nil
+    }
 }
 
 private final class DockHostingView<Content: View>: NSHostingView<Content> {
@@ -242,7 +299,11 @@ private struct DockPreviewView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ScrollView(.vertical, showsIndicators: true) {
-                LazyVGrid(columns: Array(repeating: GridItem(.fixed(202), spacing: 8), count: min(model.columns, max(1, model.windows.count))), spacing: 8) { cards }
+                LazyVGrid(
+                    columns: Array(
+                        repeating: GridItem(.fixed(202), spacing: 8),
+                        count: min(model.columns, max(1, model.windows.count))), spacing: 8
+                ) { cards }
             }
         }
         .padding(10)
@@ -252,8 +313,10 @@ private struct DockPreviewView: View {
     }
     @ViewBuilder private var cards: some View {
         ForEach(model.windows) { window in
-            DockPreviewCard(window: window, image: model.images[window.id], appName: model.appName,
-                            activate: { model.activate(window) }, quit: { model.quit(window) }, close: { model.closeWindow(window) }, minimize: { model.minimize(window) })
+            DockPreviewCard(
+                window: window, image: model.images[window.id], appName: model.appName,
+                activate: { model.activate(window) }, quit: { model.quit(window) },
+                close: { model.closeWindow(window) }, minimize: { model.minimize(window) })
         }
     }
 }
@@ -269,10 +332,15 @@ private struct DockPreviewCard: View {
     @State private var hovered = false
     var body: some View {
         VStack(spacing: 6) {
-            PreviewHeader(title: window.title.isEmpty ? appName : window.title, description: appName,
-                          hasWindow: true, canMinimize: !window.minimized && !window.fullscreen,
-                          quit: quit, close: close, minimize: minimize,
-                          canQuit: window.pid == getpid() || AppQuitPolicy.allows(bundleID: NSRunningApplication(processIdentifier: window.pid)?.bundleIdentifier, ownBundleID: Bundle.main.bundleIdentifier))
+            PreviewHeader(
+                title: window.title.isEmpty ? appName : window.title, description: appName,
+                hasWindow: true, canMinimize: !window.minimized && !window.fullscreen,
+                quit: quit, close: close, minimize: minimize,
+                canQuit: window.pid == getpid()
+                    || AppQuitPolicy.allows(
+                        bundleID: NSRunningApplication(processIdentifier: window.pid)?.bundleIdentifier,
+                        ownBundleID: Bundle.main.bundleIdentifier)
+            )
             Button(action: activate) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 7).fill(.black.opacity(0.12))

@@ -14,7 +14,8 @@ final class WindowSwitcherService: FeatureModule {
 
     let id = FeatureID.windowSwitcher
     private(set) var enabled = UserDefaults.standard.bool(forKey: "windowSwitcher.enabled")
-    private(set) var buttonsEnabled = (UserDefaults.standard.object(forKey: "windowSwitcher.buttonsEnabled") as? Bool) ?? true
+    private(set) var buttonsEnabled =
+        (UserDefaults.standard.object(forKey: "windowSwitcher.buttonsEnabled") as? Bool) ?? true
     private var quitConfirmation: NSAlert?
     private var bulkQuitChordHeld = false
     private(set) var running = false
@@ -39,7 +40,6 @@ final class WindowSwitcherService: FeatureModule {
     private var selectedPID: pid_t?
     private var lastHoverPoint = CGPoint.zero
 
-
     var isAvailable: Bool { AXIsProcessTrusted() }
 
     init() {
@@ -59,8 +59,9 @@ final class WindowSwitcherService: FeatureModule {
 
     func canQuit(_ item: WindowItem) -> Bool {
         if item.ownerPID == getpid() { return true }
-        return AppQuitPolicy.allows(bundleID: NSRunningApplication(processIdentifier: item.ownerPID)?.bundleIdentifier,
-                             ownBundleID: Bundle.main.bundleIdentifier)
+        return AppQuitPolicy.allows(
+            bundleID: NSRunningApplication(processIdentifier: item.ownerPID)?.bundleIdentifier,
+            ownBundleID: Bundle.main.bundleIdentifier)
     }
 
     func setSuspended(_ value: Bool) {
@@ -90,19 +91,23 @@ final class WindowSwitcherService: FeatureModule {
             message = "需要辅助功能权限才能监听 ⌘Tab。"
             return
         }
-        let mask = CGEventMask(1 << CGEventType.keyDown.rawValue)
+        let mask =
+            CGEventMask(1 << CGEventType.keyDown.rawValue)
             | CGEventMask(1 << CGEventType.keyUp.rawValue)
             | CGEventMask(1 << CGEventType.flagsChanged.rawValue)
-        guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap,
-                                          place: .headInsertEventTap,
-                                          options: .defaultTap,
-                                          eventsOfInterest: mask,
-                                          callback: { _, type, event, info in
-            guard let info else { return Unmanaged.passUnretained(event) }
-            let service = Unmanaged<WindowSwitcherService>.fromOpaque(info).takeUnretainedValue()
-            let consumed = MainActor.assumeIsolated { service.handle(type: type, event: event) == nil }
-            return consumed ? nil : Unmanaged.passUnretained(event)
-        }, userInfo: Unmanaged.passUnretained(self).toOpaque()) else {
+        guard
+            let tap = CGEvent.tapCreate(
+                tap: .cgSessionEventTap,
+                place: .headInsertEventTap,
+                options: .defaultTap,
+                eventsOfInterest: mask,
+                callback: { _, type, event, info in
+                    guard let info else { return Unmanaged.passUnretained(event) }
+                    let service = Unmanaged<WindowSwitcherService>.fromOpaque(info).takeUnretainedValue()
+                    let consumed = MainActor.assumeIsolated { service.handle(type: type, event: event) == nil }
+                    return consumed ? nil : Unmanaged.passUnretained(event)
+                }, userInfo: Unmanaged.passUnretained(self).toOpaque())
+        else {
             message = "无法建立窗口切换输入监听。"
             return
         }
@@ -121,8 +126,12 @@ final class WindowSwitcherService: FeatureModule {
     func stop() {
         closeSession()
         if quitConfirmation != nil { NSApp.abortModal() }
-        quitConfirmation?.window.close(); quitConfirmation = nil
-        if let tap { CGEvent.tapEnable(tap: tap, enable: false); CFMachPortInvalidate(tap) }
+        quitConfirmation?.window.close()
+        quitConfirmation = nil
+        if let tap {
+            CGEvent.tapEnable(tap: tap, enable: false)
+            CFMachPortInvalidate(tap)
+        }
         if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
         tap = nil
         source = nil
@@ -143,7 +152,9 @@ final class WindowSwitcherService: FeatureModule {
             return nil
         }
         if type == .keyDown {
-            if (bulkQuitChordHeld || quitConfirmation != nil), command, event.flags.contains(.maskShift), keyCode == 12 { return nil }
+            if bulkQuitChordHeld || quitConfirmation != nil, command, event.flags.contains(.maskShift), keyCode == 12 {
+                return nil
+            }
             if running, command, [12, 13, 46].contains(keyCode) {
                 guard buttonsEnabled else { return nil }
                 if keyCode == 12, event.flags.contains(.maskShift) {
@@ -156,25 +167,56 @@ final class WindowSwitcherService: FeatureModule {
                 }
             }
             if running, !items.isEmpty {
-                if keyCode == 123 { advance(by: -1); return nil }
-                if keyCode == 124 { advance(by: 1); return nil }
-                if keyCode == 126 { advance(by: -columns); return nil }
-                if keyCode == 125 { advance(by: columns); return nil }
-                if command, keyCode == 13 { closeSelected(); return nil }
-                if command, keyCode == 46 { minimizeSelected(); return nil }
-                if command, keyCode == 12 { quit(items[selectedIndex]); return nil }
+                if keyCode == 123 {
+                    advance(by: -1)
+                    return nil
+                }
+                if keyCode == 124 {
+                    advance(by: 1)
+                    return nil
+                }
+                if keyCode == 126 {
+                    advance(by: -columns)
+                    return nil
+                }
+                if keyCode == 125 {
+                    advance(by: columns)
+                    return nil
+                }
+                if command, keyCode == 13 {
+                    closeSelected()
+                    return nil
+                }
+                if command, keyCode == 46 {
+                    minimizeSelected()
+                    return nil
+                }
+                if command, keyCode == 12 {
+                    quit(items[selectedIndex])
+                    return nil
+                }
             }
-            guard command, !event.flags.contains(.maskControl), !event.flags.contains(.maskAlternate) else { return Unmanaged.passUnretained(event) }
+            guard command, !event.flags.contains(.maskControl), !event.flags.contains(.maskAlternate) else {
+                return Unmanaged.passUnretained(event)
+            }
             if keyCode == 48 {
-                if running { advance(by: event.flags.contains(.maskShift) ? -1 : 1) } else { begin(.applications, backwards: event.flags.contains(.maskShift)) }
+                if running {
+                    advance(by: event.flags.contains(.maskShift) ? -1 : 1)
+                } else {
+                    begin(.applications, backwards: event.flags.contains(.maskShift))
+                }
                 return nil
             }
             if keyCode == 50 {
-                if running { restrictToSelectedApplication(backwards: event.flags.contains(.maskShift)) } else { begin(.applicationWindows, backwards: event.flags.contains(.maskShift)) }
+                if running {
+                    restrictToSelectedApplication(backwards: event.flags.contains(.maskShift))
+                } else {
+                    begin(.applicationWindows, backwards: event.flags.contains(.maskShift))
+                }
                 return nil
             }
         } else if type == .keyUp {
-            if (keyCode == 48 || keyCode == 50), running { return nil }
+            if keyCode == 48 || keyCode == 50, running { return nil }
             if keyCode == 55, running {
                 commitSelection()
                 return nil
@@ -201,23 +243,28 @@ final class WindowSwitcherService: FeatureModule {
             let windows = await DockWindowAccess.windows(pid: app.processIdentifier)
             let name = app.localizedName ?? "应用"
             for window in windows {
-                let item = WindowItem(id: window.id, ownerPID: app.processIdentifier, ownerName: name,
-                                      title: window.title.isEmpty ? name : window.title, bounds: window.bounds,
-                                      isOnscreen: !app.isHidden && !window.minimized,
-                                      isMinimized: app.isHidden || window.minimized,
-                                      isFullscreen: window.fullscreen, appIcon: app.icon)
+                let item = WindowItem(
+                    id: window.id, ownerPID: app.processIdentifier, ownerName: name,
+                    title: window.title.isEmpty ? name : window.title, bounds: window.bounds,
+                    isOnscreen: !app.isHidden && !window.minimized,
+                    isMinimized: app.isHidden || window.minimized,
+                    isFullscreen: window.fullscreen, appIcon: app.icon)
                 item.window = window
                 result.append(item)
             }
             if windows.isEmpty, mode == .applications, app.processIdentifier != getpid() {
-                result.append(WindowItem(id: 0, ownerPID: app.processIdentifier, ownerName: name,
-                                         title: "没有打开的窗口", bounds: .zero, isOnscreen: false,
-                                         isMinimized: app.isHidden, isFullscreen: false, appIcon: app.icon))
+                result.append(
+                    WindowItem(
+                        id: 0, ownerPID: app.processIdentifier, ownerName: name,
+                        title: "没有打开的窗口", bounds: .zero, isOnscreen: false,
+                        isMinimized: app.isHidden, isFullscreen: false, appIcon: app.icon))
             }
         }
         return result.enumerated().sorted { lhs, rhs in
-            let left = WindowPresence.orderGroup(windowless: lhs.element.isWindowless, minimized: lhs.element.isMinimized)
-            let right = WindowPresence.orderGroup(windowless: rhs.element.isWindowless, minimized: rhs.element.isMinimized)
+            let left = WindowPresence.orderGroup(
+                windowless: lhs.element.isWindowless, minimized: lhs.element.isMinimized)
+            let right = WindowPresence.orderGroup(
+                windowless: rhs.element.isWindowless, minimized: rhs.element.isMinimized)
             if left != right { return left < right }
             if (lhs.element.ownerPID == pid) != (rhs.element.ownerPID == pid) { return lhs.element.ownerPID == pid }
             return lhs.offset < rhs.offset
@@ -239,9 +286,15 @@ final class WindowSwitcherService: FeatureModule {
             let result = await self.snapshot(mode: requestedMode, pid: self.selectedPID)
             guard !Task.isCancelled, self.sessionID == token else { return }
             self.items = result
-            guard !result.isEmpty else { self.closeSession(); return }
+            guard !result.isEmpty else {
+                self.closeSession()
+                return
+            }
             self.selectedIndex = (self.steps % result.count + result.count) % result.count
-            if self.pendingCommit { self.commitSelection(); return }
+            if self.pendingCommit {
+                self.commitSelection()
+                return
+            }
             let delay = 0.1 - (ProcessInfo.processInfo.systemUptime - started)
             if delay > 0 { try? await Task.sleep(for: .seconds(delay)) }
             guard !Task.isCancelled, self.sessionID == token else { return }
@@ -253,7 +306,10 @@ final class WindowSwitcherService: FeatureModule {
 
     private func restrictToSelectedApplication(backwards: Bool) {
         guard items.indices.contains(selectedIndex) else { return }
-        if mode == .applicationWindows { advance(by: backwards ? -1 : 1); return }
+        if mode == .applicationWindows {
+            advance(by: backwards ? -1 : 1)
+            return
+        }
         let pid = items[selectedIndex].ownerPID
         items = items.filter { $0.ownerPID == pid && !$0.isWindowless }
         selectedPID = pid
@@ -264,7 +320,10 @@ final class WindowSwitcherService: FeatureModule {
 
     private func advance(by offset: Int) {
         lastHoverPoint = NSEvent.mouseLocation
-        guard !items.isEmpty else { steps += offset; return }
+        guard !items.isEmpty else {
+            steps += offset
+            return
+        }
         suppressCommit = false
         selectedIndex = (selectedIndex + offset % items.count + items.count) % items.count
         if previews[items[selectedIndex].id] == nil && !items[selectedIndex].isWindowless { schedulePreviews() }
@@ -275,15 +334,23 @@ final class WindowSwitcherService: FeatureModule {
         previewTask?.cancel()
         let token = sessionID
         let windows = Array(items.dropFirst(max(0, selectedIndex - columns * 2)).prefix(24)).compactMap(\.window)
-        for item in items { if let window = item.window, let image = thumbnails.cached(window) { previews[item.id] = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height)) } }
+        for item in items {
+            if let window = item.window, let image = thumbnails.cached(window) {
+                previews[item.id] = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
+            }
+        }
         previewTask = Task { @MainActor [weak self] in
             guard let self else { return }
             await self.thumbnails.refresh(windows) { id, image in
                 guard self.running, self.sessionID == token else { return }
                 if self.previews.count >= 24, self.previews[id] == nil,
-                   let victim = self.previews.keys.max(by: { a, b in
-                       abs((self.items.firstIndex { $0.id == a } ?? 0) - self.selectedIndex) < abs((self.items.firstIndex { $0.id == b } ?? 0) - self.selectedIndex)
-                   }) { self.previews[victim] = nil }
+                    let victim = self.previews.keys.max(by: { a, b in
+                        abs((self.items.firstIndex { $0.id == a } ?? 0) - self.selectedIndex)
+                            < abs((self.items.firstIndex { $0.id == b } ?? 0) - self.selectedIndex)
+                    })
+                {
+                    self.previews[victim] = nil
+                }
                 self.previews[id] = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
             }
         }
@@ -298,18 +365,27 @@ final class WindowSwitcherService: FeatureModule {
                 let current = await self.snapshot(mode: self.mode, pid: self.selectedPID)
                 guard !Task.isCancelled, self.running else { return }
                 let live = Set(current.map(\.stableID))
-                let selected = self.items.indices.contains(self.selectedIndex) ? self.items[self.selectedIndex].stableID : ""
+                let selected =
+                    self.items.indices.contains(self.selectedIndex) ? self.items[self.selectedIndex].stableID : ""
                 let existing = Set(self.items.map(\.stableID))
                 for item in self.items {
-                    if let fresh = current.first(where: { $0.stableID == item.stableID }) { item.isMinimized = fresh.isMinimized }
+                    if let fresh = current.first(where: { $0.stableID == item.stableID }) {
+                        item.isMinimized = fresh.isMinimized
+                    }
                 }
-                self.items = self.items.filter { live.contains($0.stableID) } + current.filter { !existing.contains($0.stableID) }
+                self.items =
+                    self.items.filter { live.contains($0.stableID) }
+                    + current.filter { !existing.contains($0.stableID) }
                 self.items = self.items.enumerated().sorted {
                     if $0.element.isWindowless != $1.element.isWindowless { return !$0.element.isWindowless }
                     return $0.offset < $1.offset
                 }.map(\.element)
-                guard !self.items.isEmpty else { self.closeSession(); return }
-                self.selectedIndex = self.items.firstIndex { $0.stableID == selected } ?? min(self.selectedIndex, self.items.count - 1)
+                guard !self.items.isEmpty else {
+                    self.closeSession()
+                    return
+                }
+                self.selectedIndex =
+                    self.items.firstIndex { $0.stableID == selected } ?? min(self.selectedIndex, self.items.count - 1)
                 let ids = Set(self.items.map(\.id))
                 self.previews = self.previews.filter { ids.contains($0.key) }
             }
@@ -350,8 +426,8 @@ final class WindowSwitcherService: FeatureModule {
     private func confirmQuitAll() {
         guard buttonsEnabled, quitConfirmation == nil else { return }
         let targets = NSWorkspace.shared.runningApplications.filter {
-            $0.activationPolicy == .regular && !$0.isTerminated &&
-            AppQuitPolicy.allows(bundleID: $0.bundleIdentifier, ownBundleID: Bundle.main.bundleIdentifier)
+            $0.activationPolicy == .regular && !$0.isTerminated
+                && AppQuitPolicy.allows(bundleID: $0.bundleIdentifier, ownBundleID: Bundle.main.bundleIdentifier)
         }
         closeSession()
         guard !targets.isEmpty else { return }
@@ -370,14 +446,25 @@ final class WindowSwitcherService: FeatureModule {
         quitConfirmation = nil
         guard response == .alertSecondButtonReturn else { return }
         for app in targets where !app.isTerminated {
-            if AppQuitPolicy.allows(bundleID: app.bundleIdentifier, ownBundleID: Bundle.main.bundleIdentifier) { app.terminate() }
+            if AppQuitPolicy.allows(bundleID: app.bundleIdentifier, ownBundleID: Bundle.main.bundleIdentifier) {
+                app.terminate()
+            }
         }
     }
 
     private func commitSelection() {
-        if suppressCommit { closeSession(); return }
-        guard !items.isEmpty else { pendingCommit = true; return }
-        guard running, items.indices.contains(selectedIndex) else { closeSession(); return }
+        if suppressCommit {
+            closeSession()
+            return
+        }
+        guard !items.isEmpty else {
+            pendingCommit = true
+            return
+        }
+        guard running, items.indices.contains(selectedIndex) else {
+            closeSession()
+            return
+        }
         let selected = items[selectedIndex]
         closeSession()
         Task { @MainActor in
@@ -388,20 +475,24 @@ final class WindowSwitcherService: FeatureModule {
             if selected.isWindowless, let url = app.bundleURL {
                 let configuration = NSWorkspace.OpenConfiguration()
                 configuration.activates = true
-                NSWorkspace.shared.openApplication(at: url, configuration: configuration, completionHandler: { _, _ in })
+                NSWorkspace.shared.openApplication(
+                    at: url, configuration: configuration, completionHandler: { _, _ in })
             }
             if let window = selected.window {
                 try? await Task.sleep(for: .milliseconds(120))
-                if NSWorkspace.shared.frontmostApplication?.processIdentifier == selected.ownerPID { await DockWindowAccess.raise(window) }
+                if NSWorkspace.shared.frontmostApplication?.processIdentifier == selected.ownerPID {
+                    await DockWindowAccess.raise(window)
+                }
             }
         }
     }
 
     private func showPanel() {
         if panel == nil {
-            let panel = NSPanel(contentRect: .zero,
-                                styleMask: [.borderless, .nonactivatingPanel],
-                                backing: .buffered, defer: false)
+            let panel = NSPanel(
+                contentRect: .zero,
+                styleMask: [.borderless, .nonactivatingPanel],
+                backing: .buffered, defer: false)
             panel.level = .popUpMenu
             panel.isOpaque = false
             panel.backgroundColor = .clear
@@ -415,25 +506,33 @@ final class WindowSwitcherService: FeatureModule {
         lastHoverPoint = point
         let screen = (NSScreen.screens.first { $0.frame.contains(point) } ?? NSScreen.main)?.visibleFrame ?? .zero
         let builtin = NSScreen.screens.first { display in
-            guard let number = display.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return false }
+            guard let number = display.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else {
+                return false
+            }
             return CGDisplayIsBuiltin(number.uint32Value) != 0
         }
         let reference = builtin?.frame ?? NSScreen.screens.first?.frame ?? screen
-        columns = SwitcherLayout.columns(count: items.count, available: screen.size,
-                                         targetAspect: reference.width / max(1, reference.height))
+        columns = SwitcherLayout.columns(
+            count: items.count, available: screen.size,
+            targetAspect: reference.width / max(1, reference.height))
         let rows = (items.count + columns - 1) / columns
         let size = NSSize(width: CGFloat(columns) * 224 + 32, height: min(screen.height - 80, CGFloat(rows) * 184 + 64))
-        panel?.setFrame(NSRect(x: screen.midX - size.width / 2,
-                               y: screen.midY - size.height / 2,
-                               width: size.width, height: size.height), display: true)
+        panel?.setFrame(
+            NSRect(
+                x: screen.midX - size.width / 2,
+                y: screen.midY - size.height / 2,
+                width: size.width, height: size.height), display: true)
         panel?.orderFrontRegardless()
     }
 
     private func closeSession() {
         sessionID = UUID()
-        sessionTask?.cancel(); sessionTask = nil
-        refreshTask?.cancel(); refreshTask = nil
-        previewTask?.cancel(); previewTask = nil
+        sessionTask?.cancel()
+        sessionTask = nil
+        refreshTask?.cancel()
+        refreshTask = nil
+        previewTask?.cancel()
+        previewTask = nil
         panel?.orderOut(nil)
         running = false
         items.removeAll(keepingCapacity: false)
@@ -458,19 +557,27 @@ private struct WindowSwitcherPanel: View {
             }
             ScrollViewReader { proxy in
                 ScrollView(.vertical, showsIndicators: true) {
-                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(216), spacing: 8), count: service.columns), spacing: 12) {
+                    LazyVGrid(
+                        columns: Array(repeating: GridItem(.fixed(216), spacing: 8), count: service.columns),
+                        spacing: 12
+                    ) {
                         ForEach(Array(service.items.enumerated()), id: \.element.stableID) { index, item in
-                            WindowSwitcherCard(item: item, image: service.previews[item.id], selected: index == service.selectedIndex,
-                                               buttonsEnabled: service.buttonsEnabled, canQuit: service.canQuit(item),
-                                               quit: { service.quit(item) }, close: { service.close(item) }, minimize: { service.minimize(item) })
-                                .id(item.stableID)
-                                .onTapGesture { service.select(index: index) }
-                                .onContinuousHover { phase in if case .active = phase { service.hover(index: index) } }
+                            WindowSwitcherCard(
+                                item: item, image: service.previews[item.id], selected: index == service.selectedIndex,
+                                buttonsEnabled: service.buttonsEnabled, canQuit: service.canQuit(item),
+                                quit: { service.quit(item) }, close: { service.close(item) },
+                                minimize: { service.minimize(item) }
+                            )
+                            .id(item.stableID)
+                            .onTapGesture { service.select(index: index) }
+                            .onContinuousHover { phase in if case .active = phase { service.hover(index: index) } }
                         }
                     }
                 }
                 .onChange(of: service.selectedIndex) { _, _ in
-                    if service.items.indices.contains(service.selectedIndex) { proxy.scrollTo(service.items[service.selectedIndex].stableID) }
+                    if service.items.indices.contains(service.selectedIndex) {
+                        proxy.scrollTo(service.items[service.selectedIndex].stableID)
+                    }
                 }
             }
         }
@@ -493,24 +600,35 @@ private struct WindowSwitcherCard: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            PreviewHeader(title: item.title, description: item.ownerName, hasWindow: !item.isWindowless,
-                          canMinimize: !item.isWindowless && !item.isFullscreen && !item.isMinimized,
-                          quit: quit, close: close, minimize: minimize,
-                          showsControls: buttonsEnabled, canQuit: canQuit)
+            PreviewHeader(
+                title: item.title, description: item.ownerName, hasWindow: !item.isWindowless,
+                canMinimize: !item.isWindowless && !item.isFullscreen && !item.isMinimized,
+                quit: quit, close: close, minimize: minimize,
+                showsControls: buttonsEnabled, canQuit: canQuit)
             ZStack {
                 RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.12))
-                if let image { Image(nsImage: image).resizable().scaledToFit().padding(2).frame(maxWidth: .infinity, maxHeight: .infinity) }
-                else if let icon = item.appIcon { Image(nsImage: icon).resizable().scaledToFit().padding(32) }
-                else { Image(systemName: "macwindow").font(.system(size: 28)).foregroundStyle(.secondary) }
+                if let image {
+                    Image(nsImage: image).resizable().scaledToFit().padding(2).frame(
+                        maxWidth: .infinity, maxHeight: .infinity)
+                } else if let icon = item.appIcon {
+                    Image(nsImage: icon).resizable().scaledToFit().padding(32)
+                } else {
+                    Image(systemName: "macwindow").font(.system(size: 28)).foregroundStyle(.secondary)
+                }
             }.frame(width: 204, height: 124)
-                .overlay(alignment: .bottomTrailing) { PreviewStateBadge(minimized: item.isMinimized, fullscreen: item.isFullscreen) }
+                .overlay(alignment: .bottomTrailing) {
+                    PreviewStateBadge(minimized: item.isMinimized, fullscreen: item.isFullscreen)
+                }
         }.frame(width: 204)
 
-        .padding(6)
-        .background(selected ? Color.accentColor.opacity(0.18) : Color.clear,
-                    in: RoundedRectangle(cornerRadius: 11))
-        .overlay(RoundedRectangle(cornerRadius: 11)
-            .stroke(selected ? Color.accentColor : Color.clear, lineWidth: 2))
+            .padding(6)
+            .background(
+                selected ? Color.accentColor.opacity(0.18) : Color.clear,
+                in: RoundedRectangle(cornerRadius: 11)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 11)
+                    .stroke(selected ? Color.accentColor : Color.clear, lineWidth: 2))
     }
 }
 

@@ -30,12 +30,14 @@ struct OpenSourceLicensesView: View {
     private nonisolated static func loadSections() -> [LicenseSection] {
         guard let root = Bundle.main.resourceURL else { return [] }
         let directory = root.appendingPathComponent("Licenses")
-        let files = ((try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? [])
+        let files =
+            ((try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? [])
             .filter { $0.pathExtension == "txt" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
         return ([root.appendingPathComponent("THIRD_PARTY_NOTICES.md")] + files).map { url in
             let text = (try? String(contentsOf: url, encoding: .utf8)) ?? "当前构建中缺少许可文件。"
-            return LicenseSection(id: url.lastPathComponent, title: url.deletingPathExtension().lastPathComponent,
-                                  paragraphs: text.components(separatedBy: "\n\n").filter { !$0.isEmpty })
+            return LicenseSection(
+                id: url.lastPathComponent, title: url.deletingPathExtension().lastPathComponent,
+                paragraphs: text.components(separatedBy: "\n\n").filter { !$0.isEmpty })
         }
     }
 }

@@ -1,0 +1,698 @@
+[
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/ContentView.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Notch/ContentView.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/DynamicIslandApp.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Integration/DynamicIslandApp.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/DynamicIslandViewCoordinator.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Notch/DynamicIslandViewCoordinator.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/MediaControllers/MediaControllerProtocol.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Media/MediaControllerProtocol.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/MediaControllers/NowPlayingController.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Media/NowPlayingController.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/Providers/CalendarServiceProviding.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Calendar/CalendarServiceProviding.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/animations/HelloAnimation.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/UI/HelloAnimation.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/animations/drop.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Notch/DropAnimation.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Calendar/DynamicIslandCalendar.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Calendar/DynamicIslandCalendar.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Calendar/ReminderLiveActivity.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Calendar/ReminderLiveActivity.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/ColorCodedProgressBar.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/UI/ColorCodedProgressBar.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/DynamicIslandSystemTiles.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/SystemControls/DynamicIslandSystemTiles.swift",
+    "status": "removed: obsolete implementation with no callers"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Focus/DoNotDisturbLiveActivity.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Focus/DoNotDisturbLiveActivity.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/HoverButton.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/UI/HoverButton.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Live activities/DynamicIslandBattery.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Battery/DynamicIslandBattery.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Live activities/InlineHUD.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Activities/InlineHUD.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Live activities/LiveActivityModifier.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Activities/LiveActivityModifier.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Live activities/MarqueeTextView.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Activities/MarqueeTextView.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Live activities/SystemEventIndicatorModifier.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Activities/SystemEventIndicatorModifier.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/LockScreen/LockIconAnimationView.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/LockScreen/LockIconAnimationView.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/LockScreen/LockScreenCalendarEventRow.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/LockScreen/LockScreenCalendarEventRow.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/LockScreen/LockScreenDynamicIslandReplica.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/LockScreen/LockScreenDynamicIslandReplica.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/LockScreen/LockScreenLiveActivity.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/LockScreen/LockScreenLiveActivity.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/LockScreen/LockScreenLiveActivityOverlay.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/LockScreen/LockScreenLiveActivityOverlay.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/LockScreen/LockScreenMusicPanel.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/LockScreen/LockScreenMusicPanel.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/LockScreen/LockScreenWeatherWidget.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/LockScreen/LockScreenWeatherWidget.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Music/AudioVisualizerView.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Media/AudioVisualizerView.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Music/BuiltinLyricAvailability.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Media/BuiltinLyricAvailability.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Music/LiveStreamProgressIndicator.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Media/LiveStreamProgressIndicator.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Music/MusicVisualizer.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Media/MusicVisualizer.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Music/TimedLyricLine.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Media/TimedLyricLine.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Notch/DynamicIslandExtrasMenu.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Notch/DynamicIslandExtrasMenu.swift",
+    "status": "removed: obsolete implementation with no callers"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Notch/DynamicIslandHeader.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Notch/DynamicIslandHeader.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Notch/DynamicIslandPillShape.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Notch/DynamicIslandPillShape.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Notch/DynamicIslandWindow.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Notch/DynamicIslandWindow.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Notch/NotchHomeView.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Notch/NotchHomeView.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Notch/NotchShape.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Notch/NotchShape.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Notch/NotchShelfView.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Notch/NotchShelfView.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Notch/NotchTerminalView.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Terminal/NotchTerminalView.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/OSD/HUDNumericLabel.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/SystemControls/HUDNumericLabel.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/OSD/VerticalHUDView.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/SystemControls/VerticalHUDView.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/PersistentActivityIcons.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/UI/PersistentActivityIcons.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Privacy/PrivacyLiveActivity.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Privacy/PrivacyLiveActivity.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/PrivacyIndicatorIcon.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Privacy/PrivacyIndicatorIcon.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/ProgressIndicator.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/UI/ProgressIndicator.swift",
+    "status": "removed: obsolete implementation with no callers"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Recording/RecordingLiveActivity.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Privacy/RecordingLiveActivity.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Settings/EditPanelView.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/UI/EditPanelView.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Settings/ListItemPopover.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/UI/ListItemPopover.swift",
+    "status": "removed: obsolete implementation with no callers"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Settings/LockScreenLayoutEditor.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/LockScreen/LockScreenLayoutEditor.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Settings/SettingsWindowController.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Integration/SettingsWindowController.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/AirDrop.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/AirDrop.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/AirDropView.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/AirDropView.swift",
+    "status": "removed: obsolete implementation with no callers"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/DragDropView.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/DragDropView.swift",
+    "status": "removed: obsolete implementation with no callers"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/DropItem.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/DropItem.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/DropItemView.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/DropItemView.swift",
+    "status": "removed: obsolete implementation with no callers"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/Ext+FileProvider.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Ext+FileProvider.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/Ext+NSAlert.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Ext+NSAlert.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/Ext+NSImage.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Ext+NSImage.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/Ext+URL.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Ext+URL.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/Models/Bookmark.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Models/Bookmark.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/Models/ShelfItem.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Models/ShelfItem.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/Services/ImageProcessingService.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Services/ImageProcessingService.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/Services/LocalSendService.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Services/LocalSendService.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/Services/QuickLookService.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Services/QuickLookService.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/Services/QuickShareService.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Services/QuickShareService.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/Services/ShareServiceFinder.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Services/ShareServiceFinder.swift",
+    "status": "removed: obsolete implementation with no callers"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/Services/ShelfActionService.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Services/ShelfActionService.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/Services/ShelfDropService.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Services/ShelfDropService.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/Services/ShelfPersistenceService.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Services/ShelfPersistenceService.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/Services/TemporaryFileStorageService.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Services/TemporaryFileStorageService.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/Services/ThumbnailService.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Services/ThumbnailService.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/TrayDrop.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/TrayDrop.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/ViewModels/ShelfItemViewModel.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/ViewModels/ShelfItemViewModel.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/ViewModels/ShelfSelectionModel.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/ViewModels/ShelfSelectionModel.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/ViewModels/ShelfStateViewModel.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/ViewModels/ShelfStateViewModel.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/Views/DragPreviewView.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Views/DragPreviewView.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/Views/FileShareView.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Views/FileShareView.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/Views/LocalSendLiveActivity.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Views/LocalSendLiveActivity.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/Views/ShelfInlineLiveActivity.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Views/ShelfInlineLiveActivity.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/Views/ShelfItemView.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Views/ShelfItemView.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Shelf/Views/ShelfView.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Views/ShelfView.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Tabs/TabButton.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Notch/TabButton.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Tabs/TabSelectionView.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Notch/TabSelectionView.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/Tips/TipStore.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Notch/TipStore.swift",
+    "status": "removed: obsolete implementation with no callers"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/UI/FocusIndicator.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Activities/FocusIndicator.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/components/UI/RecordingIndicator.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Activities/RecordingIndicator.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/enums/generic.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Notch/RuntimeTypes.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/extensions/ActionBar.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/UI/ActionBar.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/extensions/AlbumArtFlipModifier.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Media/AlbumArtFlipModifier.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/extensions/BundleInfos.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/UI/BundleInfos.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/extensions/Button+Bouncing.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/UI/Button+Bouncing.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/extensions/Color+AccentColor.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/UI/Color+AccentColor.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/extensions/Color+ReadableOnBlack.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/UI/Color+ReadableOnBlack.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/extensions/ConditionalModifier.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/UI/ConditionalModifier.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/extensions/DataTypes+Extensions.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/UI/DataTypes+Extensions.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/extensions/Image+InternalSystemName.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/UI/Image+InternalSystemName.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/extensions/MouseTracker.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/UI/MouseTracker.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/extensions/NSImage+Extensions.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/UI/NSImage+Extensions.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/extensions/NSItemProvider+LoadHelpers.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/NSItemProvider+LoadHelpers.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/extensions/NSMenu+AssociatedObject.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/UI/NSMenu+AssociatedObject.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/extensions/URL+SecurityScoped.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/URL+SecurityScoped.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/helpers/AccessibilityPermissionStore.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/Platform/AccessibilityPermissionStore.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/helpers/AppIcons.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/UI/AppIcons.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/helpers/AppleScriptError.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/Platform/AppleScriptError.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/helpers/AppleScriptHelper.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/Platform/AppleScriptHelper.swift",
+    "status": "removed: obsolete implementation with no callers"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/helpers/AppleScriptRunner.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/Platform/AppleScriptRunner.swift",
+    "status": "removed: obsolete implementation with no callers"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/helpers/AssociatedObject.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/Platform/AssociatedObject.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/helpers/AudioPlayer.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/Platform/AudioPlayer.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/helpers/Clipboard+Content.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/Clipboard+Content.swift",
+    "status": "removed: obsolete implementation with no callers"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/helpers/CoreBrightnessDisplayClient.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/SystemControls/CoreBrightnessDisplayClient.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/helpers/DisplayServicesDynamic.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/SystemControls/DisplayServicesDynamic.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/helpers/FullDiskAccessPermissionStore.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/Platform/FullDiskAccessPermissionStore.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/helpers/LiquidGlassBackground.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/UI/LiquidGlassBackground.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/helpers/ScreenCaptureVisibilityManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/Platform/ScreenCaptureVisibilityManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/helpers/SensorError.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/SystemControls/SensorError.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/helpers/SensorMethod.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/SystemControls/SensorMethod.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/AnimatedArtworkManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Media/AnimatedArtworkManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/AudioRouteManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Media/AudioRouteManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/BatteryActivityManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Battery/BatteryActivityManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/BetterDisplayManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/SystemControls/BetterDisplayManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/BluetoothAudioManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Media/BluetoothAudioManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/CalendarManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Calendar/CalendarManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/CameraMonitor.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Privacy/CameraMonitor.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/CapsLockManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/SystemControls/CapsLockManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/DoNotDisturbManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Focus/DoNotDisturbManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/ImageService.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Media/ImageService.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/KeyboardBrightnessSensor.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/SystemControls/KeyboardBrightnessSensor.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/LocalSendDevicePickerWindowManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/LocalSendDevicePickerWindowManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/LockScreenDisplayContextProvider.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/LockScreen/LockScreenDisplayContextProvider.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/LockScreenLiveActivityWindowManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/LockScreen/LockScreenLiveActivityWindowManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/LockScreenManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/LockScreen/LockScreenManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/LockScreenPanelManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/LockScreen/LockScreenPanelManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/LockScreenWeatherManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/LockScreen/LockScreenWeatherManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/LockScreenWeatherPanelManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/LockScreen/LockScreenWeatherPanelManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/LockScreenWidgetPreviewManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/LockScreen/LockScreenWidgetPreviewManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/LunarManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/SystemControls/LunarManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/LyricsProvider.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Media/LyricsProvider.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/MacBatteryManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Battery/MacBatteryManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/MediaKeyInterceptor.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Media/MediaKeyInterceptor.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/MicrophoneMonitor.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Privacy/MicrophoneMonitor.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/MusicManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Media/MusicManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/NotchSpaceManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Notch/NotchSpaceManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/PrivacyIndicatorManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Privacy/PrivacyIndicatorManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/ReminderLiveActivityManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Calendar/ReminderLiveActivityManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/ScreenRecordingManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Privacy/ScreenRecordingManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/SystemChangesObserver.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/SystemControls/SystemChangesObserver.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/SystemDisplayManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/SystemControls/SystemDisplayManager.swift",
+    "status": "removed: obsolete implementation with no callers"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/SystemHUDManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/SystemControls/SystemHUDManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/SystemKeyObserver.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/SystemControls/SystemKeyObserver.swift",
+    "status": "removed: obsolete implementation with no callers"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/SystemKeyboardBacklightController.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/SystemControls/SystemKeyboardBacklightController.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/SystemMediaControllers.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Media/SystemMediaControllers.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/SystemOSDManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/SystemControls/SystemOSDManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/SystemVolumeManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/SystemControls/SystemVolumeManager.swift",
+    "status": "removed: obsolete implementation with no callers"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/TerminalManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Terminal/TerminalManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/managers/VerticalHUDWindowManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/SystemControls/VerticalHUDWindowManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/menu/StatusBarMenu.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Integration/StatusBarMenu.swift",
+    "status": "removed: obsolete implementation with no callers"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/models/BatteryStatusViewModel.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Battery/BatteryStatusViewModel.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/models/CalendarModel.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Calendar/CalendarModel.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/models/Constants.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/RuntimeDefaults.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/models/DynamicIslandViewModel.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Notch/DynamicIslandViewModel.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/models/EventModel.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Calendar/EventModel.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/models/MusicControlButton.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Media/MusicControlButton.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/models/NotchConfiguration.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Notch/NotchConfiguration.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/models/PlaybackState.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Media/PlaybackState.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/models/SharingStateManager.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shelf/SharingStateManager.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/private/CGSSpace.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/Platform/CGSSpace.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/sizing/matters.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Notch/NotchSizing.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/strings/constants.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/RuntimeStrings.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/utils/Environment+LockScreenReplica.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/LockScreen/Environment+LockScreenReplica.swift"
+  },
+  {
+    "from": "MacKit/Features/NotchRuntime/DynamicIsland/utils/Logger.swift",
+    "to": "MacKit/Features/NotchAndLockScreen/Shared/RuntimeLogger.swift"
+  }
+]

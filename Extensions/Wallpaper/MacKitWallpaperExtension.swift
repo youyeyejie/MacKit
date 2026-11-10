@@ -34,7 +34,10 @@ final class MacKitWallpaperExtension: NSObject, AppExtension {
                 }
             }
             DispatchQueue.main.async {
-                MainActor.assumeIsolated { PlaybackStore.shared.startPublishing(); MacKitOcclusion.start() }
+                MainActor.assumeIsolated {
+                    PlaybackStore.shared.startPublishing()
+                    MacKitOcclusion.start()
+                }
             }
         } else {
             let err = String(cString: dlerror())
@@ -60,7 +63,9 @@ final class MacKitWallpaperExtension: NSObject, AppExtension {
         if missing.isEmpty {
             extensionLog("  [SelfCheck] Runtime layout OK — all \(critical.count) critical classes present")
         } else {
-            extensionLog("  [SelfCheck] UNSUPPORTED RUNTIME — missing: \(missing.joined(separator: ", ")). Rendering/snapshots may be degraded.")
+            extensionLog(
+                "  [SelfCheck] UNSUPPORTED RUNTIME — missing: \(missing.joined(separator: ", ")). Rendering/snapshots may be degraded."
+            )
         }
     }
 
@@ -87,4 +92,3 @@ final class MacKitWallpaperExtension: NSObject, AppExtension {
         WallpaperExtensionConfig()
     }
 }
-

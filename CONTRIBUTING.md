@@ -24,7 +24,7 @@ MacKit 是一个原生 macOS 工具集，后续功能会根据我的使用习惯
 
 也可以打开 `MacKit.xcodeproj`，选择 `MacKit` Scheme 运行。清洁模式和访达剪切需要辅助功能权限。
 
-新增、删除或移动源码及资源后，请重新生成工程。生成脚本会覆盖 `project.pbxproj` 和共享 Scheme；需要保留的工程配置变更，应同步修改 `scripts/generate_project.sh`，并提交生成后的工程文件。
+新增、删除或移动源码及资源后，请重新生成工程。生成脚本会覆盖 `project.pbxproj` 和共享 Scheme；需要保留的工程配置变更，应同步修改 `scripts/generate_app_project.py`，并提交生成后的工程文件。
 
 脚本均支持 `--help`。签名构建与 DMG 打包方式见 [README](README.md#构建)。
 
@@ -59,3 +59,12 @@ MacKit 是一个原生 macOS 工具集，后续功能会根据我的使用习惯
 ## 许可
 
 提交贡献即表示你有权提交相关内容，并同意将贡献按本项目的 [GPL-3.0-or-later](LICENSE) 发布。引入第三方代码、图片或音频时，请确认许可允许使用和分发，并保留必要的来源与许可声明。
+
+## 目录与格式维护
+
+- `Packages/MacKitCore/Sources/MacKitCore/` 按 App、Cleaning、FinderCut、WindowTools、Wallpaper 分组；工程生成器递归收集源文件。
+- `scripts/generate_app_project.py` 生成主程序工程；`scripts/generate_wallpaper_project.py` 生成壁纸扩展工程；Shell 脚本负责构建、签名和打包。
+- 使用 `./scripts/format.sh --write` 统一 Swift 格式，提交前运行 `./scripts/format.sh --check`。配置为四空格缩进、120 列；保留现有 API 命名、许可块注释及语义写法。
+- 集成运行时位于 `MacKit/Features/NotchAndLockScreen/`，修改时保留来源和许可文件。
+
+本项目后续编译验证使用带证书签名的构建：`./scripts/build.sh Debug --signed`。缺少本地签名配置或证书时应补齐配置，不自动降级为 unsigned。

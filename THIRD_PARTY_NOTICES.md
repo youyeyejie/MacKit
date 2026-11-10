@@ -9,7 +9,7 @@ MacKit includes adapted third-party code and bundled dependencies. Original copy
 - **Source:** https://github.com/Ebullioscopic/Atoll
 - **License:** GPL-3.0-or-later; [full text](LICENSES/Atoll-GPL-3.0.txt).
 - **Copyright:** Copyright (C) 2024–2026 Atoll Contributors. Includes code originating from boring.notch; original headers and notices are retained.
-- **Scope:** `MacKit/Features/NotchRuntime/`, host integration in `MacKit/Features/Atoll/`, and associated settings, resources and project-generation code. Includes notch UI, media/lyrics, calendar, file tray, terminal, system indicators and lock-screen components.
+- **Scope:** `MacKit/Features/NotchAndLockScreen/`, host integration in `MacKit/Features/NotchAndLockScreen/Integration/`, and associated settings, resources and project-generation code. Includes notch UI, media/lyrics, calendar, file tray, terminal, system indicators and lock-screen components.
 - **Changes:** Integrated into one application lifecycle; replaced standalone settings with MacKit's grouped root/child pages; adapted multi-display behavior, media/lyrics, activity presentation and lock-screen layout. Removed unused upstream features, standalone app/update paths and obsolete settings views.
 
 ### Vorssaint

@@ -23,14 +23,16 @@ final class DockClickController {
     private var records: [pid_t: Record] = [:]
     private var actionTasks: [pid_t: Task<Void, Never>] = [:]
     private var actionTokens: [pid_t: UUID] = [:]
-    private static let marker: Int64 = 0x4D41434B444F434B
+    private static let marker: Int64 = 0x4D41_434B_444F_434B
     var onHandled: (() -> Void)?
 
     func reset() {
         if let pending { replay(pending.down) }
         pending = nil
         actionTasks.values.forEach { $0.cancel() }
-        actionTasks = [:]; records = [:]; actionTokens = [:]
+        actionTasks = [:]
+        records = [:]
+        actionTokens = [:]
     }
 
     /// Only decisions about Dock ownership run in the event callback. Reading
@@ -41,13 +43,16 @@ final class DockClickController {
         case .leftMouseDown:
             pending = nil
             guard !panelContains,
-                  event.flags.intersection([.maskCommand, .maskControl, .maskAlternate, .maskShift]).isEmpty,
-                  let hit = hitTest.hit(event.location, fresh: true), let down = event.copy() else { return false }
+                event.flags.intersection([.maskCommand, .maskControl, .maskAlternate, .maskShift]).isEmpty,
+                let hit = hitTest.hit(event.location, fresh: true), let down = event.copy()
+            else { return false }
             let pid = hit.app.processIdentifier
             records = records.filter { NSRunningApplication(processIdentifier: $0.key)?.isTerminated == false }
             let record = records[pid]
             let elapsed = record.map { ProcessInfo.processInfo.systemUptime - $0.time } ?? .infinity
-            let active = !hit.app.isHidden && (hit.app.isActive || NSWorkspace.shared.frontmostApplication?.processIdentifier == pid)
+            let active =
+                !hit.app.isHidden
+                && (hit.app.isActive || NSWorkspace.shared.frontmostApplication?.processIdentifier == pid)
             let action = DockClickPolicy.intent(active: active, lastMinimized: record?.minimized, elapsed: elapsed)
             guard action != .native else { return false }
             pending = Pending(hit: hit, down: down, origin: event.location, action: action)
@@ -88,8 +93,9 @@ final class DockClickController {
         actionTasks[pid]?.cancel()
         // Publish intent immediately: a second click during an AX request or
         // genie animation must toggle rather than repeat the same action.
-        records[pid] = Record(targets: previous?.targets ?? [], minimized: click.action == .minimize,
-                              time: ProcessInfo.processInfo.systemUptime)
+        records[pid] = Record(
+            targets: previous?.targets ?? [], minimized: click.action == .minimize,
+            time: ProcessInfo.processInfo.systemUptime)
         actionTasks[pid] = Task { @MainActor [weak self] in
             let windows = await DockWindowAccess.windows(pid: pid)
             guard !Task.isCancelled, let self, self.actionTokens[pid] == token else { return }
@@ -108,10 +114,16 @@ final class DockClickController {
                     // Dock window, and a manually minimized app keeps native restore.
                     self.records[pid] = nil
                     self.replay(click.down)
-                    if let up = CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: click.origin, mouseButton: .left) { self.replay(up) }
+                    if let up = CGEvent(
+                        mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: click.origin,
+                        mouseButton: .left)
+                    {
+                        self.replay(up)
+                    }
                     return
                 }
-                self.records[pid] = Record(targets: targets, minimized: true, time: ProcessInfo.processInfo.systemUptime)
+                self.records[pid] = Record(
+                    targets: targets, minimized: true, time: ProcessInfo.processInfo.systemUptime)
                 let batched = await DockWindowAccess.minimizeAllMenu(pid: pid)
                 guard !Task.isCancelled, self.actionTokens[pid] == token else { return }
                 if batched { try? await Task.sleep(for: .milliseconds(350)) }

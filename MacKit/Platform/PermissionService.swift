@@ -14,7 +14,7 @@ final class PermissionService {
     }
 
     func requestAccessibility() {
-        let key = "AXTrustedCheckOptionPrompt" // C global is not annotated for Swift 6 concurrency.
+        let key = "AXTrustedCheckOptionPrompt"  // C global is not annotated for Swift 6 concurrency.
         _ = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
         openSettings("Privacy_Accessibility")
         refresh()

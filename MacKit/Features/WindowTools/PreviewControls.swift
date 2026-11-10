@@ -22,11 +22,14 @@ struct PreviewControls: View {
         .padding(5)
         .background(.ultraThinMaterial, in: Capsule())
     }
-    private func control(_ symbol: String, color: Color, help: String, enabled: Bool = true, action: @escaping () -> Void) -> some View {
+    private func control(
+        _ symbol: String, color: Color, help: String, enabled: Bool = true, action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             Image(systemName: symbol).font(.system(size: 8, weight: .bold))
                 .foregroundStyle(.black.opacity(0.75)).frame(width: 14, height: 14)
-                .background(enabled ? color : Color.gray.opacity(0.6), in: Circle()).overlay(Circle().strokeBorder(.black.opacity(0.15)))
+                .background(enabled ? color : Color.gray.opacity(0.6), in: Circle()).overlay(
+                    Circle().strokeBorder(.black.opacity(0.15)))
         }.buttonStyle(.plain).disabled(!enabled).help(help).accessibilityLabel(help)
     }
 }
@@ -59,7 +62,9 @@ struct PreviewHeader: View {
     var body: some View {
         HStack(alignment: .top, spacing: 6) {
             if showsControls {
-                PreviewControls(hasWindow: hasWindow, canMinimize: canMinimize, quit: quit, close: close, minimize: minimize, canQuit: canQuit)
+                PreviewControls(
+                    hasWindow: hasWindow, canMinimize: canMinimize, quit: quit, close: close, minimize: minimize,
+                    canQuit: canQuit)
             }
             Spacer(minLength: 0)
             VStack(alignment: .trailing, spacing: 2) {

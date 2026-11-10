@@ -22,7 +22,7 @@ private let logLock = OSAllocatedUnfairLock(initialState: nil as FileHandle?)
 /// but it's effectively immutable after initialization (no properties are mutated).
 private nonisolated(unsafe) let logDateFormatter: ISO8601DateFormatter = {
     let f = ISO8601DateFormatter()
-    f.formatOptions = [.withInternetDateTime, .withFractionalSeconds] // millisecond precision for timing
+    f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]  // millisecond precision for timing
     return f
 }()
 
@@ -66,7 +66,7 @@ private func rotateLog() {
 
     // Remove any stale copies from older buggy retention behavior.
     let staleStart = maxRotatedCopies + 1
-    for i in staleStart ... staleStart + 2 {
+    for i in staleStart...staleStart + 2 {
         let staleURL = dir.appendingPathComponent("\(baseName).\(i).\(ext)")
         if fm.fileExists(atPath: staleURL.path) {
             try? fm.removeItem(at: staleURL)
@@ -108,8 +108,8 @@ let verboseLoggingEnabled: Bool = {
 /// `@autoclosure` means the string isn't even built when tracing is off.
 func traceLog(_ message: @autoclosure () -> String) {
     #if DEBUG
-    guard verboseLoggingEnabled else { return }
-    extensionLog(message())
+        guard verboseLoggingEnabled else { return }
+        extensionLog(message())
     #endif
 }
 
@@ -134,4 +134,3 @@ func extensionLog(_ message: String) {
         current.write(data)
     }
 }
-

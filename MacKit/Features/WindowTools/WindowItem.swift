@@ -24,9 +24,11 @@ final class WindowItem: Identifiable {
     let isFullscreen: Bool
     let appIcon: NSImage?
 
-    init(id: CGWindowID, ownerPID: pid_t, ownerName: String, title: String,
-         bounds: CGRect, isOnscreen: Bool, isMinimized: Bool,
-         isFullscreen: Bool, appIcon: NSImage?) {
+    init(
+        id: CGWindowID, ownerPID: pid_t, ownerName: String, title: String,
+        bounds: CGRect, isOnscreen: Bool, isMinimized: Bool,
+        isFullscreen: Bool, appIcon: NSImage?
+    ) {
         self.id = id
         self.ownerPID = ownerPID
         self.ownerName = ownerName

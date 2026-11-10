@@ -1,0 +1,15 @@
+{
+    "version": 1,
+    "indentation": {
+        "spaces": 4
+    },
+    "lineLength": 120,
+    "rules": {
+        "NoBlockComments": false,
+        "AlwaysUseLowerCamelCase": false,
+        "ReplaceForEachWithForLoop": false,
+        "AmbiguousTrailingClosureOverload": false,
+        "AvoidRetroactiveConformances": false,
+        "TypeNamesShouldBeCapitalized": false
+    }
+}

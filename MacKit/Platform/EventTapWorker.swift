@@ -1,5 +1,5 @@
-import Foundation
 import CoreGraphics
+import Foundation
 
 /// One dedicated run loop per active filter. Never dispatch synchronously to UI.
 final class EventTapWorker: @unchecked Sendable {
@@ -14,26 +14,37 @@ final class EventTapWorker: @unchecked Sendable {
     private let healthy: (@Sendable () -> Bool)?
     private let failed: @Sendable () -> Void
 
-    init(mask: CGEventMask, location: CGEventTapLocation = .cgSessionEventTap, healthy: (@Sendable () -> Bool)? = nil,
-         failed: @escaping @Sendable () -> Void, handler: @escaping Handler) {
-        self.location = location; self.mask = mask; self.handler = handler; self.healthy = healthy; self.failed = failed
+    init(
+        mask: CGEventMask, location: CGEventTapLocation = .cgSessionEventTap, healthy: (@Sendable () -> Bool)? = nil,
+        failed: @escaping @Sendable () -> Void, handler: @escaping Handler
+    ) {
+        self.location = location
+        self.mask = mask
+        self.handler = handler
+        self.healthy = healthy
+        self.failed = failed
     }
 
     func start() -> Bool {
         let semaphore = DispatchSemaphore(value: 0)
         let thread = Thread { [self] in
-            guard let tap = CGEvent.tapCreate(tap: location, place: .headInsertEventTap,
-                                              options: .defaultTap, eventsOfInterest: mask,
-                                              callback: { _, type, event, context in
-                guard let context else { return Unmanaged.passUnretained(event) }
-                let worker = Unmanaged<EventTapWorker>.fromOpaque(context).takeUnretainedValue()
-                if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-                    worker.failed(); worker.stop()
-                    return Unmanaged.passUnretained(event)
-                }
-                return worker.handler(type, event)
-            }, userInfo: Unmanaged.passUnretained(self).toOpaque()) else {
-                semaphore.signal(); return
+            guard
+                let tap = CGEvent.tapCreate(
+                    tap: location, place: .headInsertEventTap,
+                    options: .defaultTap, eventsOfInterest: mask,
+                    callback: { _, type, event, context in
+                        guard let context else { return Unmanaged.passUnretained(event) }
+                        let worker = Unmanaged<EventTapWorker>.fromOpaque(context).takeUnretainedValue()
+                        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                            worker.failed()
+                            worker.stop()
+                            return Unmanaged.passUnretained(event)
+                        }
+                        return worker.handler(type, event)
+                    }, userInfo: Unmanaged.passUnretained(self).toOpaque())
+            else {
+                semaphore.signal()
+                return
             }
             let loop = CFRunLoopGetCurrent()!
             let source = CFMachPortCreateRunLoopSource(nil, tap, 0)!
@@ -42,12 +53,17 @@ final class EventTapWorker: @unchecked Sendable {
             var timer: CFRunLoopTimer?
             if let healthy {
                 timer = CFRunLoopTimerCreateWithHandler(nil, CFAbsoluteTimeGetCurrent() + 0.5, 0.5, 0, 0) { [self] _ in
-                    if !healthy() { failed(); stop() }
+                    if !healthy() {
+                        failed()
+                        stop()
+                    }
                 }
                 CFRunLoopAddTimer(loop, timer, .commonModes)
             }
             let shouldRun = lock.withLock {
-                runLoop = loop; ready = !stopped; return !stopped
+                runLoop = loop
+                ready = !stopped
+                return !stopped
             }
             CGEvent.tapEnable(tap: tap, enable: shouldRun)
             semaphore.signal()
@@ -56,17 +72,26 @@ final class EventTapWorker: @unchecked Sendable {
             if let timer { CFRunLoopTimerInvalidate(timer) }
             CFRunLoopSourceInvalidate(source)
             CFMachPortInvalidate(tap)
-            lock.withLock { runLoop = nil; ready = false }
+            lock.withLock {
+                runLoop = nil
+                ready = false
+            }
         }
         thread.name = "MacKit.InputFilter"
         thread.qualityOfService = .userInteractive
         thread.start()
-        guard semaphore.wait(timeout: .now() + 2) == .success else { stop(); return false }
+        guard semaphore.wait(timeout: .now() + 2) == .success else {
+            stop()
+            return false
+        }
         return lock.withLock { ready }
     }
 
     func stop() {
-        let loop = lock.withLock { stopped = true; return runLoop }
+        let loop = lock.withLock {
+            stopped = true
+            return runLoop
+        }
         if let loop {
             CFRunLoopPerformBlock(loop, CFRunLoopMode.commonModes.rawValue) { CFRunLoopStop(loop) }
             CFRunLoopWakeUp(loop)
