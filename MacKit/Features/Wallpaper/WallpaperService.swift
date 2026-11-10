@@ -20,6 +20,8 @@ final class WallpaperService {
     var message: String?
     var routing = WallpaperRouting()
     var pauseWhenCovered = true
+    private let recovery = WallpaperRecovery()
+    private(set) var recovering = false
     private let overview = WallpaperOverviewObserver()
     private var overviewActive = false
     private let thumbnails = NSCache<NSString, NSImage>()
@@ -30,6 +32,11 @@ final class WallpaperService {
     }
     init() {
         reload()
+        recovery.statusChanged = { [weak self] active, message in
+            self?.recovering = active
+            self?.message = message
+        }
+        recovery.start()
         overview.changed = { [weak self] active in
             guard let self, self.overviewActive != active else { return }
             self.overviewActive = active
@@ -41,6 +48,7 @@ final class WallpaperService {
         }
     }
     func stop() {
+        recovery.stop()
         overview.stop()
         if overviewActive {
             overviewActive = false
@@ -180,6 +188,8 @@ final class WallpaperService {
             CFNotificationCenterGetDarwinNotifyCenter(),
             CFNotificationName("com.mackit.app.wallpaper.\(suffix)" as CFString), nil, nil, true)
     }
+    func recoverWallpaper() { recovery.recover() }
+
     func openSettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.Wallpaper-Settings.extension") else { return }
         NSWorkspace.shared.open(url)

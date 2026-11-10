@@ -29,6 +29,11 @@ struct WallpaperView: View {
             SettingsRows(title: "动态壁纸") {
                 SettingsRow(title: "选择壁纸") { Button("前往系统设置", action: service.openSettings) }
                 Divider()
+                SettingsRow(title: "恢复动态壁纸", subtitle: "壁纸进程意外退出后，重新连接系统壁纸服务。") {
+                    Button(service.recovering ? "正在恢复…" : "恢复动态壁纸", action: service.recoverWallpaper)
+                        .disabled(service.recovering || !service.supported)
+                }
+                Divider()
                 CompactSettingsSlider(
                     value: Binding(get: { service.routing.duration }, set: { service.routing.transitionSeconds = $0 }),
                     in: 0...2, step: 0.1, valueText: String(format: "%.1f 秒", service.routing.duration)
@@ -83,6 +88,7 @@ struct WallpaperView: View {
                         width: 240, alignment: .trailing)
                 }
             }
+            if let message = service.message { Text(message).font(.callout).foregroundStyle(.secondary) }
             if !service.supported { Text("原生墙纸扩展需要 macOS 26 或更新版本。").foregroundStyle(.orange) }
         }.onAppear { service.reload() }
     }

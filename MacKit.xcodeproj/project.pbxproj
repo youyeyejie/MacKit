@@ -553,6 +553,7 @@
 				<string>C42E204853D7486D641111FE</string>
 				<string>AAE76B1C9C7C0AAC3A280A86</string>
 				<string>EA37F1D5385BB54A9B9254AD</string>
+				<string>E1FAD7FCE0CBEACF73F1C766</string>
 				<string>7C9DBF7F8EE9FCF036FFA510</string>
 				<string>35D49DFDD43616F6ED5DE8D8</string>
 				<string>CEB1816E9BF41BB26996B1FF</string>
@@ -4794,6 +4795,7 @@
 			<key>children</key>
 			<array>
 				<string>E2B6E73424E3A1A06292E1BB</string>
+				<string>3AE6E6298069770DDA832262</string>
 				<string>793A45E365077DB13D939979</string>
 				<string>8BF4DFD677BB5A82C3EB0231</string>
 			</array>
@@ -4806,6 +4808,24 @@
 			<string>PBXBuildFile</string>
 			<key>fileRef</key>
 			<string>E2B6E73424E3A1A06292E1BB</string>
+		</dict>
+		<key>3AE6E6298069770DDA832262</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>MacKit/Features/Wallpaper/WallpaperRecovery.swift</string>
+			<key>sourceTree</key>
+			<string>SOURCE_ROOT</string>
+		</dict>
+		<key>E1FAD7FCE0CBEACF73F1C766</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>3AE6E6298069770DDA832262</string>
 		</dict>
 		<key>793A45E365077DB13D939979</key>
 		<dict>
