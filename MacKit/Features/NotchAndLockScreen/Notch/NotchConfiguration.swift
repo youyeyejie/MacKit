@@ -43,7 +43,6 @@ enum NotchConfiguration {
     static let lowBatteryHUDDuration: Int = 3
     static let fullBatteryHUDDuration: Int = 3
     static let lowBatteryHUDThreshold: Int = 20
-    static let fullBatteryHUDThreshold: Int = 100
     static let lowBatteryHUDStyle: BatteryNotificationStyle = .compact
     static let fullBatteryHUDStyle: BatteryNotificationStyle = .compact
     static let verticalHUDPosition: String = "right"

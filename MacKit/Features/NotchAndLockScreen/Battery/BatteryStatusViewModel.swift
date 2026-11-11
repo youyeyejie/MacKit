@@ -30,6 +30,24 @@ enum BatteryTemporaryHUDKind: Equatable {
     case charging
     case lowBattery
     case fullBattery
+    case batteryPower
+
+    func title(batteryLevel: Int) -> String {
+        switch self {
+        case .charging: return "正在充电"
+        case .lowBattery: return "电量不足"
+        case .fullBattery: return batteryLevel >= 100 ? "已充满电" : "直驱供电"
+        case .batteryPower: return "电池供电"
+        }
+    }
+
+    var symbol: String? {
+        switch self {
+        case .charging: return "bolt.fill"
+        case .fullBattery: return "powerplug.fill"
+        case .lowBattery, .batteryPower: return nil
+        }
+    }
 }
 
 /// A view model that manages and monitors the battery status of the device
@@ -50,6 +68,7 @@ class BatteryStatusViewModel: ObservableObject {
     @Published private(set) var isInitial: Bool = false
     @Published private(set) var timeToFullCharge: Int = 0
     @Published private(set) var statusText: String = ""
+    @Published private(set) var activeTemporaryHUDBatteryLevel: Int = 0
     @Published private(set) var activeTemporaryHUDKind: BatteryTemporaryHUDKind?
     @Published private(set) var activeTemporaryHUDToken: UUID = UUID()
     @Published private(set) var activeTemporaryHUDTargetScreenName: String?
@@ -86,13 +105,9 @@ class BatteryStatusViewModel: ObservableObject {
         switch event {
         case .powerSourceChanged(let isPluggedIn):
             print("🔌 Power source: \(isPluggedIn ? "Connected" : "Disconnected")")
-            let wasPluggedIn = self.isPluggedIn
             withAnimation {
                 self.isPluggedIn = isPluggedIn
                 self.statusText = isPluggedIn ? String(localized: "Plugged In") : String(localized: "Unplugged")
-            }
-            if !wasPluggedIn && isPluggedIn {
-                presentTemporaryBatteryHUDIfNeeded(kind: .charging)
             }
 
         case .batteryLevelChanged(let level):
@@ -102,7 +117,6 @@ class BatteryStatusViewModel: ObservableObject {
                 self.levelBattery = level
             }
             self.handleLowBatteryAlertIfNeeded(previousLevel: previousLevel, newLevel: level)
-            self.handleFullBatteryAlertIfNeeded(previousLevel: previousLevel, newLevel: level)
 
         case .lowPowerModeChanged(let isEnabled):
             print("⚡ Low power mode: \(isEnabled ? "Enabled" : "Disabled")")
@@ -124,9 +138,17 @@ class BatteryStatusViewModel: ObservableObject {
                 self.statusText =
                     isCharging
                     ? String(localized: "Charging battery")
-                    : (self.levelBattery < self.maxCapacity
-                        ? String(localized: "Not charging") : String(localized: "Full charge"))
+                    : (self.isPluggedIn
+                        ? BatteryTemporaryHUDKind.fullBattery.title(batteryLevel: Int(self.levelBattery))
+                        : BatteryTemporaryHUDKind.batteryPower.title(batteryLevel: Int(self.levelBattery)))
             }
+
+        case .powerStatusChanged(let info):
+            updateBatteryInfo(info)
+            let kind: BatteryTemporaryHUDKind = !info.isPluggedIn
+                ? .batteryPower : (info.isChargeComplete ? .fullBattery : .charging)
+            self.statusText = kind.title(batteryLevel: Int(info.currentCapacity))
+            presentTemporaryBatteryHUDIfNeeded(kind: kind)
 
         case .timeToFullChargeChanged(let time):
             print("🕒 Time to full charge: \(time) minutes")
@@ -169,7 +191,7 @@ class BatteryStatusViewModel: ObservableObject {
     ) {
         guard force || Defaults[.showPowerStatusNotifications] else { return }
         if kind == .lowBattery && !force {
-            guard levelBattery <= Float(NotchConfiguration.lowBatteryHUDThreshold),
+            guard levelBattery < Float(NotchConfiguration.lowBatteryHUDThreshold),
                 !isPluggedIn, !isCharging
             else { return }
         }
@@ -178,7 +200,7 @@ class BatteryStatusViewModel: ObservableObject {
         let isEnabled: Bool
 
         switch kind {
-        case .charging:
+        case .charging, .batteryPower:
             duration = NotchConfiguration.chargingBatteryHUDDuration
             isEnabled = Defaults[.showChargingBatteryHUD]
         case .lowBattery:
@@ -191,6 +213,7 @@ class BatteryStatusViewModel: ObservableObject {
 
         guard force || isEnabled else { return }
 
+        activeTemporaryHUDBatteryLevel = Int(levelBattery)
         activeTemporaryHUDKind = kind
         activeTemporaryHUDToken = UUID()
         activeTemporaryHUDTargetScreenName = resolvedTemporaryHUDTargetScreenName()
@@ -247,20 +270,11 @@ class BatteryStatusViewModel: ObservableObject {
         guard !isPluggedIn, !isCharging else { return }
         guard newLevel < previousLevel else { return }
         let threshold = Float(NotchConfiguration.lowBatteryHUDThreshold)
-        guard previousLevel > threshold && newLevel <= threshold else { return }
+        guard previousLevel >= threshold && newLevel < threshold else { return }
 
         self.statusText = String(localized: "Low battery")
         presentTemporaryBatteryHUDIfNeeded(kind: .lowBattery)
 
-    }
-
-    private func handleFullBatteryAlertIfNeeded(previousLevel: Float, newLevel: Float) {
-        guard newLevel > previousLevel else { return }
-        let threshold = Float(NotchConfiguration.fullBatteryHUDThreshold)
-        guard previousLevel < threshold && newLevel >= threshold else { return }
-
-        self.statusText = String(localized: "Full charge")
-        presentTemporaryBatteryHUDIfNeeded(kind: .fullBattery)
     }
 
     deinit {

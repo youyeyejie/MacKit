@@ -299,6 +299,7 @@ private struct BatteryCompactStatusRow: View {
     let batteryLevel: Int
     let tint: Color
     let centerWidth: CGFloat
+    let symbol: String?
 
     var body: some View {
         HStack(spacing: 0) {
@@ -337,6 +338,16 @@ private struct BatteryCompactStatusRow: View {
                         .fill(batteryLevel == 100 ? tint.gradient : tint.opacity(0.3).gradient)
                         .frame(width: 2, height: 6)
                 }
+                .overlay {
+                    if let symbol {
+                        Image(systemName: symbol)
+                            .font(.system(size: 14, weight: .medium))
+                            .rotationEffect(.degrees(symbol == "powerplug.fill" ? -90 : 0))
+                            .offset(x: -1)
+                            .foregroundStyle(.white)
+                            .shadow(color: .black.opacity(0.7), radius: 1)
+                    }
+                }
             }.frame(width: 80, alignment: .trailing)
         }
         .padding(.horizontal, 8)
@@ -351,17 +362,12 @@ struct BatteryTemporaryActivityView: View {
     let isDynamicIslandMode: Bool
     let topCornerRadius: CGFloat
     var previewLevel: Int? = nil
-    private var title: String {
-        switch kind {
-        case .charging: return "正在充电"
-        case .lowBattery: return "电量不足"
-        case .fullBattery: return "已充满电"
-        }
-    }
     var body: some View {
         BatteryCompactStatusRow(
-            title: title, batteryLevel: previewLevel ?? Int(batteryModel.levelBattery),
-            tint: kind == .lowBattery ? .red : .green, centerWidth: baseWidth
+            title: kind.title(batteryLevel: previewLevel ?? batteryModel.activeTemporaryHUDBatteryLevel),
+            batteryLevel: previewLevel ?? batteryModel.activeTemporaryHUDBatteryLevel,
+            tint: kind == .lowBattery ? .red : .green, centerWidth: baseWidth,
+            symbol: kind.symbol
         )
         .frame(width: baseWidth + 176, height: baseHeight)
         .background(.black)

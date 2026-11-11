@@ -39,14 +39,13 @@ class BatteryActivityManager {
     private var batterySource: CFRunLoopSource?
     private var observers: [(BatteryEvent) -> Void] = []
     private var previousBatteryInfo: BatteryInfo?
-    private var notificationQueue: [BatteryEvent] = []
-    private var isProcessingNotifications = false
 
     enum BatteryEvent {
         case powerSourceChanged(isPluggedIn: Bool)
         case batteryLevelChanged(level: Float)
         case lowPowerModeChanged(isEnabled: Bool)
         case isChargingChanged(isCharging: Bool)
+        case powerStatusChanged(info: BatteryInfo)
         case timeToFullChargeChanged(time: Int)
         case maxCapacityChanged(capacity: Float)
         case error(description: String)
@@ -165,6 +164,13 @@ class BatteryActivityManager {
                 current: batteryInfo.maxCapacity,
                 eventGenerator: { .maxCapacityChanged(capacity: $0) }
             )
+
+            if previousInfo.isPluggedIn != batteryInfo.isPluggedIn
+                || previousInfo.isCharging != batteryInfo.isCharging
+                || (!previousInfo.isChargeComplete && batteryInfo.isChargeComplete)
+            {
+                enqueueNotification(.powerStatusChanged(info: batteryInfo))
+            }
         } else {
             // First time notification
             enqueueNotification(.powerSourceChanged(isPluggedIn: batteryInfo.isPluggedIn))
@@ -193,27 +199,8 @@ class BatteryActivityManager {
     /// Enqueues a notification to be processed
     /// - Parameter event: The battery event
     private func enqueueNotification(_ event: BatteryEvent) {
-        notificationQueue.append(event)
-        processNextNotification()
-    }
-
-    /// Processes the next notification in the queue
-    /// If there are no more notifications, the queue is cleared
-    /// and the processing flag is set to false
-    private func processNextNotification() {
-        guard !isProcessingNotifications, !notificationQueue.isEmpty else { return }
-        isProcessingNotifications = true
-
-        let event = notificationQueue.removeFirst()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            guard let self = self else { return }
-            self.notifyObservers(event: event)
-            self.isProcessingNotifications = false
-
-            // Check if there are more items in the queue
-            if !self.notificationQueue.isEmpty {
-                self.processNextNotification()
-            }
+        DispatchQueue.main.async { [weak self] in
+            self?.notifyObservers(event: event)
         }
     }
 
@@ -358,4 +345,8 @@ struct BatteryInfo {
     var maxCapacity: Float
     var isInLowPowerMode: Bool
     var timeToFullCharge: Int
+
+    var isChargeComplete: Bool {
+        isPluggedIn && (!isCharging || currentCapacity >= 100)
+    }
 }
