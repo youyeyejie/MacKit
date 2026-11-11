@@ -627,7 +627,7 @@ struct ContentView: View {
 
     @ViewBuilder
     func NotchLayout() -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .center, spacing: 0) {
             if vm.notchState == .closed {
                 VStack(alignment: .leading, spacing: 0) {
                     if let preview = coordinator.settingsPreview, preview.type == .battery {
@@ -830,13 +830,17 @@ struct ContentView: View {
             }
             if builtinLyricShelfVisible {
                 let lyricWidth = max(180, vm.closedNotchSize.width + 2 * max(0, vm.effectiveClosedNotchHeight - 12))
+                let systemBannerVisible = isSneakPeekVisibleOnCurrentScreen && !inlineHUDLayout
+                    && [.volume, .brightness, .backlight].contains(coordinator.sneakPeek.type)
                 TimedLyricLine(width: lyricWidth - 20, color: Color(nsColor: musicManager.avgColor))
-                    .frame(height: 20, alignment: .leading)
+                    .frame(height: 20, alignment: .center)
                     .matchedGeometryEffect(
                         id: "lyricLine", in: albumArtNamespace, properties: .position, anchor: .leading,
                         isSource: vm.notchState == .closed
                     )
-                    .padding(.horizontal, 10).padding(.vertical, 6)
+                    .padding(.horizontal, 10)
+                    .padding(.top, systemBannerVisible ? 6 : 2)
+                    .padding(.bottom, 6)
                     .frame(width: lyricWidth).background(.black)
                     .transition(.opacity)
             }

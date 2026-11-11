@@ -45,6 +45,10 @@ final class HUDSuppressionCoordinator {
         }
     }
 
+    func clearVolumeHUDSuppression() {
+        queue.sync { volumeSuppressedUntil = nil }
+    }
+
     var shouldSuppressVolumeHUD: Bool {
         queue.sync {
             guard let expiration = volumeSuppressedUntil else {
@@ -62,12 +66,15 @@ final class HUDSuppressionCoordinator {
 final class SystemVolumeController {
     static let shared = SystemVolumeController()
 
-    var onVolumeChange: ((Float, Bool) -> Void)?
+    var onVolumeChange: ((Float, Bool, Bool) -> Void)?
     var onRouteChange: (() -> Void)?
 
     private let callbackQueue = DispatchQueue(label: "com.dynamicisland.volume-listener")
     private var currentDeviceID: AudioDeviceID = 0
     private var listenersInstalled = false
+    private var currentInputDeviceID: AudioDeviceID = 0
+    private var deviceListeners: [(AudioDeviceID, AudioObjectPropertyAddress, AudioObjectPropertyListenerBlock)] = []
+    private var pendingVolumeChange: DispatchWorkItem?
     private var volumeElement: AudioObjectPropertyElement?
     private var muteElement: AudioObjectPropertyElement?
     private let silenceThreshold: Float = 0.001  // Treat very low values as mute requests.
@@ -80,10 +87,11 @@ final class SystemVolumeController {
 
     private init() {
         currentDeviceID = resolveDefaultDevice()
+        currentInputDeviceID = resolveDefaultDevice(selector: kAudioHardwarePropertyDefaultInputDevice)
         refreshPropertyElements()
         installDefaultDeviceListener()
-        installVolumeListeners(for: currentDeviceID)
-        notifyCurrentState()
+        installDeviceListeners()
+        notifyCurrentState(notifyAdjustment: false)
     }
 
     func start() {
@@ -119,6 +127,7 @@ final class SystemVolumeController {
     }
 
     func setVolume(_ value: Float) {
+        HUDSuppressionCoordinator.shared.clearVolumeHUDSuppression()
         let clamped = max(0, min(1, value))
         let currentlyMuted = isMuted
 
@@ -153,6 +162,7 @@ final class SystemVolumeController {
     }
 
     func setMuted(_ muted: Bool) {
+        HUDSuppressionCoordinator.shared.clearVolumeHUDSuppression()
         var muteFlag: UInt32 = muted ? 1 : 0
         let elements = muteElements()
 
@@ -177,11 +187,13 @@ final class SystemVolumeController {
 
     // MARK: - Private
 
-    private func resolveDefaultDevice() -> AudioDeviceID {
+    private func resolveDefaultDevice(
+        selector: AudioObjectPropertySelector = kAudioHardwarePropertyDefaultOutputDevice
+    ) -> AudioDeviceID {
         var deviceID = AudioDeviceID()
         var size = UInt32(MemoryLayout.size(ofValue: deviceID))
         var address = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDefaultOutputDevice,
+            mSelector: selector,
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain
         )
@@ -195,62 +207,115 @@ final class SystemVolumeController {
 
     private func installDefaultDeviceListener() {
         guard !listenersInstalled else { return }
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDefaultOutputDevice,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
-        let status = AudioObjectAddPropertyListenerBlock(
-            AudioObjectID(kAudioObjectSystemObject),
-            &address,
-            callbackQueue
-        ) { [weak self] _, _ in
-            guard let self else { return }
-            self.handleDefaultDeviceChanged()
-        }
-        if status != noErr {
-            NSLog("⚠️ Failed to install default device listener: \(status)")
+        for selector in [kAudioHardwarePropertyDefaultOutputDevice, kAudioHardwarePropertyDefaultInputDevice] {
+            var address = AudioObjectPropertyAddress(
+                mSelector: selector,
+                mScope: kAudioObjectPropertyScopeGlobal,
+                mElement: kAudioObjectPropertyElementMain
+            )
+            let status = AudioObjectAddPropertyListenerBlock(
+                AudioObjectID(kAudioObjectSystemObject), &address, callbackQueue
+            ) { [weak self] _, _ in
+                self?.handleDefaultDeviceChanged()
+            }
+            if status != noErr {
+                NSLog("⚠️ Failed to install default audio device listener: \(status)")
+            }
         }
         listenersInstalled = true
     }
 
-    private func installVolumeListeners(for deviceID: AudioDeviceID) {
-        if let element = resolveElement(selector: kAudioDevicePropertyVolumeScalar, deviceID: deviceID) {
-            volumeElement = element
-            var address = makeAddress(selector: kAudioDevicePropertyVolumeScalar, element: element)
-            AudioObjectAddPropertyListenerBlock(deviceID, &address, callbackQueue) { [weak self] _, _ in
-                self?.notifyCurrentState()
+    private func installDeviceListeners() {
+        for (deviceID, var address, listener) in deviceListeners {
+            AudioObjectRemovePropertyListenerBlock(deviceID, &address, callbackQueue, listener)
+        }
+        deviceListeners.removeAll()
+
+        for selector in [kAudioDevicePropertyVolumeScalar, kAudioDevicePropertyMute] {
+            guard let element = resolveElement(selector: selector, deviceID: currentDeviceID) else { continue }
+            cache(element: element, for: selector)
+            addDeviceListener(deviceID: currentDeviceID, address: makeAddress(selector: selector, element: element)) {
+                [weak self] in self?.scheduleVolumeChange()
             }
         }
 
-        if let element = resolveElement(selector: kAudioDevicePropertyMute, deviceID: deviceID) {
-            muteElement = element
-            var address = makeAddress(selector: kAudioDevicePropertyMute, element: element)
-            AudioObjectAddPropertyListenerBlock(deviceID, &address, callbackQueue) { [weak self] _, _ in
-                self?.notifyCurrentState()
+        // Bluetooth switches between playback and microphone profiles, sometimes
+        // retaining the same device ID while restoring a different volume.
+        for deviceID in Set([currentDeviceID, currentInputDeviceID]) where deviceID != 0 {
+            var selectors = [kAudioDevicePropertyNominalSampleRate, kAudioDevicePropertyStreamConfiguration]
+            if deviceID == currentInputDeviceID {
+                selectors.append(kAudioDevicePropertyDeviceIsRunningSomewhere)
             }
+            for selector in selectors {
+                let address = AudioObjectPropertyAddress(
+                    mSelector: selector,
+                    mScope: selector == kAudioDevicePropertyStreamConfiguration
+                        ? kAudioDevicePropertyScopeInput : kAudioObjectPropertyScopeGlobal,
+                    mElement: kAudioObjectPropertyElementMain
+                )
+                addDeviceListener(deviceID: deviceID, address: address) { [weak self] in
+                    self?.handleAudioConfigurationChanged()
+                }
+            }
+        }
+    }
+
+    private func addDeviceListener(
+        deviceID: AudioDeviceID,
+        address: AudioObjectPropertyAddress,
+        onChange: @escaping () -> Void
+    ) {
+        guard deviceID != 0 else { return }
+        var address = address
+        guard propertyExists(deviceID: deviceID, address: &address) else { return }
+        let listener: AudioObjectPropertyListenerBlock = { _, _ in onChange() }
+        let status = AudioObjectAddPropertyListenerBlock(deviceID, &address, callbackQueue, listener)
+        if status == noErr {
+            deviceListeners.append((deviceID, address, listener))
+        } else {
+            NSLog("⚠️ Failed to install audio device listener: \(status)")
         }
     }
 
     private func handleDefaultDeviceChanged() {
-        callbackQueue.async { [weak self] in
-            guard let self else { return }
-            self.currentDeviceID = self.resolveDefaultDevice()
-            self.refreshPropertyElements()
-            self.installVolumeListeners(for: self.currentDeviceID)
-            self.notifyCurrentState()
-            DispatchQueue.main.async {
-                self.onRouteChange?()
-                NotificationCenter.default.post(name: .systemAudioRouteDidChange, object: nil)
-            }
+        handleAudioConfigurationChanged()
+        currentDeviceID = resolveDefaultDevice()
+        currentInputDeviceID = resolveDefaultDevice(selector: kAudioHardwarePropertyDefaultInputDevice)
+        refreshPropertyElements()
+        installDeviceListeners()
+        notifyCurrentState(notifyAdjustment: false)
+        DispatchQueue.main.async {
+            self.onRouteChange?()
+            NotificationCenter.default.post(name: .systemAudioRouteDidChange, object: nil)
         }
     }
 
-    private func notifyCurrentState() {
+    private func handleAudioConfigurationChanged() {
+        HUDSuppressionCoordinator.shared.suppressVolumeHUD(for: 1.5)
+        pendingVolumeChange?.cancel()
+        pendingVolumeChange = nil
+        refreshPropertyElements()
+        notifyCurrentState(notifyAdjustment: false)
+    }
+
+    private func scheduleVolumeChange() {
+        pendingVolumeChange?.cancel()
+        // Configuration and volume callbacks can arrive in either order. Allow
+        // the route/profile notification to arrive before deciding to show HUD.
+        let work = DispatchWorkItem { [weak self] in
+            self?.notifyCurrentState(
+                notifyAdjustment: !HUDSuppressionCoordinator.shared.shouldSuppressVolumeHUD
+            )
+        }
+        pendingVolumeChange = work
+        callbackQueue.asyncAfter(deadline: .now() + .milliseconds(150), execute: work)
+    }
+
+    private func notifyCurrentState(notifyAdjustment: Bool = true) {
         let volume = getVolume()
         let muted = getMuteState()
         DispatchQueue.main.async {
-            self.onVolumeChange?(volume, muted)
+            self.onVolumeChange?(volume, muted, notifyAdjustment)
             NotificationCenter.default.post(
                 name: .systemVolumeDidChange, object: nil, userInfo: ["value": volume, "muted": muted])
         }
@@ -519,7 +584,11 @@ final class SystemBrightnessController {
                 "⚠️ SystemBrightnessController: CoreBrightnessDisplayClient unavailable; will rely on DisplayServices / IODisplay + polling fallback"
             )
         }
-        notifyCurrentBrightness()
+        // Starting/restarting observation establishes a baseline only. Keep the
+        // state broadcast for controls without invoking the HUD adjustment hook.
+        let initialBrightness = currentBrightness
+        lastEmittedBrightness = initialBrightness
+        notificationCenter.post(name: .systemBrightnessDidChange, object: nil, userInfo: ["value": initialBrightness])
         // Only start polling as a fallback when CoreBrightness notifications
         // are unavailable.  When CoreBrightness IS available the distributed
         // notifications (registerExternalNotifications) handle detection.

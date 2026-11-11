@@ -366,6 +366,7 @@ struct InlineHUD: View {
                                 } else {
                                     HStack(spacing: 6) {
                                         DraggableProgressBar(value: $value, colorMode: .volume)
+                                            .offset(x: showProgressPercentages && progressBarStyle != .segmented ? 8 : 0)
                                         PercentageLabel(value: value, isVisible: showProgressPercentages)
                                     }
                                     .transition(.opacity.combined(with: .scale))
@@ -375,6 +376,7 @@ struct InlineHUD: View {
                         } else {
                             HStack(spacing: 6) {
                                 DraggableProgressBar(value: $value)
+                                    .offset(x: showProgressPercentages && progressBarStyle != .segmented ? 8 : 0)
                                 PercentageLabel(value: value, isVisible: showProgressPercentages)
                             }
                         }

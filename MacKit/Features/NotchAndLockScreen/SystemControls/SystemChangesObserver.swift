@@ -69,14 +69,14 @@ final class SystemChangesObserver: MediaKeyInterceptorDelegate {
         // snapshot asynchronously; receiving that snapshot is not a user change.
         lastObservedVolume = volumeController.currentVolume
         lastObservedMute = volumeController.isMuted
-        volumeController.onVolumeChange = { [weak self] volume, muted in
+        volumeController.onVolumeChange = { [weak self] volume, muted, notifyAdjustment in
             Task { @MainActor in
                 guard let self else { return }
                 let changed = self.lastObservedMute != muted
                     || abs((self.lastObservedVolume ?? volume) - volume) > 0.0001
                 self.lastObservedVolume = volume
                 self.lastObservedMute = muted
-                guard changed, self.volumeEnabled else { return }
+                guard notifyAdjustment, changed, self.volumeEnabled else { return }
                 self.sendVolumeNotification(value: muted ? 0 : volume, isMuted: muted)
             }
         }
