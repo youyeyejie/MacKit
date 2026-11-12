@@ -38,10 +38,6 @@ final class NotchIntegration {
         openSettings = nil
     }
 
-    func restoreActivationPolicy() {
-        NSApp.setActivationPolicy(UserDefaults.standard.bool(forKey: "appearance.showDock") ? .regular : .accessory)
-    }
-
     func showsCleaningIndicator(on screen: NSScreen) -> Bool {
         guard Defaults[.notchEnabled], Defaults[.enableCleaningIndicator], let delegate else { return false }
         let panels = Array(delegate.windows.values) + [delegate.window].compactMap { $0 }

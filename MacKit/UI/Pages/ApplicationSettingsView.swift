@@ -11,7 +11,7 @@ struct ApplicationSettingsView: View {
                 }
             }
             SettingsRows(title: "显示位置") {
-                SettingsRow(title: "在 Dock 中显示") {
+                SettingsRow(title: "在 Dock 中显示", subtitle: "关闭后，仅在设置窗口打开时显示 Dock 图标。") {
                     Toggle("在 Dock 中显示", isOn: Binding(get: { model.showDock }, set: model.setDock))
                         .labelsHidden().toggleStyle(.switch).controlSize(.small)
                 }

@@ -12,6 +12,7 @@ struct MacKitApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelegate {
     let model = AppModel()
     private var window: NSWindow?
+    private var settingsWindowOpen = false
     private var hotkeys: GlobalHotKeys?
     private var statusItem: NSStatusItem?
     private var launched = false
@@ -116,6 +117,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         }
         model.permissions.refresh()
         model.refreshLogin()
+        settingsWindowOpen = true
+        updateDockVisibility()
         window?.makeKeyAndOrderFront(nil)
         if let window {
             DispatchQueue.main.async { [weak self, weak window] in
@@ -123,6 +126,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             }
         }
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        guard let closedWindow = notification.object as? NSWindow, closedWindow === window else { return }
+        settingsWindowOpen = false
+        updateDockVisibility()
     }
 
     func windowDidResize(_ notification: Notification) {
@@ -153,8 +162,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         model.dockEnhancement.sync()
     }
 
+    private func updateDockVisibility() {
+        let policy: NSApplication.ActivationPolicy = model.showDock || settingsWindowOpen ? .regular : .accessory
+        if NSApp.activationPolicy() != policy {
+            NSApp.setActivationPolicy(policy)
+        }
+    }
+
     private func applyAppearance() {
-        NSApp.setActivationPolicy(model.showDock ? .regular : .accessory)
+        updateDockVisibility()
         if model.showMenuBar, statusItem == nil {
             let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
             item.button?.image = AppBrand.menuBarIcon

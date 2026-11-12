@@ -117,7 +117,7 @@ class DynamicIslandWindow: NSPanel {
     private func handleQuitShortcut(_ event: NSEvent) -> Bool {
         let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
         guard event.type == .keyDown, modifiers == .command,
-              isKeyWindow || event.window === self,
+              isKeyWindow,
               event.charactersIgnoringModifiers?.lowercased() == "q" || event.keyCode == 12
         else { return false }
         NSApp.terminate(nil)
