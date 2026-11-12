@@ -142,6 +142,7 @@ struct ContentView: View {
     @State private var hiddenEdgeHoverPollingTask: Task<Void, Never>?
     @State private var isHoveringClosedMusicWaveformControl: Bool = false
 
+    @State private var closedMediaDragOffset: CGFloat = 0
     private let gestureProgress: CGFloat = 0
     @State private var skipFeedbackActiveDirection: MusicManager.SkipDirection?
 
@@ -409,6 +410,28 @@ struct ContentView: View {
 
     private var mainLayoutBase: some View {
         NotchLayout()
+            .background(NotchScrollGesture(onHorizontalDrag: { translation in
+                guard vm.notchState == .closed, !lockScreenManager.isLocked,
+                    Defaults[.swipeToChangeTrack], Defaults[.showStandardMediaControls] else { return }
+                let offset = tanh(translation / 45) * min(12, closedActivitySlotGap * 0.8)
+                withAnimation(translation == 0 ? .spring(response: 0.3, dampingFraction: 0.7) : nil) {
+                    closedMediaDragOffset = offset
+                }
+            }) { direction in
+                guard vm.notchState == .closed, !lockScreenManager.isLocked else { return false }
+                switch direction {
+                case .down:
+                    guard Defaults[.swipeDownToExpandNotch], !coordinator.isHoverOpenSuppressed else { return false }
+                    hoverTask?.cancel()
+                    pendingHoverState = nil
+                    isHovering = true
+                    openNotch()
+                case .left, .right:
+                    guard Defaults[.swipeToChangeTrack], Defaults[.showStandardMediaControls] else { return false }
+                    if direction == .left { musicManager.nextTrack() } else { musicManager.previousTrack() }
+                }
+                return true
+            })
             .frame(alignment: .top)
             .padding(.horizontal, notchHorizontalPadding)
             .padding(.horizontal, vm.notchState == .open ? 12 : 0)
@@ -502,6 +525,7 @@ struct ContentView: View {
                 }
             })
             .onChange(of: vm.notchState) { _, newState in
+                closedMediaDragOffset = 0
                 pendingHoverState = nil
                 // Update smart monitoring based on notch state
 
@@ -953,6 +977,7 @@ struct ContentView: View {
                             isSource: vm.notchState == .closed
                         )
                         .albumArtFlip(angle: musicManager.flipAngle)
+                        .offset(x: closedMediaDragOffset)
                         .transition(.opacity)
                 }
             }
@@ -1016,6 +1041,7 @@ struct ContentView: View {
                         .frame(width: 50, height: notchContentHeight)
                         .scaleEffect(1.0)
                         .frame(width: closedActivityCellSize, height: closedActivityCellSize).clipped()
+                        .offset(x: closedMediaDragOffset)
                         .blur(radius: isHoveringClosedMusicWaveformControl ? 2 : 0)
                         .overlay {
                             if shouldShowClosedMusicWaveformPlayPauseOverlay(for: secondary)
@@ -1092,7 +1118,9 @@ struct ContentView: View {
     private var closedActivityGlyphSize: CGFloat { closedActivityCellSize * 0.68 }
     private var closedActivitySlotGap: CGFloat { max(6, closedActivityCellSize * 0.22) }
     private func closedWingWidth(for count: Int) -> CGFloat {
-        CGFloat(max(1, count)) * closedActivityCellSize + CGFloat(max(1, count) + 1) * closedActivitySlotGap
+        let gap = closedActivityLeftCount <= 1 && closedActivityRightCount <= 1
+            ? closedActivitySlotGap * 0.65 : closedActivitySlotGap
+        return CGFloat(max(1, count)) * closedActivityCellSize + CGFloat(max(1, count) + 1) * gap
     }
     private var closedActivityLeftCount: Int { mediaIndicatorItems.count + (closedMediaVisible ? 1 : 0) }
     private var closedShelfCountVisible: Bool {
@@ -1509,6 +1537,7 @@ struct ContentView: View {
     /// `.onDisappear` and from `vm.onViewTeardown` on window close. Idempotent.
     private func performViewTeardown() {
         hoverTask?.cancel()
+        closedMediaDragOffset = 0
         pendingHoverState = nil
         stopHoverClickMonitor()
         removeStickyTerminalClickMonitor()

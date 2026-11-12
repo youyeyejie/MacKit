@@ -139,6 +139,7 @@ struct NotchGeneralSettingsView: View {
                     NotificationCenter.default.post(name: Notification.Name.notchHeightChanged, object: nil)
                 }
             }
+            Defaults.Toggle(key: .swipeDownToExpandNotch) { Text("悬停时双指下滑展开刘海") }
             Toggle("记住上次标签页", isOn: $coordinator.openLastTabByDefault)
             Defaults.Toggle(key: .hideNonNotchUntilHover) {
                 SettingsDescription(title: "在非刘海显示器上悬停时显示", subtitle: "启用后，外接显示器上的刘海会隐藏，指针悬停时显示。")

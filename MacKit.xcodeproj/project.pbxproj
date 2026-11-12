@@ -453,6 +453,7 @@
 				<string>DAA437126B9C7DE4062C77EB</string>
 				<string>8F1E7C54DBC9600D6E1E9AB4</string>
 				<string>8A8D696C364A7637977B3DC3</string>
+				<string>CA99DD94FB970299CDF40C23</string>
 				<string>DD2E50C679245A581B0C5F90</string>
 				<string>CC2D73DB45E258ECE8110846</string>
 				<string>7D3F4C8137B405A838C821E4</string>
@@ -2589,6 +2590,7 @@
 				<string>045CE28B967EE5360B752A2B</string>
 				<string>8726EBED8967EDBA584C949D</string>
 				<string>4E708CDB21F84F901D302AE6</string>
+				<string>9314B50B6960BDC330B97988</string>
 				<string>151D124E9442E7B2641C1F39</string>
 				<string>42FEE079CE5DC25DE8D14B2A</string>
 				<string>156711B9F66D535B484B0DD2</string>
@@ -2750,6 +2752,24 @@
 			<string>PBXBuildFile</string>
 			<key>fileRef</key>
 			<string>4E708CDB21F84F901D302AE6</string>
+		</dict>
+		<key>9314B50B6960BDC330B97988</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>MacKit/Features/NotchAndLockScreen/Notch/NotchScrollGesture.swift</string>
+			<key>sourceTree</key>
+			<string>SOURCE_ROOT</string>
+		</dict>
+		<key>CA99DD94FB970299CDF40C23</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>9314B50B6960BDC330B97988</string>
 		</dict>
 		<key>151D124E9442E7B2641C1F39</key>
 		<dict>

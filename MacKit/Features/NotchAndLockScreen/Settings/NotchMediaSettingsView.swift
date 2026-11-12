@@ -14,7 +14,7 @@ struct NotchMediaSettingsView: View {
                 Defaults.Toggle(key: .showStandardMediaControls) { Text("启用媒体控制") }
                 Defaults.Toggle(key: .autoHideInactiveNotchMediaPlayer) { Text("自动隐藏未播放媒体的面板") }
                 Defaults.Toggle(key: .showLyricsBelowBuiltinNotch) {
-                    SettingsDescription(title: "在常驻灵动岛显示歌词", subtitle: "开启后若在外接显示器上使用灵动岛，则在外接显示器上显示歌词；否则在内建显示器上显示歌词横幅。")
+                    SettingsDescription(title: "在常驻灵动刘海显示歌词", subtitle: "开启后若在外接显示器上使用灵动刘海，则在外接显示器的灵动刘海上显示歌词；否则在内建显示器上显示歌词横幅。")
                 }
                 CompactSettingsSlider(
                     value: Binding(
@@ -29,6 +29,11 @@ struct NotchMediaSettingsView: View {
                 }
                 .disabled(pausedMediaHideDelay >= 0)
 
+            }
+            UnifiedSettingsSection("手势控制") {
+                Defaults.Toggle(key: .swipeToChangeTrack) {
+                    SettingsDescription(title: "启用左右滑动切歌", subtitle: "悬停在灵动刘海或展开后的媒体控制区域时，双指向左滑动切换下一首，向右滑动切换上一首。")
+                }
             }
         }
     }

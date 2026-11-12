@@ -243,6 +243,9 @@ extension Defaults.Keys {
 
     // MARK: Gestures
 
+    static let swipeDownToExpandNotch = Key<Bool>("swipeDownToExpandNotch", default: false)
+    static let swipeToChangeTrack = Key<Bool>("swipeToChangeTrack", default: false)
+
     // MARK: Media playback
 
     static let sneakPeekStyles = Key<SneakPeekStyle>("sneakPeekStyles", default: .standard)

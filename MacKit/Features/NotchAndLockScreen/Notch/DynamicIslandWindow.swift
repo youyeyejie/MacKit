@@ -102,14 +102,26 @@ class DynamicIslandWindow: NSPanel {
         ScreenCaptureVisibilityManager.shared.register(self, scope: .entireInterface)
     }
 
+    // Nonactivating panels can send keys straight to their first responder
+    // without consulting the app menu's key equivalents (notably the terminal).
+    override func sendEvent(_ event: NSEvent) {
+        if handleQuitShortcut(event) { return }
+        super.sendEvent(event)
+    }
+
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
-        if event.type == .keyDown, modifiers == .command,
-           event.keyCode == 12, isKeyWindow {
-            NSApp.terminate(nil)
-            return true
-        }
+        if handleQuitShortcut(event) { return true }
         return super.performKeyEquivalent(with: event)
+    }
+
+    private func handleQuitShortcut(_ event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
+        guard event.type == .keyDown, modifiers == .command,
+              isKeyWindow || event.window === self,
+              event.charactersIgnoringModifiers?.lowercased() == "q" || event.keyCode == 12
+        else { return false }
+        NSApp.terminate(nil)
+        return true
     }
 
     override var canBecomeKey: Bool {

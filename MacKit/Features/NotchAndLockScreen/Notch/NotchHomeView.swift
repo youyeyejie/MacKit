@@ -163,6 +163,16 @@ struct MusicPlayerView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background(NotchScrollGesture { direction in
+            guard Defaults[.swipeToChangeTrack], Defaults[.showStandardMediaControls],
+                !LockScreenManager.shared.isLocked else { return false }
+            switch direction {
+            case .left: MusicManager.shared.nextTrack()
+            case .right: MusicManager.shared.previousTrack()
+            case .down: return false
+            }
+            return true
+        })
     }
 }
 
