@@ -853,7 +853,7 @@ struct ContentView: View {
                 DynamicIslandHeader(indicators: mediaIndicatorItems).frame(height: max(24, vm.effectiveClosedNotchHeight))
             }
             if builtinLyricShelfVisible {
-                let lyricWidth = max(180, vm.closedNotchSize.width + 2 * max(0, vm.effectiveClosedNotchHeight - 12))
+                let lyricWidth = max(180, vm.closedNotchSize.width + 2 * reminderActivityWingWidth)
                 let systemBannerVisible = isSneakPeekVisibleOnCurrentScreen && !inlineHUDLayout
                     && [.volume, .brightness, .backlight].contains(coordinator.sneakPeek.type)
                 TimedLyricLine(width: lyricWidth - 20, color: Color(nsColor: musicManager.avgColor))

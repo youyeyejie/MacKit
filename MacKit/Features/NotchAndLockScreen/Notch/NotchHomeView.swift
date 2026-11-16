@@ -579,8 +579,19 @@ struct MusicControlsView: View {
                 musicManager.nextTrack()
             }
         case .reloadLyrics:
-            HoverButton(icon: MusicControlButton.reloadLyrics.iconName, scale: .medium) { musicManager.fetchLyrics() }
-                .help("重新加载歌词")
+            HoverButton(icon: musicManager.isCurrentTrackFavorited == true ? "heart.fill" : "heart",
+                iconColor: .white, iconWeight: .semibold, scale: .medium) {
+                musicManager.toggleFavorite()
+            }
+            .disabled(musicManager.bundleIdentifier != "com.netease.163music"
+                || musicManager.isCurrentTrackFavorited == nil || musicManager.favoriteUpdateInProgress)
+            .help(musicManager.isCurrentTrackFavorited == true ? "取消喜欢" : "喜欢歌曲（需要辅助功能权限）")
+            .task(id: musicManager.songTitle + (musicManager.bundleIdentifier ?? "")) {
+                while !Task.isCancelled {
+                    await musicManager.refreshFavoriteState()
+                    do { try await Task.sleep(for: .seconds(2)) } catch { return }
+                }
+            }
         case .mediaOutput:
             MediaOutputPickerButton()
         }

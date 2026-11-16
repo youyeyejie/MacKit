@@ -12,6 +12,8 @@ struct LyricsTrack: Hashable, Sendable {
 
 actor LyricsProvider {
     static let shared = LyricsProvider()
+    enum LookupError: Error { case instrumental }
+    private var instrumentalTracks: Set<LyricsTrack> = []
     private struct Entry {
         let expires: Date
         let lines: [LyricLine]
@@ -29,40 +31,42 @@ actor LyricsProvider {
         session = URLSession(configuration: config)
     }
     func lyrics(for track: LyricsTrack, force: Bool = false) async throws -> [LyricLine] {
+        if !force, instrumentalTracks.contains(track) { throw LookupError.instrumental }
         if !force, let entry = cache[track], entry.expires > Date() { return entry.lines }
         var encounteredError: Error?
-        // NetEase playback gets its own catalogue first; all playback still comes from Now Playing.
-        if track.source == "com.netease.163music" {
-            do {
-                let value = try await netease(track)
-                if !value.isEmpty {
-                    store(value, for: track)
-                    return value
-                }
-            } catch { encounteredError = error }
-        }
+        // Prefer the NetEase catalogue for every player, then fall back to LRCLIB.
+        do {
+            let value = try await netease(track)
+            if !value.isEmpty {
+                store(value, for: track)
+                return value
+            }
+        } catch LookupError.instrumental {
+            if instrumentalTracks.count >= 80 { instrumentalTracks.removeAll() }
+            instrumentalTracks.insert(track)
+            throw LookupError.instrumental
+        } catch { encounteredError = error }
         do {
             let value = try await lrclib(track)
             if !value.isEmpty {
                 store(value, for: track)
                 return value
             }
+        } catch LookupError.instrumental {
+            if instrumentalTracks.count >= 80 { instrumentalTracks.removeAll() }
+            instrumentalTracks.insert(track)
+            throw LookupError.instrumental
         } catch { encounteredError = error }
-        if track.source != "com.netease.163music" {
-            do {
-                let value = try await netease(track)
-                if !value.isEmpty {
-                    store(value, for: track)
-                    return value
-                }
-            } catch { encounteredError = error }
-        }
         do {
             let backup = try await atollBackup(track)
             if !backup.isEmpty {
                 store(backup, for: track)
                 return backup
             }
+        } catch LookupError.instrumental {
+            if instrumentalTracks.count >= 80 { instrumentalTracks.removeAll() }
+            instrumentalTracks.insert(track)
+            throw LookupError.instrumental
         } catch { encounteredError = error }
         if let encounteredError { throw encounteredError }
         store([], for: track)
@@ -117,11 +121,12 @@ actor LyricsProvider {
             guard normalized(item.trackName ?? "") == normalized(track.title),
                 artistMatches(track.artist, item.artistName ?? "")
             else { return nil }
-            if track.duration > 0, let duration = item.duration, abs(duration - track.duration) > 12 { return nil }
+            if track.duration > 0, let duration = item.duration, abs(duration - track.duration) > 3 { return nil }
             let distance = abs((item.duration ?? track.duration) - track.duration)
             return (item, distance - (normalized(item.albumName ?? "") == normalized(track.album) ? 5 : 0))
         }.sorted { $0.1 < $1.1 }
         for (item, _) in matches {
+            if item.instrumental == true { throw LookupError.instrumental }
             let value = item.lines
             if !value.isEmpty { return value }
         }
@@ -148,10 +153,10 @@ actor LyricsProvider {
                 candidateArtist == artist
                 ? 8
                 : ((!artist.isEmpty && (candidateArtist.contains(artist) || artist.contains(candidateArtist))) ? 4 : 0)
-            guard titleScore > 0, artistScore > 0 else { return nil }
+            guard candidateTitle == title, artistScore > 0 else { return nil }
             // Do not use a different recording's timing just because its title ranks well.
             if let duration = record.duration, duration > 0, track.duration > 0,
-                abs(duration - track.duration) > max(8, track.duration * 0.05)
+                abs(duration - track.duration) > 3
             {
                 return nil
             }
@@ -159,6 +164,7 @@ actor LyricsProvider {
             let timedScore = record.syncedLyrics?.isEmpty == false ? 3 : 0
             return (record, titleScore + artistScore + albumScore + timedScore)
         }.sorted { $0.1 > $1.1 }
+        if ranked.first?.0.instrumental == true { throw LookupError.instrumental }
         return ranked.first?.0.lines ?? []
     }
 
@@ -178,7 +184,7 @@ actor LyricsProvider {
                 artistMatches(track.artist, song.artists.map(\.name).joined(separator: " / "))
             else { return nil }
             let seconds = (song.duration ?? 0) / 1000
-            if seconds > 0, track.duration > 0, abs(seconds - track.duration) > 12 { return nil }
+            if seconds > 0, track.duration > 0, abs(seconds - track.duration) > 3 { return nil }
             let distance = abs(seconds - track.duration)
             return (song, distance - (normalized(song.album?.name ?? "") == normalized(track.album) ? 5 : 0))
         }.sorted { $0.1 < $1.1 }
@@ -194,7 +200,8 @@ actor LyricsProvider {
         guard !data.isEmpty else { return [] }
         let result = try JSONDecoder().decode(NetLyrics.self, from: data)
         guard result.code == 200 else { throw URLError(.badServerResponse) }
-        guard result.nolyric != true, let text = result.lrc?.lyric else { return [] }
+        if result.nolyric == true { throw LookupError.instrumental }
+        guard result.uncollected != true, let text = result.lrc?.lyric else { return [] }
         return Self.parseLRC(text)
     }
     static func neteaseID(_ value: String?, source: String?) -> String? {
@@ -267,6 +274,7 @@ private struct LRCLyrics: Decodable {
     let duration: Double?
     let syncedLyrics: String?
     let plainLyrics: String?
+    let instrumental: Bool?
     var lines: [LyricLine] {
         if let syncedLyrics {
             let parsed = LyricsProvider.parseLRC(syncedLyrics)
@@ -295,6 +303,7 @@ private struct NetSong: Decodable {
 private struct NetLyrics: Decodable {
     let code: Int
     let nolyric: Bool?
+    let uncollected: Bool?
     let lrc: Line?
     struct Line: Decodable { let lyric: String? }
 }

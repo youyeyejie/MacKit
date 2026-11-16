@@ -511,6 +511,37 @@ class MusicManager: ObservableObject {
     @Published private(set) var skipFeedbackPulse: SkipFeedbackPulse?
 
     // MARK: - Lyrics Properties
+    @Published private(set) var isCurrentTrackFavorited: Bool?
+    @Published private(set) var favoriteUpdateInProgress = false
+
+    func refreshFavoriteState() async {
+        guard bundleIdentifier == "com.netease.163music" else {
+            isCurrentTrackFavorited = nil
+            return
+        }
+        let title = songTitle
+        let state = await NetEaseMusicAccessibility.read(.favorite)
+        guard bundleIdentifier == "com.netease.163music", songTitle == title else { return }
+        isCurrentTrackFavorited = state
+    }
+
+    func toggleFavorite() {
+        guard bundleIdentifier == "com.netease.163music", !favoriteUpdateInProgress else { return }
+        favoriteUpdateInProgress = true
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.favoriteUpdateInProgress = false }
+            guard let controller = self.activeController as? NowPlayingController,
+                await controller.canControlCurrentSession() else { return }
+            let title = self.songTitle
+            await self.refreshFavoriteState()
+            guard self.songTitle == title, self.bundleIdentifier == "com.netease.163music",
+                let current = self.isCurrentTrackFavorited else { return }
+            _ = await NetEaseMusicAccessibility.set(.favorite, checked: !current)
+            await self.refreshFavoriteState()
+        }
+    }
+
     @Published var currentLyrics: String = ""
     @Published private(set) var lyricsReadyForCurrentTrack = false
     @Published var syncedLyrics: [LyricLine] = []
@@ -546,10 +577,8 @@ class MusicManager: ObservableObject {
 
     @Published var videoArtworkURL: URL? = nil
 
-    private var liveStreamUnknownDurationCount: Int = 0
-    private var liveStreamEdgeObservationCount: Int = 0
-    private var liveStreamCompletionObservationCount: Int = 0
-    private var liveStreamCompletionReleaseCount: Int = 0
+    private var unknownDurationStartedAt: Date?
+    private var unknownDurationInitialTime: TimeInterval = 0
 
     // Store last values at the time artwork was changed
     private var lastArtworkTitle: String = "I'm Handsome"
@@ -767,6 +796,8 @@ class MusicManager: ObservableObject {
 
         let trackChanged = titleChanged || artistChanged || bundleChanged
         if trackChanged {
+            isLiveStream = false
+            unknownDurationStartedAt = nil
             withAnimation(.smooth(duration: 0.25)) { lyricsReadyForCurrentTrack = false }
             currentLyrics = ""
             syncedLyrics = []
@@ -857,6 +888,7 @@ class MusicManager: ObservableObject {
             self.repeatMode = state.repeatMode
         }
 
+        if trackChanged { isCurrentTrackFavorited = nil }
         // Lyrics must use the new, fully applied metadata, never the preceding snapshot.
         if trackChanged { prepareLyricsForCurrentTrack() }
         updateLiveStreamState(with: state)
@@ -946,69 +978,25 @@ class MusicManager: ObservableObject {
     }
 
     private func updateLiveStreamState(with state: PlaybackState) {
-        let duration = state.duration
-        let current = max(state.currentTime, elapsedTime)
-        let hasKnownDuration = duration.isFinite && duration > 0
-        let isPlaying = state.isPlaying
-
-        if hasKnownDuration {
-            liveStreamUnknownDurationCount = 0
-
-            let remaining = duration - current
-            let clampedDuration = max(duration, 0)
-            let clampedCurrent =
-                clampedDuration > 0
-                ? max(0, min(current, clampedDuration))
-                : max(0, current)
-            let progress = clampedDuration > 0 ? clampedCurrent / clampedDuration : 0
-            let sliderAppearsComplete = isPlaying && clampedDuration > 0 && progress >= 0.999
-            let nearDurationEdge = isPlaying && remaining.isFinite && remaining <= 1.0 && clampedCurrent >= 10
-
-            if sliderAppearsComplete {
-                liveStreamCompletionObservationCount = min(liveStreamCompletionObservationCount + 1, 8)
-                liveStreamCompletionReleaseCount = 0
-            } else {
-                liveStreamCompletionReleaseCount = min(liveStreamCompletionReleaseCount + 1, 8)
-                if liveStreamCompletionObservationCount > 0 {
-                    liveStreamCompletionObservationCount = max(liveStreamCompletionObservationCount - 1, 0)
-                }
-            }
-
-            if nearDurationEdge || sliderAppearsComplete {
-                liveStreamEdgeObservationCount = min(liveStreamEdgeObservationCount + 1, 12)
-            } else if liveStreamEdgeObservationCount > 0 {
-                liveStreamEdgeObservationCount = max(liveStreamEdgeObservationCount - 1, 0)
-            }
-
-            if !isLiveStream {
-                if liveStreamCompletionObservationCount >= 3 || liveStreamEdgeObservationCount >= 5 {
-                    isLiveStream = true
-                }
-            } else {
-                let shouldClearForKnownDuration =
-                    (duration > 10 && remaining > 5)
-                    || (liveStreamCompletionObservationCount == 0
-                        && liveStreamEdgeObservationCount == 0
-                        && liveStreamCompletionReleaseCount >= 4)
-
-                if shouldClearForKnownDuration {
-                    isLiveStream = false
-                }
-            }
-        } else if isPlaying {
-            liveStreamEdgeObservationCount = max(liveStreamEdgeObservationCount - 1, 0)
-            liveStreamCompletionObservationCount = max(liveStreamCompletionObservationCount - 1, 0)
-            liveStreamCompletionReleaseCount = 0
-
-            liveStreamUnknownDurationCount = min(liveStreamUnknownDurationCount + 1, 8)
-            if liveStreamUnknownDurationCount >= 3 && !isLiveStream {
-                isLiveStream = true
-            }
-        } else {
-            liveStreamUnknownDurationCount = 0
-            liveStreamEdgeObservationCount = 0
-            liveStreamCompletionObservationCount = 0
-            liveStreamCompletionReleaseCount = 0
+        if state.duration.isFinite && state.duration > 0 {
+            isLiveStream = false
+            unknownDurationStartedAt = nil
+            return
+        }
+        guard state.isPlaying else {
+            unknownDurationStartedAt = nil
+            return
+        }
+        guard let startedAt = unknownDurationStartedAt else {
+            unknownDurationStartedAt = Date()
+            unknownDurationInitialTime = state.currentTime
+            return
+        }
+        // Repeated metadata callbacks during a track transition are not proof
+        // of a live stream. Require real time and playback-clock advancement.
+        if Date().timeIntervalSince(startedAt) >= 8,
+            state.currentTime - unknownDurationInitialTime >= 5 {
+            isLiveStream = true
         }
     }
 
@@ -1351,6 +1339,13 @@ class MusicManager: ObservableObject {
                     self.applyLyricsToDisplay(lyrics)
                     if lyrics.isEmpty { self.retryMissingLyrics() }
                 }
+            } catch LyricsProvider.LookupError.instrumental {
+                guard !Task.isCancelled, self.activeLyricsKey == key else { return }
+                self.lyricsRetryTask?.cancel()
+                self.lyricsRetryTask = nil
+                self.lyricsFetchKey = nil
+                self.lyricsFetchTask = nil
+                self.applyLyricsToDisplay([])
             } catch {
                 guard !Task.isCancelled else { return }
                 print("Failed to fetch lyrics: \(error)")
@@ -1408,8 +1403,6 @@ class MusicManager: ObservableObject {
             "\\s*\\((feat\\.?|ft\\.?|featuring)[^\\)]*\\)",
             "\\s*\\[(feat\\.?|ft\\.?|featuring)[^\\]]*\\]",
             "\\s*-\\s*(feat\\.?|ft\\.?|featuring)\\s+.*$",
-            "\\s*\\((remaster(ed)?|live|mono|stereo)[^\\)]*\\)$",
-            "\\s*\\[(remaster(ed)?|live|mono|stereo)[^\\]]*\\]$",
         ]
 
         for pattern in cleanupPatterns {

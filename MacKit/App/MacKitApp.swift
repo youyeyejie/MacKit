@@ -5,11 +5,26 @@ import SwiftUI
 @main
 struct MacKitApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    var body: some Scene { Settings { EmptyView() } }
+    var body: some Scene {
+        Settings { EmptyView() }
+            .commands {
+                CommandGroup(replacing: .appSettings) {
+                    Button("设置…") { delegate.showWindow() }
+                        .keyboardShortcut(",", modifiers: .command)
+                }
+                CommandGroup(replacing: .appInfo) {
+                    Button("关于 MacKit") {
+                        delegate.model.page = .about
+                        delegate.showWindow()
+                    }
+                }
+                CommandGroup(replacing: .help) {}
+            }
+    }
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let model = AppModel()
     private var window: NSWindow?
     private var settingsWindowOpen = false
@@ -95,6 +110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
                 styleMask: [.titled, .closable, .miniaturizable, .resizable],
                 backing: .buffered, defer: false)
             window.styleMask.insert(.fullSizeContentView)
+            window.collectionBehavior.insert(.fullScreenNone)
             window.isOpaque = false
             window.backgroundColor = .clear
             window.titlebarAppearsTransparent = true
@@ -139,21 +155,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     private func positionWindowControls(_ window: NSWindow) {
-        for (index, type) in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].enumerated() {
-            guard let button = window.standardWindowButton(type),
-                let frameView = window.contentView?.superview
-            else { continue }
-            // Keep AppKit's titlebar layout from restoring the edge-aligned positions.
-            if button.superview !== frameView { frameView.addSubview(button) }
-            button.setFrameOrigin(
-                NSPoint(
-                    x: 23 + CGFloat(index) * 23,
-                    y: frameView.bounds.height - 32))
+        guard let closeButton = window.standardWindowButton(.closeButton),
+            let container = closeButton.superview,
+            let parent = container.superview,
+            let frameView = window.contentView?.superview
+        else { return }
+
+        // Preserve AppKit's shared rollover tracking and native button hierarchy.
+        // Move the titlebar container instead of reparenting individual buttons.
+        let buttonFrame = closeButton.convert(closeButton.bounds, to: frameView)
+        let targetY = frameView.isFlipped ? 32 - buttonFrame.height : frameView.bounds.height - 32
+        let current = parent.convert(buttonFrame.origin, from: frameView)
+        let target = parent.convert(NSPoint(x: 23, y: targetY), from: frameView)
+        container.setFrameOrigin(NSPoint(
+            x: container.frame.minX + target.x - current.x,
+            y: container.frame.minY + target.y - current.y))
+        container.updateTrackingAreas()
+        for type in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+            window.standardWindowButton(type)?.updateTrackingAreas()
         }
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
-        NotchIntegration.shared.delegate?.applicationDidBecomeActive(notification)
         model.permissions.refresh()
         model.refreshLogin()
         model.finderCut.sync()
@@ -175,16 +198,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
             item.button?.image = AppBrand.menuBarIcon
             let menu = NSMenu()
-            menu.delegate = self
-            for (title, selector) in [
-                ("打开主面板", #selector(openFromMenu)), ("打开清洁模式", #selector(cleanFromMenu)),
-                ("启用访达剪切", #selector(toggleFinderFromMenu)), ("启用窗口切换预览", #selector(toggleSwitcherFromMenu)),
-                ("启用程序坞增强", #selector(toggleDockFromMenu)), ("退出MacKit", #selector(quitFromMenu)),
-            ] {
-                let entry = NSMenuItem(title: title, action: selector, keyEquivalent: "")
+            for page in [AppPage.cleaning, .finder, .windowSwitcher, .wallpaper, .atoll, .lockScreen, .settings, .permissions, .about] {
+                let entry = NSMenuItem(title: page.rawValue + "…", action: #selector(openPageFromMenu(_:)), keyEquivalent: "")
                 entry.target = self
+                entry.representedObject = page.rawValue
                 menu.addItem(entry)
             }
+            menu.addItem(.separator())
+            let quit = NSMenuItem(title: "退出 MacKit", action: #selector(quitFromMenu), keyEquivalent: "q")
+            quit.target = self
+            menu.addItem(quit)
             item.menu = menu
             statusItem = item
         } else if !model.showMenuBar, let item = statusItem {
@@ -192,21 +215,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             statusItem = nil
         }
     }
-    @objc private func openFromMenu() { showWindow() }
-    @objc private func cleanFromMenu() {
-        model.page = .cleaning
+    @objc private func openPageFromMenu(_ sender: NSMenuItem) {
+        guard let rawValue = sender.representedObject as? String, let page = AppPage(rawValue: rawValue) else { return }
+        model.page = page
         showWindow()
-    }
-    @objc private func toggleFinderFromMenu() { model.finderCut.setEnabled(!model.finderCut.enabled) }
-    @objc private func toggleSwitcherFromMenu() { model.windowSwitcher.setEnabled(!model.windowSwitcher.enabled) }
-    @objc private func toggleDockFromMenu() { model.dockEnhancement.toggleFromMenu() }
-    func menuNeedsUpdate(_ menu: NSMenu) {
-        menu.items.first(where: { $0.action == #selector(toggleFinderFromMenu) })?.title =
-            model.finderCut.enabled ? "关闭访达剪切" : "启用访达剪切"
-        menu.items.first(where: { $0.action == #selector(toggleSwitcherFromMenu) })?.title =
-            model.windowSwitcher.enabled ? "关闭窗口切换预览" : "启用窗口切换预览"
-        menu.items.first(where: { $0.action == #selector(toggleDockFromMenu) })?.title =
-            model.dockEnhancement.enabled ? "关闭程序坞增强" : "启用程序坞增强"
     }
     @objc private func quitFromMenu() { NSApp.terminate(nil) }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

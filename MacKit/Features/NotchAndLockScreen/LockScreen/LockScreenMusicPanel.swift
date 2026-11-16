@@ -539,8 +539,18 @@ struct LockScreenMusicPanel: View {
                 musicManager.nextTrack()
             }
         case .reloadLyrics:
-            controlButton(icon: MusicControlButton.reloadLyrics.iconName, size: 18) { musicManager.fetchLyrics() }.help(
-                "重新加载歌词")
+            controlButton(icon: musicManager.isCurrentTrackFavorited == true ? "heart.fill" : "heart", size: 18) {
+                musicManager.toggleFavorite()
+            }
+            .disabled(musicManager.bundleIdentifier != "com.netease.163music"
+                || musicManager.isCurrentTrackFavorited == nil || musicManager.favoriteUpdateInProgress)
+            .help(musicManager.isCurrentTrackFavorited == true ? "取消喜欢" : "喜欢歌曲（需要辅助功能权限）")
+            .task(id: musicManager.songTitle + (musicManager.bundleIdentifier ?? "")) {
+                while !Task.isCancelled {
+                    await musicManager.refreshFavoriteState()
+                    do { try await Task.sleep(for: .seconds(2)) } catch { return }
+                }
+            }
         case .mediaOutput:
             mediaOutputControlButton
         }
@@ -1033,7 +1043,7 @@ private struct PanelControlButton: View {
     @ViewBuilder
     private var iconView: some View {
         let base = Image(systemName: icon)
-            .font(.system(size: iconSize, weight: .medium))
+            .font(.system(size: iconSize, weight: icon.hasPrefix("heart") ? .semibold : .medium))
             .foregroundStyle(iconColor)
 
         switch symbolEffect {

@@ -6,7 +6,7 @@ MacKit includes adapted third-party code and bundled dependencies. Original copy
 
 ### Atoll / boring.notch
 
-- **Source:** https://github.com/Ebullioscopic/Atoll
+- **Source:** https://github.com/Ebullioscopic/Atoll; NetEase accessibility controls and lyric scrolling adapted from https://github.com/sensuschung/Atoll/tree/music-lyrics (commit `b8336c9`).
 - **License:** GPL-3.0-or-later; [full text](LICENSES/Atoll-GPL-3.0.txt).
 - **Copyright:** Copyright (C) 2024–2026 Atoll Contributors. Includes code originating from boring.notch; original headers and notices are retained.
 - **Scope:** `MacKit/Features/NotchAndLockScreen/`, host integration in `MacKit/Features/NotchAndLockScreen/Integration/`, and associated settings, resources and project-generation code. Includes notch UI, media/lyrics, calendar, file tray, terminal, system indicators and lock-screen components.

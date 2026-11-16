@@ -61,6 +61,9 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
     private var stopped = false
     private var terminatedSources: Set<String> = []
     private var lastReceivedAt = Date.distantPast
+    private var pauseConfirmationTask: Task<Void, Never>?
+    private var pendingPausedState: PlaybackState?
+    private var explicitPlaybackCommandUntil = Date.distantPast
 
     // MARK: - Initialization
     init?() {
@@ -98,6 +101,7 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
     }
 
     deinit {
+        pauseConfirmationTask?.cancel()
         refreshTask?.cancel()
         restartTask?.cancel()
         streamTask?.cancel()
@@ -108,6 +112,9 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
     }
 
     func stopMonitoring() {
+        pauseConfirmationTask?.cancel()
+        pauseConfirmationTask = nil
+        pendingPausedState = nil
         stopped = true
         refreshTask?.cancel()
         restartTask?.cancel()
@@ -119,27 +126,53 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
 
     // MARK: - Protocol Implementation
     func play() async {
+        guard await canControlCurrentSession() else { return }
+        explicitPlaybackCommandUntil = Date().addingTimeInterval(0.5)
+        pauseConfirmationTask?.cancel()
+        pauseConfirmationTask = nil
+        pendingPausedState = nil
         MRMediaRemoteSendCommandFunction(0, nil)
     }
 
     func pause() async {
+        guard await canControlCurrentSession() else { return }
+        explicitPlaybackCommandUntil = Date().addingTimeInterval(0.5)
+        pauseConfirmationTask?.cancel()
+        pauseConfirmationTask = nil
+        pendingPausedState = nil
         MRMediaRemoteSendCommandFunction(1, nil)
     }
 
     func togglePlay() async {
+        guard await canControlCurrentSession() else { return }
+        explicitPlaybackCommandUntil = Date().addingTimeInterval(0.5)
+        pauseConfirmationTask?.cancel()
+        pauseConfirmationTask = nil
+        pendingPausedState = nil
         MRMediaRemoteSendCommandFunction(2, nil)
     }
 
     func nextTrack() async {
+        guard await canControlCurrentSession() else { return }
         MRMediaRemoteSendCommandFunction(4, nil)
     }
 
     func previousTrack() async {
+        guard await canControlCurrentSession() else { return }
         MRMediaRemoteSendCommandFunction(5, nil)
     }
 
     func seek(to time: Double) async {
+        guard await canControlCurrentSession() else { return }
         MRMediaRemoteSetElapsedTimeFunction(time)
+    }
+
+    func canControlCurrentSession() async -> Bool {
+        let expected = playbackState
+        guard !expected.bundleIdentifier.isEmpty, let payload = await snapshots.read() else { return false }
+        let source = payload.parentApplicationBundleIdentifier ?? payload.bundleIdentifier
+        return source == expected.bundleIdentifier && payload.title == expected.title
+            && playbackState.bundleIdentifier == expected.bundleIdentifier && playbackState.title == expected.title
     }
 
     func isActive() -> Bool {
@@ -167,7 +200,8 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
         guard !stopped, !refreshingSnapshot else { return }
         refreshingSnapshot = true
         defer { refreshingSnapshot = false }
-        guard let payload = await snapshots.read() else { return }
+        let lastUpdate = lastReceivedAt
+        guard let payload = await snapshots.read(), lastReceivedAt == lastUpdate else { return }
         await handleAdapterUpdate(NowPlayingUpdate(payload: payload, diff: false))
     }
 
@@ -194,6 +228,9 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
                     guard let self else { return }
                     self.terminatedSources.insert(id)
                     guard self.playbackState.bundleIdentifier == id else { return }
+                    self.pauseConfirmationTask?.cancel()
+                    self.pauseConfirmationTask = nil
+                    self.pendingPausedState = nil
                     self.playbackState = PlaybackState(bundleIdentifier: "", title: "", artist: "", album: "")
                     self.lastReceivedAt = Date()
                 }
@@ -327,7 +364,33 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
         }
         if payload.playing == nil, let rate = payload.playbackRate { value.isPlaying = rate > 0 }
         value.playbackRate = payload.playbackRate ?? (value.isPlaying ? (diff ? playbackState.playbackRate : 1) : 0)
+        if payload.playing == nil, payload.playbackRate == nil,
+            pendingPausedState != nil, !changedSource {
+            // Metadata-only diffs do not confirm that playback resumed.
+            value.isPlaying = false
+            value.playbackRate = 0
+        }
         lastReceivedAt = Date()
+        if !value.isPlaying && playbackState.isPlaying && !changedSource
+            && Date() >= explicitPlaybackCommandUntil {
+            pendingPausedState = value
+            if pauseConfirmationTask == nil {
+                pauseConfirmationTask = Task { @MainActor [weak self] in
+                    do { try await Task.sleep(for: .milliseconds(300)) } catch { return }
+                    guard let self, let paused = self.pendingPausedState else { return }
+                    self.pendingPausedState = nil
+                    self.pauseConfirmationTask = nil
+                    self.playbackState = paused
+                }
+            }
+            // Preserve the transport state while publishing the new metadata.
+            value.isPlaying = true
+            value.playbackRate = max(1, playbackState.playbackRate)
+        } else {
+            pauseConfirmationTask?.cancel()
+            pauseConfirmationTask = nil
+            pendingPausedState = nil
+        }
         playbackState = value
     }
 }

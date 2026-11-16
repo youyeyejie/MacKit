@@ -440,6 +440,7 @@
 				<string>0347F9FDE5C7E813A6AE0EAE</string>
 				<string>E3770ADBCE7EB302B0EF75FA</string>
 				<string>0857A1FF6950D20282318874</string>
+				<string>0C59CC87971CDA214CB775F8</string>
 				<string>78F4957988E12AE2E492A1F5</string>
 				<string>411287EFF694AB981FB81584</string>
 				<string>ECCBCE217FEBEF177008F725</string>
@@ -2241,6 +2242,7 @@
 				<string>74A4B01BB2A6E9BB967A0D79</string>
 				<string>BCB9E2B3F4414B8CFCB29C40</string>
 				<string>2CFD982D106B5C75EE823786</string>
+				<string>180545D9AAED3E987A8F333E</string>
 				<string>4BA7AB8A095B1CB5E513A7D2</string>
 				<string>14984135D858F58E50858A27</string>
 				<string>16B8708A7C100FF8F52C566C</string>
@@ -2489,6 +2491,24 @@
 			<string>PBXBuildFile</string>
 			<key>fileRef</key>
 			<string>2CFD982D106B5C75EE823786</string>
+		</dict>
+		<key>180545D9AAED3E987A8F333E</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>MacKit/Features/NotchAndLockScreen/Media/NetEaseMusicAccessibility.swift</string>
+			<key>sourceTree</key>
+			<string>SOURCE_ROOT</string>
+		</dict>
+		<key>0C59CC87971CDA214CB775F8</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>180545D9AAED3E987A8F333E</string>
 		</dict>
 		<key>4BA7AB8A095B1CB5E513A7D2</key>
 		<dict>

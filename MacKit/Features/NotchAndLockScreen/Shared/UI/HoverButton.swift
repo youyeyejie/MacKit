@@ -25,6 +25,7 @@ import SwiftUI
 struct HoverButton: View {
     var icon: String
     var iconColor: Color = .white
+    var iconWeight: Font.Weight = .regular
     var scale: Image.Scale = .medium
     var pressEffect: PressEffect? = nil
     var contentTransition: ContentTransition = .symbolEffect
@@ -56,6 +57,7 @@ struct HoverButton: View {
                         .overlay {
                             let baseImage = Image(systemName: icon)
                                 .foregroundColor(iconColor)
+                                .fontWeight(iconWeight)
                                 .contentTransition(contentTransition)
                                 .font(scale == .large ? .largeTitle : .body)
 
