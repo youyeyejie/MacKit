@@ -72,7 +72,7 @@ struct ContentView: View {
     @Default(.showFullBatteryHUD) var showFullBatteryHUD
     @Default(.inlineHUD) private var inlineHUDLayout
     @Default(.hideLyricsWhenPaused) private var hideLyricsPreference
-    @Default(.showLyricsBelowBuiltinNotch) private var showBuiltinLyrics
+    @Default(.showLyricsBelowBuiltinNotch) private var persistentIslandLyricsOnly
     @Default(.hideNonNotchUntilHover) private var hideExternalUntilHover
     @State private var onlyBuiltinDisplay = BuiltinLyricAvailability.hasOnlyBuiltinDisplay
     @Default(.showOnAllDisplays) var showOnAllDisplays
@@ -280,20 +280,33 @@ struct ContentView: View {
         !musicManager.isPlaying && Defaults[.pausedMediaHideDelay] < 0 && Defaults[.hideLyricsWhenPaused]
     }
 
-    private var builtinIsOnlyPersistentIsland: Bool {
-        if onlyBuiltinDisplay || Defaults[.hideNonNotchUntilHover] { return true }
-        if Defaults[.showOnAllDisplays] { return false }
-        let preferred = coordinator.selectedScreen
-        return NSScreen.screens.first(where: { $0.localizedName == preferred })?.deviceDescription[
-            NSDeviceDescriptionKey("NSScreenNumber")
-        ]
-        .flatMap { $0 as? NSNumber }.map { CGDisplayIsBuiltin($0.uint32Value) != 0 } ?? false
+    private var isBuiltinScreen: Bool {
+        guard let screen = NSScreen.screens.first(where: { $0.localizedName == currentScreenName }),
+            let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
+        else { return false }
+        return CGDisplayIsBuiltin(number.uint32Value) != 0
+    }
+
+    private var hasPersistentExternalIsland: Bool {
+        guard !onlyBuiltinDisplay, !hideNonNotchUntilHover else { return false }
+        return NSScreen.screens.contains { screen in
+            guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber,
+                CGDisplayIsBuiltin(number.uint32Value) == 0 else { return false }
+            return showOnAllDisplays || screen.localizedName == coordinator.selectedScreen
+        }
+    }
+
+    private var lyricsPlaybackVisible: Bool {
+        musicManager.lyricsReadyForCurrentTrack && !hidePausedLyrics
+            && !musicManager.isPlayerIdle && !lockScreenManager.isLocked
+    }
+
+    private var routeLyricsToBuiltin: Bool {
+        !persistentIslandLyricsOnly || !hasPersistentExternalIsland
     }
 
     private var builtinLyricShelfVisible: Bool {
-        guard musicManager.lyricsReadyForCurrentTrack, !hidePausedLyrics, showBuiltinLyrics,
-            builtinIsOnlyPersistentIsland, vm.notchState == .closed,
-            !musicManager.isPlayerIdle, !lockScreenManager.isLocked,
+        guard lyricsPlaybackVisible, routeLyricsToBuiltin, vm.notchState == .closed,
             let screen = NSScreen.screens.first(where: { $0.localizedName == currentScreenName }),
             let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
         else { return false }
@@ -623,6 +636,10 @@ struct ContentView: View {
             _ in
             onlyBuiltinDisplay = BuiltinLyricAvailability.hasOnlyBuiltinDisplay
         }
+        .background(BuiltinLyricFallbackPresenter(
+            isVisible: !showOnAllDisplays && !isBuiltinScreen && routeLyricsToBuiltin
+                && lyricsPlaybackVisible && Defaults[.notchEnabled],
+            color: Color(nsColor: musicManager.avgColor)))
         .environmentObject(privacyManager)
         .background(dragDetector)
         .environmentObject(vm)
@@ -1017,8 +1034,8 @@ struct ContentView: View {
                                     (coordinator.expandingView.show && coordinator.expandingView.type == .music
                                         && NotchConfiguration.enableSneakPeek && Defaults[.sneakPeekStyles] == .inline)
                                         ? 1 : 0)
-                        } else if showBuiltinLyrics && musicManager.lyricsReadyForCurrentTrack
-                            && !builtinIsOnlyPersistentIsland && isNonNotchScreen
+                        } else if (!persistentIslandLyricsOnly || hasPersistentExternalIsland)
+                            && lyricsPlaybackVisible && !isBuiltinScreen
                         {
                             TimedLyricLine(
                                 width: max(0, effectiveCenterWidth - 16),

@@ -1417,6 +1417,7 @@ class MusicManager: ObservableObject {
     }
 
     private func applyLyricsToDisplay(_ lyrics: [LyricLine]) {
+        let lyrics = lyrics.contains(where: { LyricsProvider.isInstrumentalPlaceholder($0.text) }) ? [] : lyrics
         currentLyrics = ""
         syncedLyrics = lyrics
         lyricsReadyForCurrentTrack = false

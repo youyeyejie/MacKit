@@ -572,7 +572,9 @@ struct LockScreenWeatherWidget: View {
                 airQualitySegment(for: airQuality)
             }
 
-            weatherSegment
+            if snapshot.temperatureInfo != nil {
+                weatherSegment
+            }
 
             if snapshot.showsSunrise, let sunriseText = sunriseTimeText {
                 sunriseSegment(text: sunriseText)

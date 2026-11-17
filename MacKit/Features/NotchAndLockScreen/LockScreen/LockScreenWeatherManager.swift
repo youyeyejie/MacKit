@@ -30,6 +30,8 @@ final class LockScreenWeatherManager: ObservableObject {
     private let provider = LockScreenWeatherProvider()
     private let locationProvider = LockScreenWeatherLocationProvider()
     private var lastFetchDate: Date?
+    private var refreshTask: Task<Void, Never>?
+    private var isRefreshing = false
     private var latestWeatherPayload: LockScreenWeatherSnapshot?
     private var cancellables = Set<AnyCancellable>()
 
@@ -53,6 +55,15 @@ final class LockScreenWeatherManager: ObservableObject {
         }
 
         locationProvider.prepareAuthorization()
+        if refreshTask == nil {
+            refreshTask = Task { @MainActor [weak self] in
+                while !Task.isCancelled {
+                    do { try await Task.sleep(for: .seconds(60)) } catch { return }
+                    guard let self, LockScreenManager.shared.currentLockStatus else { return }
+                    _ = await self.refresh()
+                }
+            }
+        }
         let existingSnapshot = snapshot
         let hadSnapshot = existingSnapshot != nil
         var cachedSnapshot = existingSnapshot
@@ -85,11 +96,16 @@ final class LockScreenWeatherManager: ObservableObject {
     }
 
     func hideWeatherWidget() {
+        refreshTask?.cancel()
+        refreshTask = nil
         LockScreenWeatherPanelManager.shared.hide()
     }
 
     @discardableResult
     func refresh(force: Bool = false) async -> LockScreenWeatherSnapshot? {
+        guard !isRefreshing else { return snapshot }
+        isRefreshing = true
+        defer { isRefreshing = false }
         NSLog("LockScreenWeatherManager: refresh requested (force=%@)", force ? "true" : "false")
         let interval = Defaults[.lockScreenWeatherRefreshInterval]
         if !force, let lastFetchDate, Date().timeIntervalSince(lastFetchDate) < interval {
@@ -184,6 +200,9 @@ final class LockScreenWeatherManager: ObservableObject {
                     NSLog("LockScreenWeatherManager: wttr.in fallback also failed - %@", error.localizedDescription)
                     throw error
                 }
+            }
+            if primarySource == .wttr, location != nil {
+                return try await provider.fetchSnapshot(location: location, source: .openMeteo)
             }
             throw error
         }
@@ -1116,6 +1135,7 @@ private final class LockScreenWeatherLocationProvider: NSObject, CLLocationManag
     private let manager: CLLocationManager
     private var pendingContinuations: [CheckedContinuation<CLLocation?, Never>] = []
     private var lastLocation: CLLocation?
+    private var locationTimeout: Task<Void, Never>?
 
     override init() {
         manager = CLLocationManager()
@@ -1138,9 +1158,15 @@ private final class LockScreenWeatherLocationProvider: NSObject, CLLocationManag
             if let lastLocation, abs(lastLocation.timestamp.timeIntervalSinceNow) < 1800 {
                 return lastLocation
             }
-            manager.requestLocation()
             return await withCheckedContinuation { continuation in
-                self.pendingContinuations.append(continuation)
+                pendingContinuations.append(continuation)
+                guard pendingContinuations.count == 1 else { return }
+                manager.requestLocation()
+                locationTimeout = Task { @MainActor [weak self] in
+                    do { try await Task.sleep(for: .seconds(5)) } catch { return }
+                    guard let self else { return }
+                    self.flushContinuations(with: self.lastLocation ?? self.manager.location)
+                }
             }
         default:
             return nil
@@ -1161,6 +1187,8 @@ private final class LockScreenWeatherLocationProvider: NSObject, CLLocationManag
     }
 
     private func flushContinuations(with location: CLLocation?) {
+        locationTimeout?.cancel()
+        locationTimeout = nil
         guard !pendingContinuations.isEmpty else { return }
         let continuations = pendingContinuations
         pendingContinuations.removeAll()

@@ -14,7 +14,7 @@ struct NotchMediaSettingsView: View {
                 Defaults.Toggle(key: .showStandardMediaControls) { Text("启用媒体控制") }
                 Defaults.Toggle(key: .autoHideInactiveNotchMediaPlayer) { Text("自动隐藏未播放媒体的面板") }
                 Defaults.Toggle(key: .showLyricsBelowBuiltinNotch) {
-                    SettingsDescription(title: "在常驻灵动刘海显示歌词", subtitle: "开启后若在外接显示器上使用灵动刘海，则在外接显示器的灵动刘海上显示歌词；否则在内建显示器上显示歌词横幅。")
+                    SettingsDescription(title: "只在常驻灵动刘海显示歌词", subtitle: "开启时优先在外接屏常驻刘海显示，否则显示内建屏横幅；关闭时所有灵动刘海均显示。")
                 }
                 CompactSettingsSlider(
                     value: Binding(

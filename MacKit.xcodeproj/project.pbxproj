@@ -432,6 +432,7 @@
 				<string>005BBE741659A8A0D32C243D</string>
 				<string>5018A00875D7DEE83ADD6D04</string>
 				<string>1A2B194417D3DD94E1B9EC83</string>
+				<string>D738984BA8E30769ABC9929E</string>
 				<string>FC2B182EA1E5D48E4FE965C2</string>
 				<string>EE0538ED4F3A66932F2363FB</string>
 				<string>DBAB13CD151D250C4A55931A</string>
@@ -2234,6 +2235,7 @@
 				<string>BBF97B0CE8C5CAC593667510</string>
 				<string>70FB6E01FE7144F7C252CD09</string>
 				<string>546F0AAE6AE66AEB50239911</string>
+				<string>2403FED6D758B2CA25235556</string>
 				<string>CB37069CB034179754AE8203</string>
 				<string>C01FBFE9F69EE3B851FEBCE0</string>
 				<string>B98C977595375D4BFE96DD79</string>
@@ -2347,6 +2349,24 @@
 			<string>PBXBuildFile</string>
 			<key>fileRef</key>
 			<string>546F0AAE6AE66AEB50239911</string>
+		</dict>
+		<key>2403FED6D758B2CA25235556</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>MacKit/Features/NotchAndLockScreen/Media/BuiltinLyricFallbackPresenter.swift</string>
+			<key>sourceTree</key>
+			<string>SOURCE_ROOT</string>
+		</dict>
+		<key>D738984BA8E30769ABC9929E</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>2403FED6D758B2CA25235556</string>
 		</dict>
 		<key>CB37069CB034179754AE8203</key>
 		<dict>

@@ -38,7 +38,7 @@ actor LyricsProvider {
         do {
             let value = try await netease(track)
             if !value.isEmpty {
-                store(value, for: track)
+                try store(value, for: track)
                 return value
             }
         } catch LookupError.instrumental {
@@ -49,7 +49,7 @@ actor LyricsProvider {
         do {
             let value = try await lrclib(track)
             if !value.isEmpty {
-                store(value, for: track)
+                try store(value, for: track)
                 return value
             }
         } catch LookupError.instrumental {
@@ -60,7 +60,7 @@ actor LyricsProvider {
         do {
             let backup = try await atollBackup(track)
             if !backup.isEmpty {
-                store(backup, for: track)
+                try store(backup, for: track)
                 return backup
             }
         } catch LookupError.instrumental {
@@ -69,10 +69,22 @@ actor LyricsProvider {
             throw LookupError.instrumental
         } catch { encounteredError = error }
         if let encounteredError { throw encounteredError }
-        store([], for: track)
+        try store([], for: track)
         return []
     }
-    private func store(_ lines: [LyricLine], for track: LyricsTrack) {
+    static func isInstrumentalPlaceholder(_ text: String) -> Bool {
+        let normalized = text.lowercased().filter { $0.isLetter || $0.isNumber }
+        return [
+            "纯音乐请欣赏", "纯音乐请您欣赏", "此歌曲为没有填词的纯音乐请您欣赏",
+            "純音樂請欣賞", "純音樂請您欣賞", "此歌曲為沒有填詞的純音樂請您欣賞",
+            "instrumental", "instrumentalpleaseenjoy"
+        ].contains(normalized)
+    }
+
+    private func store(_ lines: [LyricLine], for track: LyricsTrack) throws {
+        if lines.contains(where: { Self.isInstrumentalPlaceholder($0.text) }) {
+            throw LookupError.instrumental
+        }
         cache[track] = Entry(expires: Date().addingTimeInterval(lines.isEmpty ? 30 : 3600), lines: lines)
         order.removeAll { $0 == track }
         order.append(track)
