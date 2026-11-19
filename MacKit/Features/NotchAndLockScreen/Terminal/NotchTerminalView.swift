@@ -31,9 +31,12 @@ import SwiftUI
 struct TerminalNSViewRepresentable: NSViewRepresentable {
     @ObservedObject var terminalManager = TerminalManager.shared
 
+    let selectionDragChanged: (Bool) -> Void
+
     func makeNSView(context: Context) -> NSView {
         context.coordinator.terminalManager = terminalManager
         terminalManager.ensureTerminalView(delegate: context.coordinator)
+        (terminalManager.terminalView as? MacKitTerminalView)?.selectionDragChanged = selectionDragChanged
         if !terminalManager.isProcessRunning {
             terminalManager.startShellProcess()
         }
@@ -43,6 +46,7 @@ struct TerminalNSViewRepresentable: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {
         // Re-mount terminal if it was restarted (generation bumped).
         terminalManager.ensureTerminalView(delegate: context.coordinator)
+        (terminalManager.terminalView as? MacKitTerminalView)?.selectionDragChanged = selectionDragChanged
         if !terminalManager.isProcessRunning {
             terminalManager.startShellProcess()
         }
@@ -89,6 +93,7 @@ struct NotchTerminalView: View {
     private let cornerRadiusScaling = NotchConfiguration.cornerRadiusScaling
     private let enableMinimalisticUI = NotchConfiguration.enableMinimalisticUI
     @State private var suppressionToken = UUID()
+    @State private var selectionToken = UUID()
     @State private var isSuppressing = false
 
     /// Top corners stay mild; bottom follows shell − padding (see `notchTerminalBottomCornerRadii`).
@@ -124,7 +129,9 @@ struct NotchTerminalView: View {
             if enableTerminalFeature {
                 // Terminal content — the containerView is stable across
                 // notch close/open cycles; updateNSView handles restart.
-                TerminalNSViewRepresentable(terminalManager: terminalManager)
+                TerminalNSViewRepresentable(terminalManager: terminalManager) { [weak vm, selectionToken] isDragging in
+                    vm?.setAutoCloseSuppression(isDragging, token: selectionToken)
+                }
                     .clipShape(terminalClipShape)
                     .padding(
                         EdgeInsets(
@@ -158,6 +165,7 @@ struct NotchTerminalView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onDisappear {
             updateSuppression(for: false)
+            vm.setAutoCloseSuppression(false, token: selectionToken)
         }
         .onAppear {
             terminalManager.refreshTerminalAppearanceIfNeeded()

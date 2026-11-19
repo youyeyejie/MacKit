@@ -43,9 +43,6 @@ import SwiftUI
 final class StableTerminalContainerView: NSView {
     /// Identifies the gutter tint view so `resizeSubviews` can keep its ring mask in sync.
     static let gutterTintIdentifier = NSUserInterfaceItemIdentifier("terminalGutterTint")
-    /// Identifies the custom scroll knob overlay so `resizeSubviews` leaves its frame
-    /// alone (it's positioned from the scroll state, not stretched to fill the bounds).
-    static let scrollKnobIdentifier = NSUserInterfaceItemIdentifier("terminalScrollKnob")
 
     override func resizeSubviews(withOldSize oldSize: NSSize) {
         let size = bounds.size
@@ -60,20 +57,14 @@ final class StableTerminalContainerView: NSView {
         let inset = notchTerminalInnerTextInset
         let terminalFrame = bounds.insetBy(dx: inset, dy: inset)
         for child in subviews {
-            if child is LocalProcessTerminalView {
-                child.frame = terminalFrame
-            } else if child.identifier == Self.scrollKnobIdentifier {
-                // Positioned from scroll state in `updateScrollKnob`; don't stretch it.
-                continue
+            if let terminal = child as? MacKitTerminalView {
+                terminal.layoutText(in: terminalFrame)
             } else {
                 child.frame = bounds
                 if child.identifier == Self.gutterTintIdentifier {
                     Self.applyGutterMask(to: child, bounds: bounds, hole: terminalFrame)
                 }
             }
-        }
-        MainActor.assumeIsolated {
-            TerminalManager.shared.refreshScrollKnobLayout()
         }
     }
 
@@ -107,27 +98,143 @@ final class StableTerminalContainerView: NSView {
 
 // Keep the fixed caret even when a shell theme or full-screen program sends DECSCUSR.
 final class MacKitTerminalView: LocalProcessTerminalView {
+    private let textClip = CAShapeLayer()
+
+    func layoutText(in textFrame: NSRect) {
+        // SwiftTerm subtracts the legacy scroller width when sizing the grid,
+        // even with the scroller hidden. Clip the extra frame to the text area.
+        let reservedWidth = NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy)
+        frame = NSRect(
+            origin: textFrame.origin,
+            size: NSSize(width: textFrame.width + reservedWidth, height: textFrame.height)
+        )
+        let visibleBounds = NSRect(origin: bounds.origin, size: textFrame.size)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        textClip.frame = bounds
+        textClip.path = CGPath(rect: visibleBounds, transform: nil)
+        layer?.mask = textClip
+        CATransaction.commit()
+    }
+
+    var selectionDragChanged: ((Bool) -> Void)?
+    private var selectionDragEvent: NSEvent?
+    private var selectionScrollTimer: Timer?
+
+    private var selectionEventMonitor: Any?
+    private var selectionMouseDown = false
+
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        if newWindow !== window {
+            endSelectionDrag()
+            if let selectionEventMonitor { NSEvent.removeMonitor(selectionEventMonitor) }
+            selectionEventMonitor = nil
+            if newWindow != nil {
+                selectionEventMonitor = NSEvent.addLocalMonitorForEvents(
+                    matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp, .scrollWheel]
+                ) { [weak self] event in
+                    guard let self else { return event }
+                    return self.handleSelectionEvent(event)
+                }
+            }
+        }
+        super.viewWillMove(toWindow: newWindow)
+    }
+
+    private func handleSelectionEvent(_ event: NSEvent) -> NSEvent? {
+        switch event.type {
+        case .leftMouseDown:
+            endSelectionDrag()
+            if let window, event.window === window, let superview {
+                let point = superview.convert(event.locationInWindow, from: nil)
+                let pointInParent = superview.convert(point, to: superview.superview)
+                selectionMouseDown = superview.hitTest(pointInParent) === self
+            }
+        case .leftMouseDragged:
+            if selectionMouseDown, !allowMouseReporting || getTerminal().mouseMode == .off {
+                selectionDragEvent = event
+                startSelectionScroll()
+            }
+        case .leftMouseUp:
+            endSelectionDrag()
+        case .scrollWheel:
+            if selectionDragEvent != nil, NSEvent.pressedMouseButtons & 1 != 0, let window,
+                !allowMouseReporting || getTerminal().mouseMode == .off {
+                scrollWheel(with: event)
+                extendSelection(at: convert(window.mouseLocationOutsideOfEventStream, from: nil))
+                return nil
+            }
+        default:
+            break
+        }
+        return event
+    }
+
+    private func startSelectionScroll() {
+        guard selectionScrollTimer == nil else { return }
+        selectionDragChanged?(true)
+        let timer = Timer(timeInterval: 0.06, repeats: true) { [weak self] timer in
+            MainActor.assumeIsolated {
+                guard let self else {
+                    timer.invalidate()
+                    return
+                }
+                self.scrollSelectionAtEdge()
+            }
+        }
+        selectionScrollTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    private func endSelectionDrag() {
+        selectionMouseDown = false
+        guard let selectionScrollTimer else { return }
+        selectionScrollTimer.invalidate()
+        self.selectionScrollTimer = nil
+        selectionDragEvent = nil
+        selectionDragChanged?(false)
+    }
+
+    private func scrollSelectionAtEdge() {
+        guard let window, window.isVisible, NSEvent.pressedMouseButtons & 1 != 0,
+            !allowMouseReporting || getTerminal().mouseMode == .off
+        else {
+            endSelectionDrag()
+            return
+        }
+
+        let point = convert(window.mouseLocationOutsideOfEventStream, from: nil)
+        let edgeInset: CGFloat = 3
+        if point.y >= bounds.maxY - edgeInset {
+            scrollUp(lines: min(8, 1 + Int(max(0, point.y - bounds.maxY) / 12)))
+        } else if point.y <= bounds.minY + edgeInset {
+            scrollDown(lines: min(8, 1 + Int(max(0, bounds.minY - point.y) / 12)))
+        } else {
+            return
+        }
+        extendSelection(at: point)
+    }
+
+    private func extendSelection(at point: NSPoint) {
+        guard let event = selectionDragEvent, let window, bounds.height > 2 else { return }
+        // Re-hit-test the pointer against the new scrollback position. Clamp to
+        // a visible row so dragging far past the edge never skips hidden text.
+        let visiblePoint = NSPoint(x: point.x, y: min(bounds.maxY - 1, max(bounds.minY + 1, point.y)))
+        guard let drag = NSEvent.mouseEvent(
+            with: .leftMouseDragged, location: convert(visiblePoint, to: nil),
+            modifierFlags: event.modifierFlags, timestamp: event.timestamp,
+            windowNumber: window.windowNumber, context: nil, eventNumber: event.eventNumber,
+            clickCount: event.clickCount, pressure: event.pressure
+        ) else { return }
+        mouseDragged(with: drag)
+    }
+
     override func cursorStyleChanged(source: Terminal, newStyle: CursorStyle) {
         super.cursorStyleChanged(source: source, newStyle: .blinkBar)
         if newStyle != .blinkBar {
             DispatchQueue.main.async { [weak self] in self?.getTerminal().setCursorStyle(.blinkBar) }
         }
     }
-}
-
-// MARK: - Scroll Knob Overlay
-
-/// Layer-backed rounded knob drawn on top of the terminal as a custom scrollbar.
-///
-/// SwiftTerm's built-in `NSScroller` is layer-backed and renders its knob via CoreUI,
-/// which ignores `drawKnob`/`drawKnobSlot` overrides — so we can't restyle it directly.
-/// Instead we hide that scroller and render this view ourselves, driven by the
-/// scroller's live values (`doubleValue`, `knobProportion`, `isEnabled`) via KVO.
-///
-/// `hitTest` returns nil so clicks and scroll-wheel events pass straight through to
-/// the terminal underneath.
-final class TerminalScrollKnobView: NSView {
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }
 
 // MARK: - Terminal Manager
@@ -163,27 +270,6 @@ class TerminalManager: ObservableObject {
 
     /// The actual terminal view (child of `containerView`).
     private(set) var terminalView: LocalProcessTerminalView?
-
-    /// SwiftTerm's built-in scroller (kept as the data source for our custom knob).
-    private weak var terminalScroller: NSScroller?
-
-    /// KVO of the scroller's value/proportion/enabled state that drives the knob.
-    private var scrollerObservations: [NSKeyValueObservation] = []
-
-    /// Custom rounded scrollbar knob rendered on top of the terminal.
-    private lazy var scrollKnobView: TerminalScrollKnobView = {
-        let v = TerminalScrollKnobView()
-        v.identifier = StableTerminalContainerView.scrollKnobIdentifier
-        v.wantsLayer = true
-        v.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.45).cgColor
-        v.alphaValue = 0
-        return v
-    }()
-
-    /// Thickness of the custom scroll knob, and its margins inside the terminal.
-    private let scrollKnobThickness: CGFloat = 6
-    private let scrollKnobEndInset: CGFloat = 3
-    private let scrollKnobRightMargin: CGFloat = 2
 
     /// Frosted blur of desktop/content behind the terminal; always below `terminalView`.
     private lazy var terminalBackdropView: NSView = {
@@ -256,32 +342,7 @@ class TerminalManager: ObservableObject {
         containerView.addSubview(view)
         terminalView = view
 
-        // Keep the custom scroll knob above the terminal (re-add to bring to front).
-        scrollKnobView.removeFromSuperview()
-        containerView.addSubview(scrollKnobView)
-        if let scroller = terminalScroller {
-            updateScrollKnob(from: scroller)
-        }
-
-        // If the container already has a valid size, snap the children to it.
-        // Blur + gutter tint fill the full bounds; the terminal is inset so its
-        // glyphs don't hug the edge, and the gutter tint is masked to the ring.
-        let containerSize = containerView.bounds.size
-        if containerSize.width >= 10, containerSize.height >= 10 {
-            let bounds = containerView.bounds
-            let terminalFrame = bounds.insetBy(
-                dx: notchTerminalInnerTextInset,
-                dy: notchTerminalInnerTextInset
-            )
-            terminalBackdropView.frame = bounds
-            terminalGutterTintView.frame = bounds
-            StableTerminalContainerView.applyGutterMask(
-                to: terminalGutterTintView,
-                bounds: bounds,
-                hole: terminalFrame
-            )
-            view.frame = terminalFrame
-        }
+        containerView.resizeSubviews(withOldSize: containerView.bounds.size)
 
         // Apply translucency immediately and again on the next run loop tick.
         // The deferred pass handles AppKit/SwiftUI mount timing where layer
@@ -424,75 +485,7 @@ class TerminalManager: ObservableObject {
         view.useBrightColors = true
 
         refreshSystemTerminalAppearance(for: view)
-        styleTerminalScroller(for: view)
-    }
-
-    /// Hides SwiftTerm's built-in scroller and wires KVO so its live scroll state
-    /// drives our custom `scrollKnobView` (see `TerminalScrollKnobView`).
-    private func styleTerminalScroller(for view: LocalProcessTerminalView) {
-        guard let scroller = view.subviews.compactMap({ $0 as? NSScroller }).first else { return }
-        terminalScroller = scroller
-        // Hide SwiftTerm's own scroller drawing; it stays alive as our data source.
-        scroller.alphaValue = 0
-
-        scrollerObservations.forEach { $0.invalidate() }
-        scrollerObservations = []
-        let onChange: (NSScroller) -> Void = { scroller in
-            MainActor.assumeIsolated {
-                TerminalManager.shared.updateScrollKnob(from: scroller)
-            }
-        }
-        scrollerObservations = [
-            scroller.observe(\.doubleValue, options: [.new]) { s, _ in onChange(s) },
-            scroller.observe(\.knobProportion, options: [.new]) { s, _ in onChange(s) },
-            scroller.observe(\.isEnabled, options: [.new]) { s, _ in onChange(s) },
-        ]
-        updateScrollKnob(from: scroller)
-    }
-
-    /// Re-runs the knob layout using the current scroller state (e.g. after a resize).
-    func refreshScrollKnobLayout() {
-        guard let scroller = terminalScroller else { return }
-        updateScrollKnob(from: scroller)
-    }
-
-    /// Positions and shows/hides the custom scroll knob from the scroller's state.
-    private func updateScrollKnob(from scroller: NSScroller) {
-        guard scrollKnobView.superview === containerView else { return }
-
-        guard scroller.isEnabled else {
-            scrollKnobView.animator().alphaValue = 0
-            return
-        }
-
-        let bounds = containerView.bounds
-        guard bounds.width >= 10, bounds.height >= 10 else { return }
-
-        // Track lives inside the inset terminal area, along its right edge.
-        let terminalFrame = bounds.insetBy(
-            dx: notchTerminalInnerTextInset,
-            dy: notchTerminalInnerTextInset
-        )
-        let thickness = scrollKnobThickness
-        let trackTopY = terminalFrame.maxY - scrollKnobEndInset  // visual top (non-flipped)
-        let trackBottomY = terminalFrame.minY + scrollKnobEndInset
-        let trackHeight = max(0, trackTopY - trackBottomY)
-        guard trackHeight > thickness else {
-            scrollKnobView.animator().alphaValue = 0
-            return
-        }
-
-        let proportion = max(0.04, min(1.0, CGFloat(scroller.knobProportion)))
-        let knobHeight = max(thickness * 2, proportion * trackHeight)
-        let travel = max(0, trackHeight - knobHeight)
-        // doubleValue: 0 = top of scrollback, 1 = bottom (current); y grows upward.
-        let value = max(0, min(1, CGFloat(scroller.doubleValue)))
-        let knobMinY = trackBottomY + (1 - value) * travel
-        let x = terminalFrame.maxX - thickness - scrollKnobRightMargin
-
-        scrollKnobView.frame = NSRect(x: x, y: knobMinY, width: thickness, height: knobHeight)
-        scrollKnobView.layer?.cornerRadius = thickness / 2
-        scrollKnobView.animator().alphaValue = 1
+        view.subviews.first { $0 is NSScroller }?.isHidden = true
     }
 
     /// Updates font size on the live terminal view.
@@ -500,6 +493,7 @@ class TerminalManager: ObservableObject {
         guard let view = terminalView else { return }
         let fontFamily = Defaults[.terminalFontFamily]
         view.font = resolveFont(family: fontFamily, size: CGFloat(size))
+        view.setFrameSize(view.frame.size)
     }
 
     /// Updates font family on the live terminal view.
@@ -507,6 +501,7 @@ class TerminalManager: ObservableObject {
         guard let view = terminalView else { return }
         let fontSize = CGFloat(Defaults[.terminalFontSize])
         view.font = resolveFont(family: family, size: fontSize)
+        view.setFrameSize(view.frame.size)
     }
 
     /// Updates background opacity on the live terminal view (glyphs stay fully opaque).
