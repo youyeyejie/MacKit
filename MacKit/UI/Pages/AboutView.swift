@@ -13,7 +13,7 @@ struct AboutView: View {
             SettingsRows(title: "软件信息") {
                 SettingsRow(title: "软件版本") {
                     let version =
-                        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.11.4"
+                        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.11.5"
                     Link(
                         "v" + version,
                         destination: URL(string: "https://github.com/youyeyejie/MacKit/releases/tag/v" + version)!)

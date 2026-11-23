@@ -75,6 +75,7 @@ struct ContentView: View {
     @Default(.showLyricsBelowBuiltinNotch) private var persistentIslandLyricsOnly
     @Default(.hideNonNotchUntilHover) private var hideExternalUntilHover
     @State private var onlyBuiltinDisplay = BuiltinLyricAvailability.hasOnlyBuiltinDisplay
+    @State private var fullscreenMediaChecks: Set<MediaWindowCheck> = []
     @Default(.showOnAllDisplays) var showOnAllDisplays
     private let lowBatteryHUDStyle = NotchConfiguration.lowBatteryHUDStyle
     private let fullBatteryHUDStyle = NotchConfiguration.fullBatteryHUDStyle
@@ -190,6 +191,82 @@ struct ContentView: View {
         showStandardMediaControls && !enableMinimalisticUI
     }
 
+    private struct MediaWindowCheck: Hashable {
+        let bundleIdentifier: String
+        let screenName: String
+    }
+
+    private func mediaWindowCheck(on screenName: String) -> MediaWindowCheck? {
+        guard !musicManager.isPlayerIdle, !lockScreenManager.isLocked,
+            let bundleID = musicManager.bundleIdentifier, !bundleID.isEmpty
+        else { return nil }
+        return MediaWindowCheck(bundleIdentifier: bundleID, screenName: screenName)
+    }
+
+    private var fullscreenChecksToMonitor: [MediaWindowCheck] {
+        var checks: [MediaWindowCheck] = []
+        if vm.notchState == .closed,
+            (coordinator.musicLiveActivityEnabled && closedMusicContentEnabled) || lyricsPlaybackVisible,
+            let current = mediaWindowCheck(on: currentScreenName) {
+            checks.append(current)
+        }
+        if let builtinLyricFallbackCheck {
+            checks.append(builtinLyricFallbackCheck)
+        }
+        return checks
+    }
+
+    private var hideFullscreenMedia: Bool {
+        guard let check = mediaWindowCheck(on: currentScreenName) else { return false }
+        return fullscreenMediaChecks.contains(check)
+    }
+
+    private func monitorFullscreenMedia(_ checks: [MediaWindowCheck]) async {
+        guard !Task.isCancelled else { return }
+        if checks.isEmpty {
+            fullscreenMediaChecks = []
+            return
+        }
+
+        while !Task.isCancelled {
+            let fullscreen = Set(checks.filter(playerFillsDisplay))
+            if fullscreenMediaChecks != fullscreen { fullscreenMediaChecks = fullscreen }
+            do { try await Task.sleep(for: .milliseconds(700)) } catch { return }
+        }
+    }
+
+    private func playerFillsDisplay(_ check: MediaWindowCheck) -> Bool {
+        guard let screen = NSScreen.screens.first(where: { $0.localizedName == check.screenName }),
+            let displayID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
+        else { return false }
+
+        let pids = Set(NSRunningApplication.runningApplications(withBundleIdentifier: check.bundleIdentifier)
+            .map(\.processIdentifier))
+        guard !pids.isEmpty else { return false }
+        if let owner = CGSSpace.activeFullscreenOwner(on: displayID.uint32Value) {
+            return pids.contains(owner)
+        }
+        guard let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
+                as? [[String: Any]]
+        else { return false }
+
+        let display = CGDisplayBounds(displayID.uint32Value)
+        // Core Graphics uses the same top-origin coordinates for both rectangles.
+        let tolerance: CGFloat = 2
+        return windows.contains { window in
+            guard let pid = (window[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value,
+                pids.contains(pid), (window[kCGWindowLayer as String] as? Int) == 0,
+                let bounds = window[kCGWindowBounds as String] as? NSDictionary,
+                let frame = CGRect(dictionaryRepresentation: bounds)
+            else { return false }
+
+            return abs(frame.minX - display.minX) <= tolerance
+                && abs(frame.maxX - display.maxX) <= tolerance
+                && abs(frame.minY - display.minY) <= tolerance
+                && abs(frame.maxY - display.maxY) <= tolerance
+        }
+    }
+
     private var closedMusicContentEnabled: Bool {
         enableMinimalisticUI || showStandardMediaControls
     }
@@ -301,16 +378,33 @@ struct ContentView: View {
             && !musicManager.isPlayerIdle && !lockScreenManager.isLocked
     }
 
+    private var externalLyricsVisible: Bool {
+        (!persistentIslandLyricsOnly || hasPersistentExternalIsland) && lyricsPlaybackVisible && !isBuiltinScreen
+            && !hideFullscreenMedia
+    }
+
     private var routeLyricsToBuiltin: Bool {
         !persistentIslandLyricsOnly || !hasPersistentExternalIsland
     }
 
     private var builtinLyricShelfVisible: Bool {
-        guard lyricsPlaybackVisible, routeLyricsToBuiltin, vm.notchState == .closed,
+        guard lyricsPlaybackVisible, routeLyricsToBuiltin, vm.notchState == .closed, !hideFullscreenMedia,
             let screen = NSScreen.screens.first(where: { $0.localizedName == currentScreenName }),
             let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
         else { return false }
         return CGDisplayIsBuiltin(number.uint32Value) != 0
+    }
+
+    private var builtinLyricFallbackCheck: MediaWindowCheck? {
+        guard !showOnAllDisplays, !isBuiltinScreen, routeLyricsToBuiltin, lyricsPlaybackVisible,
+            Defaults[.notchEnabled],
+            let screen = NSScreen.screens.first(where: { screen in
+                guard let id = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
+                else { return false }
+                return CGDisplayIsBuiltin(id.uint32Value) != 0
+            })
+        else { return nil }
+        return mediaWindowCheck(on: screen.localizedName)
     }
 
     private var isNonNotchScreen: Bool {
@@ -636,9 +730,11 @@ struct ContentView: View {
             _ in
             onlyBuiltinDisplay = BuiltinLyricAvailability.hasOnlyBuiltinDisplay
         }
+        .task(id: fullscreenChecksToMonitor) { [fullscreenChecksToMonitor] in
+            await monitorFullscreenMedia(fullscreenChecksToMonitor)
+        }
         .background(BuiltinLyricFallbackPresenter(
-            isVisible: !showOnAllDisplays && !isBuiltinScreen && routeLyricsToBuiltin
-                && lyricsPlaybackVisible && Defaults[.notchEnabled],
+            isVisible: builtinLyricFallbackCheck.map { !fullscreenMediaChecks.contains($0) } ?? false,
             color: Color(nsColor: musicManager.avgColor)))
         .environmentObject(privacyManager)
         .background(dragDetector)
@@ -753,7 +849,8 @@ struct ContentView: View {
                                     : AnyTransition.opacity
                             )
                         } else if canShowMusicDuringExpansion && vm.notchState == .closed && !lockScreenManager.isLocked
-                            && !vm.hideOnClosed && (musicPairingEligible || !mediaIndicatorItems.isEmpty)
+                            && !vm.hideOnClosed
+                            && ((musicPairingEligible && !hideFullscreenMedia) || !mediaIndicatorItems.isEmpty)
                         {
                             MusicLiveActivity(secondary: musicSecondary)
                                 .id("closed-music-live-activity")
@@ -1034,8 +1131,7 @@ struct ContentView: View {
                                     (coordinator.expandingView.show && coordinator.expandingView.type == .music
                                         && NotchConfiguration.enableSneakPeek && Defaults[.sneakPeekStyles] == .inline)
                                         ? 1 : 0)
-                        } else if (!persistentIslandLyricsOnly || hasPersistentExternalIsland)
-                            && lyricsPlaybackVisible && !isBuiltinScreen
+                        } else if externalLyricsVisible
                         {
                             TimedLyricLine(
                                 width: max(0, effectiveCenterWidth - 16),
@@ -1129,6 +1225,7 @@ struct ContentView: View {
 
     private var closedMediaVisible: Bool {
         !musicManager.isPlayerIdle && coordinator.musicLiveActivityEnabled && closedMusicContentEnabled
+            && !hideFullscreenMedia
     }
 
     private var closedActivityCellSize: CGFloat { max(18, vm.effectiveClosedNotchHeight - 12) }
@@ -1169,7 +1266,8 @@ struct ContentView: View {
         closedWingWidth(for: closedActivityRightCount)
     }
     private var reminderActivityWingWidth: CGFloat {
-        max(closedActivityLeftWidth, closedActivityRightContentWidth)
+        if hideFullscreenMedia && closedActivityLeftCount == 0 && closedActivityRightCount == 0 { return 0 }
+        return max(closedActivityLeftWidth, closedActivityRightContentWidth)
     }
     private var closedActivityHorizontalOffset: CGFloat {
         guard vm.notchState == .closed, !lockScreenManager.isLocked,
@@ -1494,6 +1592,7 @@ struct ContentView: View {
 
     private var isClosedMusicContext: Bool {
         vm.notchState == .closed
+            && !hideFullscreenMedia
             && coordinator.musicLiveActivityEnabled
             && closedMusicContentEnabled
             && !vm.hideOnClosed

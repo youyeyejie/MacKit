@@ -21,11 +21,40 @@
  */
 
 import AppKit
+import Darwin
 
 /// Small Spaces API wrapper.
 public final class CGSSpace {
     private let identifier: CGSSpaceID
     private let createdByInit: Bool
+
+    private typealias CopyDisplaySpaces = @convention(c) (Int32) -> Unmanaged<CFArray>?
+    private static let copyDisplaySpaces: CopyDisplaySpaces? = {
+        guard let library = dlopen("/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight", RTLD_LAZY)
+        else { return nil }
+        guard let symbol = dlsym(library, "SLSCopyManagedDisplaySpaces") else {
+            dlclose(library)
+            return nil
+        }
+        return unsafeBitCast(symbol, to: CopyDisplaySpaces.self)
+    }()
+
+    static func activeFullscreenOwner(on displayID: CGDirectDisplayID) -> pid_t? {
+        guard let uuid = CGDisplayCreateUUIDFromDisplayID(displayID)?.takeRetainedValue(),
+            let identifier = CFUUIDCreateString(nil, uuid) as String?,
+            let displays = copyDisplaySpaces?(Int32(truncatingIfNeeded: _CGSDefaultConnection()))?
+                .takeRetainedValue() as? [[String: Any]],
+            let display = displays.first(where: { info in
+                guard let value = info["Display Identifier"] as? String else { return false }
+                return value.caseInsensitiveCompare(identifier) == .orderedSame
+                    || (value == "Main" && CGDisplayIsMain(displayID) != 0)
+            }),
+            let space = display["Current Space"] as? [String: Any],
+            (space["type"] as? NSNumber)?.intValue == 4,
+            let pid = (space["pid"] as? NSNumber)?.int32Value, pid > 0
+        else { return nil }
+        return pid
+    }
 
     public var windows: Set<NSWindow> = [] {
         didSet {
