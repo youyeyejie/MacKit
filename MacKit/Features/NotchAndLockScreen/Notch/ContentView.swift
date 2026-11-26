@@ -374,7 +374,7 @@ struct ContentView: View {
     }
 
     private var lyricsPlaybackVisible: Bool {
-        musicManager.lyricsReadyForCurrentTrack && !hidePausedLyrics
+        musicManager.lyricsReadyForCurrentTrack && musicManager.lyricBannerNearFirstLine && !hidePausedLyrics
             && !musicManager.isPlayerIdle && !lockScreenManager.isLocked
     }
 
@@ -980,7 +980,7 @@ struct ContentView: View {
                     .padding(.top, systemBannerVisible ? 6 : 2)
                     .padding(.bottom, 6)
                     .frame(width: lyricWidth).background(.black)
-                    .transition(.opacity)
+                    .transition(.move(edge: .top).combined(with: .opacity))
             }
             ZStack {
                 if vm.notchState == .open {

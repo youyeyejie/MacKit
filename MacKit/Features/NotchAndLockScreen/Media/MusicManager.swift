@@ -544,6 +544,8 @@ class MusicManager: ObservableObject {
 
     @Published var currentLyrics: String = ""
     @Published private(set) var lyricsReadyForCurrentTrack = false
+    @Published private(set) var lyricBannerNearFirstLine = false
+    private let lyricBannerLeadTime: TimeInterval = 0.75
     @Published var syncedLyrics: [LyricLine] = []
     @Published var showLyrics: Bool = false
     @Published var currentLyricIndex: Int = -1
@@ -1445,7 +1447,15 @@ class MusicManager: ObservableObject {
     }
 
     func updateCurrentLyric(for elapsedTime: TimeInterval) {
-        guard !syncedLyrics.isEmpty else { return }
+        guard let firstLine = syncedLyrics.first else { return }
+
+        // Use the playback clock so pausing or seeking also moves the reveal point.
+        let shouldShowBanner = elapsedTime + lyricBannerLeadTime >= firstLine.timestamp
+        if lyricBannerNearFirstLine != shouldShowBanner {
+            withAnimation(.smooth(duration: 0.25)) {
+                lyricBannerNearFirstLine = shouldShowBanner
+            }
+        }
 
         // Find the current lyric based on elapsed time
         var newIndex = -1
