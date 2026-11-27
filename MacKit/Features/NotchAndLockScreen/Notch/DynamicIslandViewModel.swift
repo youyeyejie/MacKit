@@ -234,6 +234,7 @@ class DynamicIslandViewModel: NSObject, ObservableObject {
 
         notchSize = targetSize
         notchState = .open
+        AtollAppDelegate.shared?.installExpandedNotchQuitShortcut()
 
         // Force music information update when notch is opened
         MusicManager.shared.forceUpdate()

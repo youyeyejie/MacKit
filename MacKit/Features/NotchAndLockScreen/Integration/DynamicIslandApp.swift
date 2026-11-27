@@ -56,6 +56,10 @@ class AtollAppDelegate: NSObject, NSApplicationDelegate {
     private var previousScreens: [NSScreen]?
     private var cancellables = Set<AnyCancellable>()
     private var windowsHiddenForLock = false
+    private var expandedNotchQuitTap: CFMachPort?
+    private var expandedNotchQuitSource: CFRunLoopSource?
+    private var expandedNotchLocalQuitMonitor: Any?
+    private var notchQuitRequested = false
 
     // Debouncing mechanism for window size updates
     private var windowSizeUpdateWorkItem: DispatchWorkItem?
@@ -111,6 +115,12 @@ class AtollAppDelegate: NSObject, NSApplicationDelegate {
     /// Setup observers for music player state changes to restart AudioTap capture
 
     func applicationWillTerminate(_ notification: Notification) {
+        if let expandedNotchLocalQuitMonitor { NSEvent.removeMonitor(expandedNotchLocalQuitMonitor) }
+        if let expandedNotchQuitTap { CFMachPortInvalidate(expandedNotchQuitTap) }
+        if let expandedNotchQuitSource {
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), expandedNotchQuitSource, .commonModes)
+        }
+
         SystemOSDManager.restoreImmediately()
         MusicManager.shared.shutdown()
         // Cancel any pending window size updates
@@ -121,6 +131,76 @@ class AtollAppDelegate: NSObject, NSApplicationDelegate {
 
         // Restore Lunar's native OSD if integration was active
         LunarManager.shared.appWillTerminate()
+    }
+
+    @MainActor
+    func installExpandedNotchQuitShortcut() {
+        if expandedNotchLocalQuitMonitor == nil {
+            expandedNotchLocalQuitMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                self?.requestQuitForExpandedNotch(event) == true ? nil : event
+            }
+        }
+        guard expandedNotchQuitTap == nil else { return }
+
+        // The nonactivating island can be open while another app owns focus.
+        // A single tap on the main run loop reads the live state of all islands.
+        let mask = CGEventMask(1 << CGEventType.keyDown.rawValue)
+        for location: CGEventTapLocation in [.cghidEventTap, .cgSessionEventTap] {
+            guard let tap = CGEvent.tapCreate(
+                tap: location, place: .headInsertEventTap, options: .defaultTap,
+                eventsOfInterest: mask, callback: { _, type, event, context in
+                    guard let context else { return Unmanaged.passUnretained(event) }
+                    let delegate = Unmanaged<AtollAppDelegate>.fromOpaque(context).takeUnretainedValue()
+                    let consumed = MainActor.assumeIsolated {
+                        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                            if let tap = delegate.expandedNotchQuitTap { CGEvent.tapEnable(tap: tap, enable: true) }
+                            return false
+                        }
+                        let modifiers = event.flags.intersection([.maskCommand, .maskControl, .maskAlternate, .maskShift])
+                        guard type == .keyDown, modifiers == .maskCommand, let key = NSEvent(cgEvent: event)
+                        else { return false }
+                        return delegate.requestQuitForExpandedNotch(key)
+                    }
+                    return consumed ? nil : Unmanaged.passUnretained(event)
+                },
+                userInfo: Unmanaged.passUnretained(self).toOpaque()
+            ), let source = CFMachPortCreateRunLoopSource(nil, tap, 0) else { continue }
+
+            expandedNotchQuitTap = tap
+            expandedNotchQuitSource = source
+            CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+            CGEvent.tapEnable(tap: tap, enable: true)
+            return
+        }
+    }
+
+    @MainActor
+    private func requestQuitForExpandedNotch(_ event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
+        let character = event.charactersIgnoringModifiers?.lowercased()
+        guard event.type == .keyDown, modifiers == .command,
+            (character == "q" || ((character?.isEmpty ?? true) && event.keyCode == 12)),
+            Defaults[.notchEnabled], !windowsHiddenForLock, !LockScreenManager.shared.isLocked,
+            hasVisibleExpandedNotch
+        else { return false }
+
+        if !notchQuitRequested {
+            notchQuitRequested = true
+            // Let the tap return before application shutdown invalidates it.
+            DispatchQueue.main.async { NSApp.terminate(nil) }
+        }
+        return true
+    }
+
+    @MainActor
+    private var hasVisibleExpandedNotch: Bool {
+        if Defaults[.showOnAllDisplays] {
+            return windows.contains { screen, window in
+                viewModels[screen]?.notchState == .open && window.isVisible && window.alphaValue >= 0.01
+            }
+        }
+        guard let window else { return false }
+        return vm.notchState == .open && window.isVisible && window.alphaValue >= 0.01
     }
 
     @objc func onScreenLocked(_: Notification) {

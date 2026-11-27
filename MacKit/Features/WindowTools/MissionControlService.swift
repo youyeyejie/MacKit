@@ -90,7 +90,11 @@ private final class MissionControlKeyFilter: @unchecked Sendable {
             if type == .keyUp { return held.remove(key) != nil }
             guard active, type == .keyDown else { return false }
             if held.contains(key) { return true }
-            guard modifiers == .maskCommand, key == 12 || key == 13 else { return false }
+            // Leave original strokes available to other event taps outside Mission Control.
+            guard modifiers == .maskCommand, key == 12 || key == 13,
+                event.getIntegerValueField(.keyboardEventAutorepeat) == 0,
+                MissionControlTarget.isPresented()
+            else { return false }
             held.insert(key)
             return true
         }
